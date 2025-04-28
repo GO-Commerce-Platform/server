@@ -1,0 +1,29 @@
+-- Initial schema for tenant management
+CREATE TABLE tenant (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    tenant_key VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(255) NOT NULL,
+    subdomain VARCHAR(100) NOT NULL UNIQUE,
+    status ENUM('ACTIVE', 'INACTIVE', 'SUSPENDED', 'TRIAL') NOT NULL DEFAULT 'TRIAL',
+    schema_name VARCHAR(50) NOT NULL UNIQUE,
+    billing_plan VARCHAR(50) NOT NULL DEFAULT 'BASIC',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    settings JSON,
+    CONSTRAINT uk_tenant_tenant_key UNIQUE (tenant_key),
+    CONSTRAINT uk_tenant_subdomain UNIQUE (subdomain),
+    CONSTRAINT uk_tenant_schema_name UNIQUE (schema_name)
+);
+
+CREATE TABLE tenant_admin (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    tenant_id BIGINT NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    status ENUM('ACTIVE', 'INACTIVE') NOT NULL DEFAULT 'ACTIVE',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_tenant_admin_tenant FOREIGN KEY (tenant_id) REFERENCES tenant(id) ON DELETE CASCADE
+);
