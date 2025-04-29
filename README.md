@@ -72,4 +72,9 @@ The complete documentation for this project is available in the [Wiki](https://g
 
 ## License
 
-This project is licensed under the Apache License 2.0
+This project is dual-licensed:
+
+- **For personal, educational, and non-commercial use**: GNU Affero General Public License v3.0 (AGPL-3.0)
+- **For commercial use**: A separate commercial license is required. Please see the [COMMERCIAL_LICENSE](./COMMERCIAL_LICENSE) file for details or contact us at contato@TioDaTI.dev
+
+For more details, please see the [LICENSE](./LICENSE) file.
