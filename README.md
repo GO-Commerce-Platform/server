@@ -14,6 +14,30 @@ GO-Commerce is a scalable, multi-tenant e-commerce platform designed to support 
 - **Messaging**: Apache Kafka for event-driven architecture
 - **Containerization**: Docker & Docker Compose
 
+## Development Phases
+
+The project is being developed in phases, starting with an MVP:
+
+### Phase 1: MVP
+- Multi-tenant foundation with schema-per-tenant approach
+- Core authentication with Keycloak integration
+- Basic product and inventory management
+- Essential customer profiles
+- Simple order processing
+- Standard pricing model
+
+### Phase 2: Advanced Features
+- Product kits and combos
+- Advanced inventory management
+- Flexible pricing and discount rules
+- Enhanced order workflows
+
+### Phase 3: Integration & Scale
+- Complete event-driven architecture
+- External system integrations
+- Performance optimizations
+- Advanced multi-tenancy features
+
 ## Documentation
 
 The complete documentation for this project is available in the [Wiki](https://github.com/aquele-dinho/GO-Commerce/wiki):
@@ -26,6 +50,7 @@ The complete documentation for this project is available in the [Wiki](https://g
 6. [Technical Solution Specification](https://github.com/aquele-dinho/GO-Commerce/wiki/05-Technical-Solution-Specification)
 7. [Data Model](https://github.com/aquele-dinho/GO-Commerce/wiki/06-Data-Model)
 8. [Test Plan](https://github.com/aquele-dinho/GO-Commerce/wiki/07-Test-Plan)
+9. [MVP Planning](https://github.com/aquele-dinho/GO-Commerce/wiki/08-MVP-Planning)
 
 ## Getting Started
 
