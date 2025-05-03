@@ -59,16 +59,58 @@ The complete documentation for this project is available in the [Wiki](https://g
    git clone https://github.com/aquele-dinho/GO-Commerce.git
    ```
 
-2. Start the containers
+2. Set up environment variables
+   - Review and update the `.env` file in the `docker` directory with your desired configuration settings
+
+3. Start the application with Docker
    ```
    cd gocommerce
-   docker-compose up -d
+   ./docker/run-docker.sh
+   ```
+   This script builds the application and starts all required containers:
+   - MariaDB (database)
+   - Keycloak and PostgreSQL (authentication)
+   - The Quarkus application
+
+4. Alternatively, run just the infrastructure in Docker and the application in dev mode
+   ```
+   # Start supporting services (database, Keycloak)
+   cd gocommerce
+   docker-compose --env-file ./docker/.env up -d
+
+   # Run the application in dev mode in a separate terminal
+   mvn quarkus:dev
    ```
 
-3. Run the application in dev mode
+5. To completely rebuild your environment (useful after pulling updates)
    ```
-   ./mvnw quarkus:dev
+   cd gocommerce
+   ./docker/rebuild-docker.sh
    ```
+
+6. To run tests with Docker dependencies
+   ```
+   cd gocommerce
+   ./docker/run-tests.sh        # Run standard tests
+   ./docker/run-tests.sh all    # Run all tests
+   ./docker/run-tests.sh integration  # Run integration tests
+   ```
+
+## Docker Structure
+
+The Docker configuration is organized as follows:
+- `/docker` - Contains all Docker-related files
+  - `.env` - Environment variables for all services
+  - `docker-compose.yml` - Defines all services (database, Keycloak, application)
+  - `app/` - Contains Dockerfiles for different deployment scenarios
+    - `Dockerfile.jvm` - For running the application in JVM mode
+    - `Dockerfile.native` - For running the application as a native executable
+    - `Dockerfile.legacy-jar` - For running with legacy JAR packaging
+    - `Dockerfile.native-micro` - For minimal native executable containers
+  - `keycloak-config/` - Contains Keycloak realm configuration
+  - `run-docker.sh` - Helper script to build and run the application
+  - `rebuild-docker.sh` - Script to tear down and rebuild the entire environment
+  - `run-tests.sh` - Script to run tests with required Docker dependencies
 
 ## License
 
