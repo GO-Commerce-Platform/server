@@ -42,5 +42,5 @@ nb-configuration.xml
 # Plugin directory
 /.quarkus/cli/plugins/
 
-/storage/
-/wrapper/
+/storage
+/wrapper
