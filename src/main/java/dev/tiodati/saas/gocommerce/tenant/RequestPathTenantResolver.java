@@ -2,14 +2,19 @@ package dev.tiodati.saas.gocommerce.tenant;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
-import io.quarkus.hibernate.orm.PersistenceUnitExtension; // Import the annotation
+import io.quarkus.hibernate.orm.PersistenceUnitExtension;
 import io.quarkus.hibernate.orm.runtime.tenant.TenantResolver;
 import io.vertx.ext.web.RoutingContext;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
-@PersistenceUnitExtension // Add this annotation
-@ApplicationScoped
+/**
+ * Example of a path-based tenant resolver.
+ * Currently DISABLED to avoid conflicts with TenantSchemaResolver.
+ * To enable, uncomment the @PersistenceUnitExtension and @ApplicationScoped annotations.
+ */
+// @PersistenceUnitExtension 
+// @ApplicationScoped
 public class RequestPathTenantResolver implements TenantResolver {
 
     // Inject RoutingContext to access request details
@@ -17,7 +22,7 @@ public class RequestPathTenantResolver implements TenantResolver {
     RoutingContext routingContext;
 
     // Optional: Inject a default tenant ID from application.properties
-    @ConfigProperty(name = "quarkus.hibernate-orm.database.default-tenant", defaultValue = "public") // Example default
+    @ConfigProperty(name = "quarkus.hibernate-orm.database.default-tenant", defaultValue = "public")
     String defaultTenantId;
 
     @Override
@@ -45,9 +50,6 @@ public class RequestPathTenantResolver implements TenantResolver {
         // For now, let's return the default tenant if not found in path
         return defaultTenantId;
     }
-
-    // Optional: Define a default tenant ID in application.properties
-    // quarkus.hibernate-orm.database.default-tenant=public
     
     @Override
     public String getDefaultTenantId() {
