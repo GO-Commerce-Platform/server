@@ -2,17 +2,22 @@ package dev.tiodati.saas.gocommerce.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,12 +26,14 @@ import org.mockito.Mockito;
 import dev.tiodati.saas.gocommerce.model.tenant.Tenant;
 import dev.tiodati.saas.gocommerce.model.tenant.TenantAdmin;
 import dev.tiodati.saas.gocommerce.model.tenant.TenantStatus;
+import dev.tiodati.saas.gocommerce.tenant.SchemaManager;
+import dev.tiodati.saas.gocommerce.tenant.TenantContext;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
-import jakarta.persistence.TypedQuery; // Ensure TypedQuery is imported
+import jakarta.persistence.TypedQuery;
 
 @QuarkusTest
 public class TenantServiceTest {
@@ -36,10 +43,12 @@ public class TenantServiceTest {
 
     @InjectMock
     EntityManager entityManager;
+    
+    @InjectMock
+    SchemaManager schemaManager;
 
     private Tenant testTenant;
     private TenantAdmin testAdmin;
-    // Use TypedQuery<Tenant> for the mock object
     private TypedQuery<Tenant> mockTypedQuery;
 
     @BeforeEach
@@ -60,8 +69,10 @@ public class TenantServiceTest {
         testAdmin.setFirstName("Test");
         testAdmin.setLastName("Admin");
 
-        // Mock TypedQuery<Tenant> specifically
         mockTypedQuery = Mockito.mock(TypedQuery.class);
+        
+        // Clear tenant context before each test
+        TenantContext.clear();
     }
 
     @Test
@@ -91,7 +102,7 @@ public class TenantServiceTest {
     }
 
     @Test
-    void testCreateTenant_shouldPersistTenantAndAdmin() {
+    void testCreateTenant_shouldCreateSchemaAndPersistTenant() throws SQLException {
         // Arrange
         Tenant newTenant = new Tenant();
         newTenant.setTenantKey("new-tenant");
@@ -112,8 +123,117 @@ public class TenantServiceTest {
         // Assert
         verify(entityManager).persist(newTenant);
         verify(entityManager).persist(newAdmin);
+        verify(schemaManager).createSchema("tenant_new-tenant");
         assertEquals("newsubdomain", newTenant.getSubdomain()); // Should be normalized to lowercase
-        assertEquals("tenant_new-tenant", newTenant.getSchemaName());
+    }
+    
+    @Test
+    void testCreateTenant_schemaCreationFailure_shouldThrowException() throws SQLException {
+        // Arrange
+        Tenant newTenant = new Tenant();
+        newTenant.setTenantKey("new-tenant");
+        newTenant.setName("New Tenant");
+        newTenant.setSubdomain("NewSubdomain");
+        newTenant.setSchemaName("tenant_new-tenant");
+
+        TenantAdmin newAdmin = new TenantAdmin();
+        
+        doThrow(new SQLException("Failed to create schema")).when(schemaManager).createSchema(anyString());
+
+        // Act & Assert
+        assertThrows(RuntimeException.class, () -> tenantService.createTenant(newTenant, newAdmin));
+    }
+    
+    @Test
+    void testExecuteInTenantContext_withReturnValue() {
+        // Arrange
+        String testSchemaName = "test_schema";
+        String expectedResult = "test_result";
+        
+        // Act
+        String result = tenantService.executeInTenantContext(testSchemaName, () -> {
+            // Verify context was set correctly
+            assertEquals(testSchemaName, TenantContext.getCurrentTenant());
+            return expectedResult;
+        });
+        
+        // Assert
+        assertEquals(expectedResult, result);
+        assertNull(TenantContext.getCurrentTenant()); // Context should be cleared after execution
+    }
+    
+    @Test
+    void testExecuteInTenantContext_voidVersion() {
+        // Arrange
+        String testSchemaName = "test_schema";
+        AtomicBoolean executed = new AtomicBoolean(false);
+        
+        // Set some initial context that should be restored
+        TenantContext.setCurrentTenant("previous_tenant");
+        
+        // Act
+        tenantService.executeInTenantContext(testSchemaName, () -> {
+            // Verify context was set correctly
+            assertEquals(testSchemaName, TenantContext.getCurrentTenant());
+            executed.set(true);
+        });
+        
+        // Assert
+        assertTrue(executed.get());
+        assertEquals("previous_tenant", TenantContext.getCurrentTenant()); // Previous context should be restored
+    }
+    
+    @Test
+    void testExecuteInTenantContext_preservesPreviousContextAfterExecution() {
+        // Arrange
+        String previousTenant = "previous_tenant";
+        String testSchemaName = "test_schema";
+        
+        TenantContext.setCurrentTenant(previousTenant);
+        
+        // Act
+        tenantService.executeInTenantContext(testSchemaName, () -> {
+            // Just do something in the context
+            return "done";
+        });
+        
+        // Assert - should restore previous context
+        assertEquals(previousTenant, TenantContext.getCurrentTenant());
+    }
+    
+    @Test
+    void testExecuteInTenantContext_clearsContextIfNoPrevious() {
+        // Arrange
+        String testSchemaName = "test_schema";
+        
+        // No previous context set
+        
+        // Act
+        tenantService.executeInTenantContext(testSchemaName, () -> {
+            // Just do something in the context
+            return "done";
+        });
+        
+        // Assert - should clear the context
+        assertNull(TenantContext.getCurrentTenant());
+    }
+    
+    @Test
+    void testExecuteInTenantContext_handlesExceptions() {
+        // Arrange
+        String testSchemaName = "test_schema";
+        RuntimeException testException = new RuntimeException("Test exception");
+        
+        // Act & Assert
+        RuntimeException thrown = assertThrows(RuntimeException.class, () -> {
+            tenantService.executeInTenantContext(testSchemaName, () -> {
+                throw testException;
+            });
+        });
+        
+        // Assert it's the same exception and context was cleaned
+        assertEquals(testException, thrown);
+        assertNull(TenantContext.getCurrentTenant());
     }
 
     @Test

@@ -3,6 +3,8 @@ package dev.tiodati.saas.gocommerce.service;
 import dev.tiodati.saas.gocommerce.model.tenant.Tenant;
 import dev.tiodati.saas.gocommerce.model.tenant.TenantAdmin;
 import dev.tiodati.saas.gocommerce.model.tenant.TenantStatus;
+import dev.tiodati.saas.gocommerce.tenant.SchemaManager;
+import dev.tiodati.saas.gocommerce.tenant.TenantContext;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
@@ -10,6 +12,7 @@ import jakarta.persistence.PersistenceException;
 import jakarta.transaction.Transactional;
 import org.jboss.logging.Logger;
 
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,6 +23,9 @@ public class TenantService {
     
     @Inject
     EntityManager em;
+    
+    @Inject
+    SchemaManager schemaManager;
     
     /**
      * Get a tenant by its ID
@@ -95,8 +101,12 @@ public class TenantService {
             admin.setTenant(tenant);
             em.persist(admin);
             
-            // Create schema for tenant (would normally create tables within this schema)
-            // This would be implemented with a dedicated migration service
+            // Create schema for tenant
+            try {
+                schemaManager.createSchema(tenant.getSchemaName());
+            } catch (SQLException e) {
+                throw new RuntimeException("Failed to create schema for tenant: " + tenant.getName(), e);
+            }
             
             LOG.info("Created new tenant: " + tenant.getName() + " with key: " + tenant.getTenantKey());
             return tenant;
@@ -139,5 +149,51 @@ public class TenantService {
         
         tenant.setStatus(status);
         return tenant;
+    }
+    
+    /**
+     * Execute a function within a specific tenant context
+     * @param <T> The return type of the function
+     * @param schemaName The tenant schema to use
+     * @param function The function to execute
+     * @return The result of the function execution
+     */
+    public <T> T executeInTenantContext(String schemaName, java.util.function.Supplier<T> function) {
+        String previousTenant = TenantContext.getCurrentTenant();
+        try {
+            // Set the tenant context for this execution
+            TenantContext.setCurrentTenant(schemaName);
+            // Execute the function in the tenant context
+            return function.get();
+        } finally {
+            // Restore previous tenant context
+            if (previousTenant != null) {
+                TenantContext.setCurrentTenant(previousTenant);
+            } else {
+                TenantContext.clear();
+            }
+        }
+    }
+    
+    /**
+     * Execute a function within a specific tenant context (void version)
+     * @param schemaName The tenant schema to use
+     * @param function The function to execute
+     */
+    public void executeInTenantContext(String schemaName, Runnable function) {
+        String previousTenant = TenantContext.getCurrentTenant();
+        try {
+            // Set the tenant context for this execution
+            TenantContext.setCurrentTenant(schemaName);
+            // Execute the function in the tenant context
+            function.run();
+        } finally {
+            // Restore previous tenant context
+            if (previousTenant != null) {
+                TenantContext.setCurrentTenant(previousTenant);
+            } else {
+                TenantContext.clear();
+            }
+        }
     }
 }
