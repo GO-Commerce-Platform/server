@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,18 +31,23 @@ public class TenantResourceIT {
     TenantService tenantService;
     
     private Tenant testTenant;
+    private UUID testTenantId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    private UUID tenant2Id = UUID.fromString("22222222-2222-2222-2222-222222222222");
+    private UUID tenant3Id = UUID.fromString("33333333-3333-3333-3333-333333333333");
 
     @BeforeEach
     void setUp() {
         // Setup test data
         testTenant = new Tenant();
-        testTenant.setId(1L);
+        testTenant.setId(testTenantId);
         testTenant.setTenantKey("test-tenant");
         testTenant.setName("Test Tenant");
         testTenant.setSubdomain("test");
         testTenant.setStatus(TenantStatus.ACTIVE);
         testTenant.setBillingPlan("BASIC");
         testTenant.setSchemaName("tenant_test-tenant");
+        testTenant.setDeleted(false);
+        testTenant.setVersion(1);
     }
 
     @Test
@@ -49,12 +55,14 @@ public class TenantResourceIT {
     void testListTenants() {
         // Arrange
         Tenant tenant2 = new Tenant();
-        tenant2.setId(2L);
+        tenant2.setId(tenant2Id);
         tenant2.setTenantKey("tenant2");
         tenant2.setName("Tenant 2");
         tenant2.setSubdomain("tenant2");
         tenant2.setStatus(TenantStatus.TRIAL);
         tenant2.setBillingPlan("PREMIUM");
+        tenant2.setDeleted(false);
+        tenant2.setVersion(1);
         
         when(tenantService.listAll()).thenReturn(Arrays.asList(testTenant, tenant2));
         
@@ -66,10 +74,10 @@ public class TenantResourceIT {
             .statusCode(200)
             .contentType(ContentType.JSON)
             .body("size()", is(2))
-            .body("[0].id", is(1))
+            .body("[0].id", is(testTenantId.toString()))
             .body("[0].tenantKey", is("test-tenant"))
             .body("[0].name", is("Test Tenant"))
-            .body("[1].id", is(2))
+            .body("[1].id", is(tenant2Id.toString()))
             .body("[1].tenantKey", is("tenant2"));
     }
     
@@ -77,16 +85,16 @@ public class TenantResourceIT {
     @TestSecurity(user = "admin", roles = {"admin"})
     void testGetTenant() {
         // Arrange
-        when(tenantService.findById(1L)).thenReturn(Optional.of(testTenant));
+        when(tenantService.findById(testTenantId)).thenReturn(Optional.of(testTenant));
         
         // Act & Assert
         given()
             .when()
-            .get("/api/admin/tenants/1")
+            .get("/api/admin/tenants/" + testTenantId)
             .then()
             .statusCode(200)
             .contentType(ContentType.JSON)
-            .body("id", is(1))
+            .body("id", is(testTenantId.toString()))
             .body("tenantKey", is("test-tenant"))
             .body("name", is("Test Tenant"))
             .body("subdomain", is("test"))
@@ -98,12 +106,13 @@ public class TenantResourceIT {
     @TestSecurity(user = "admin", roles = {"admin"})
     void testGetTenant_notFound() {
         // Arrange
-        when(tenantService.findById(999L)).thenReturn(Optional.empty());
+        UUID nonExistentId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        when(tenantService.findById(nonExistentId)).thenReturn(Optional.empty());
         
         // Act & Assert
         given()
             .when()
-            .get("/api/admin/tenants/999")
+            .get("/api/admin/tenants/" + nonExistentId)
             .then()
             .statusCode(404);
     }
@@ -126,12 +135,14 @@ public class TenantResourceIT {
         when(tenantService.findBySubdomain("new")).thenReturn(Optional.empty());
         
         Tenant createdTenant = new Tenant();
-        createdTenant.setId(3L);
+        createdTenant.setId(tenant3Id);
         createdTenant.setTenantKey("new-tenant");
         createdTenant.setName("New Tenant");
         createdTenant.setSubdomain("new");
         createdTenant.setStatus(TenantStatus.TRIAL);
         createdTenant.setBillingPlan("PREMIUM");
+        createdTenant.setDeleted(false);
+        createdTenant.setVersion(1);
         
         when(tenantService.createTenant(any(Tenant.class), any(TenantAdmin.class)))
                 .thenReturn(createdTenant);
@@ -144,9 +155,9 @@ public class TenantResourceIT {
             .post("/api/admin/tenants")
             .then()
             .statusCode(201)
-            .header("Location", is("/api/admin/tenants/3"))
+            .header("Location", is("/api/admin/tenants/" + tenant3Id))
             .contentType(ContentType.JSON)
-            .body("id", is(3))
+            .body("id", is(tenant3Id.toString()))
             .body("tenantKey", is("new-tenant"))
             .body("name", is("New Tenant"))
             .body("subdomain", is("new"))
@@ -233,7 +244,7 @@ public class TenantResourceIT {
     void testUpdateTenant() {
         // Arrange
         Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("id", 1);
+        requestBody.put("id", testTenantId.toString());
         requestBody.put("tenantKey", "test-tenant");  // Cannot be changed
         requestBody.put("name", "Updated Name");
         requestBody.put("subdomain", "test");
@@ -241,14 +252,16 @@ public class TenantResourceIT {
         requestBody.put("billingPlan", "PREMIUM");
         
         Tenant updatedTenant = new Tenant();
-        updatedTenant.setId(1L);
+        updatedTenant.setId(testTenantId);
         updatedTenant.setTenantKey("test-tenant");
         updatedTenant.setName("Updated Name");
         updatedTenant.setSubdomain("test");
         updatedTenant.setStatus(TenantStatus.INACTIVE);
         updatedTenant.setBillingPlan("PREMIUM");
+        updatedTenant.setDeleted(false);
+        updatedTenant.setVersion(2);
         
-        when(tenantService.findById(1L)).thenReturn(Optional.of(testTenant));
+        when(tenantService.findById(testTenantId)).thenReturn(Optional.of(testTenant));
         when(tenantService.updateTenant(any(Tenant.class))).thenReturn(updatedTenant);
         
         // Act & Assert
@@ -256,11 +269,11 @@ public class TenantResourceIT {
             .contentType(ContentType.JSON)
             .body(requestBody)
             .when()
-            .put("/api/admin/tenants/1")
+            .put("/api/admin/tenants/" + testTenantId)
             .then()
             .statusCode(200)
             .contentType(ContentType.JSON)
-            .body("id", is(1))
+            .body("id", is(testTenantId.toString()))
             .body("name", is("Updated Name"))
             .body("status", is("INACTIVE"))
             .body("billingPlan", is("PREMIUM"));
@@ -270,18 +283,19 @@ public class TenantResourceIT {
     @TestSecurity(user = "admin", roles = {"admin"})
     void testUpdateTenant_notFound() {
         // Arrange
+        UUID nonExistentId = UUID.fromString("99999999-9999-9999-9999-999999999999");
         Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("id", 999);
+        requestBody.put("id", nonExistentId.toString());
         requestBody.put("name", "Update Attempt");
         
-        when(tenantService.findById(999L)).thenReturn(Optional.empty());
+        when(tenantService.findById(nonExistentId)).thenReturn(Optional.empty());
         
         // Act & Assert
         given()
             .contentType(ContentType.JSON)
             .body(requestBody)
             .when()
-            .put("/api/admin/tenants/999")
+            .put("/api/admin/tenants/" + nonExistentId)
             .then()
             .statusCode(404);
     }
@@ -291,7 +305,7 @@ public class TenantResourceIT {
     void testUpdateTenant_subdomainAlreadyExists() {
         // Arrange
         Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("id", 1);
+        requestBody.put("id", testTenantId.toString());
         requestBody.put("tenantKey", "test-tenant");
         requestBody.put("name", "Updated Name");
         requestBody.put("subdomain", "existing-subdomain"); // Try to update to an existing subdomain
@@ -299,10 +313,10 @@ public class TenantResourceIT {
         requestBody.put("billingPlan", "BASIC");
         
         Tenant otherTenant = new Tenant();
-        otherTenant.setId(2L);
+        otherTenant.setId(tenant2Id);
         otherTenant.setSubdomain("existing-subdomain");
         
-        when(tenantService.findById(1L)).thenReturn(Optional.of(testTenant)); // Original tenant exists
+        when(tenantService.findById(testTenantId)).thenReturn(Optional.of(testTenant)); // Original tenant exists
         when(tenantService.findBySubdomain("existing-subdomain")).thenReturn(Optional.of(otherTenant)); // Subdomain taken
         
         // Act & Assert
@@ -310,7 +324,7 @@ public class TenantResourceIT {
             .contentType(ContentType.JSON)
             .body(requestBody)
             .when()
-            .put("/api/admin/tenants/1")
+            .put("/api/admin/tenants/" + testTenantId)
             .then()
             .statusCode(409)
             .contentType(ContentType.JSON)
@@ -324,19 +338,21 @@ public class TenantResourceIT {
         Map<String, String> requestBody = Collections.singletonMap("status", "INACTIVE");
         
         Tenant updatedTenant = new Tenant();
-        updatedTenant.setId(1L);
+        updatedTenant.setId(testTenantId);
         updatedTenant.setTenantKey("test-tenant");
         updatedTenant.setName("Test Tenant");
         updatedTenant.setStatus(TenantStatus.INACTIVE);
+        updatedTenant.setDeleted(false);
+        updatedTenant.setVersion(2);
         
-        when(tenantService.updateTenantStatus(1L, TenantStatus.INACTIVE)).thenReturn(updatedTenant);
+        when(tenantService.updateTenantStatus(testTenantId, TenantStatus.INACTIVE)).thenReturn(updatedTenant);
         
         // Act & Assert
         given()
             .contentType(ContentType.JSON)
             .body(requestBody)
             .when()
-            .patch("/api/admin/tenants/1/status")
+            .patch("/api/admin/tenants/" + testTenantId + "/status")
             .then()
             .statusCode(200)
             .contentType(ContentType.JSON)
@@ -354,7 +370,7 @@ public class TenantResourceIT {
             .contentType(ContentType.JSON)
             .body(requestBody)
             .when()
-            .patch("/api/admin/tenants/1/status")
+            .patch("/api/admin/tenants/" + testTenantId + "/status")
             .then()
             .statusCode(400)
             .contentType(ContentType.JSON)
@@ -365,11 +381,11 @@ public class TenantResourceIT {
     @TestSecurity(user = "admin", roles = {"admin"})
     void testUpdateTenantStatus_notFound() {
         // Arrange
+        UUID nonExistentId = UUID.fromString("99999999-9999-9999-9999-999999999999");
         Map<String, String> requestBody = Collections.singletonMap("status", "INACTIVE");
         
         // Simulate service throwing exception or returning empty/null when tenant not found
-        // The resource translates this to a 404 or appropriate error
-        when(tenantService.updateTenantStatus(999L, TenantStatus.INACTIVE))
+        when(tenantService.updateTenantStatus(nonExistentId, TenantStatus.INACTIVE))
             .thenThrow(new jakarta.ws.rs.NotFoundException("Tenant not found"));
             
         // Act & Assert
@@ -377,7 +393,7 @@ public class TenantResourceIT {
             .contentType(ContentType.JSON)
             .body(requestBody)
             .when()
-            .patch("/api/admin/tenants/999/status")
+            .patch("/api/admin/tenants/" + nonExistentId + "/status")
             .then()
             .statusCode(404);
     }
@@ -394,7 +410,7 @@ public class TenantResourceIT {
         // Get tenant without authentication
         given()
             .when()
-            .get("/api/admin/tenants/1")
+            .get("/api/admin/tenants/" + testTenantId)
             .then()
             .statusCode(401);
             

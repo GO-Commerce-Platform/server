@@ -5,6 +5,7 @@ import org.jboss.logging.Logger;
 import dev.tiodati.saas.gocommerce.model.tenant.Tenant;
 import dev.tiodati.saas.gocommerce.tenant.TenantContext;
 import io.quarkus.arc.lookup.LookupIfProperty;
+import io.quarkus.hibernate.orm.PersistenceUnitExtension;
 import io.quarkus.hibernate.orm.runtime.tenant.TenantResolver;
 import io.quarkus.vertx.http.runtime.CurrentVertxRequest;
 import io.vertx.ext.web.RoutingContext;
@@ -14,7 +15,8 @@ import jakarta.persistence.EntityManager;
 
 @LookupIfProperty(name = "quarkus.hibernate-orm.multitenant", stringValue = "SCHEMA")
 @RequestScoped
-// Remove the specific persistence unit extension to make this resolver work with the default unit
+@PersistenceUnitExtension
+// Added @PersistenceUnitExtension to fix the warning about future compatibility
 public class TenantSchemaResolver implements TenantResolver {
     
     private static final Logger LOG = Logger.getLogger(TenantSchemaResolver.class);

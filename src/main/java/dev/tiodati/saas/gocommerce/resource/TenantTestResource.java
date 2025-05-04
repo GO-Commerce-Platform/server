@@ -4,6 +4,7 @@ import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import dev.tiodati.saas.gocommerce.tenant.TenantContext;
+import io.quarkus.hibernate.orm.PersistenceUnitExtension;
 import io.quarkus.hibernate.orm.runtime.tenant.TenantResolver;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.GET;
@@ -27,6 +28,7 @@ import java.util.Map;
 public class TenantTestResource {
     
     @Inject
+    @PersistenceUnitExtension
     TenantResolver tenantResolver;
     
     @GET

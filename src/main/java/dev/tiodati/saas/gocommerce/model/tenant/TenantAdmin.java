@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "tenant_admin")
@@ -16,8 +17,9 @@ import java.time.Instant;
 public class TenantAdmin extends PanacheEntityBase {
     
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id", columnDefinition = "BINARY(16)")
+    private UUID id;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tenant_id", nullable = false)
@@ -38,6 +40,12 @@ public class TenantAdmin extends PanacheEntityBase {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private TenantAdminStatus status = TenantAdminStatus.ACTIVE;
+    
+    @Column(name = "is_deleted", nullable = false)
+    private boolean isDeleted = false;
+    
+    @Version
+    private int version;
     
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;

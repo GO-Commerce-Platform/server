@@ -2,10 +2,8 @@ package dev.tiodati.saas.gocommerce.tenant;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
-import io.quarkus.hibernate.orm.PersistenceUnitExtension;
 import io.quarkus.hibernate.orm.runtime.tenant.TenantResolver;
 import io.vertx.ext.web.RoutingContext;
-import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 /**
