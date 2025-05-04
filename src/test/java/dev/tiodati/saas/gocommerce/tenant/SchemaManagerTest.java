@@ -15,7 +15,6 @@ import java.sql.Statement;
 import javax.sql.DataSource;
 
 import org.flywaydb.core.api.FlywayException;
-import org.jboss.logging.Logger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

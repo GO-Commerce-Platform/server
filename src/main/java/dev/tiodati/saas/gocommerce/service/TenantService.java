@@ -15,22 +15,29 @@ import org.jboss.logging.Logger;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @ApplicationScoped
+@Transactional
 public class TenantService {
 
     private static final Logger LOG = Logger.getLogger(TenantService.class);
     
-    @Inject
-    EntityManager em;
+    private final EntityManager em;
+    private final SchemaManager schemaManager;
+    private final TenantSettingsService settingsService;
     
     @Inject
-    SchemaManager schemaManager;
+    public TenantService(EntityManager em, SchemaManager schemaManager, TenantSettingsService settingsService) {
+        this.em = em;
+        this.schemaManager = schemaManager;
+        this.settingsService = settingsService;
+    }
     
     /**
      * Get a tenant by its ID
      */
-    public Optional<Tenant> findById(Long id) {
+    public Optional<Tenant> findById(UUID id) {
         Tenant tenant = em.find(Tenant.class, id);
         return Optional.ofNullable(tenant);
     }
@@ -71,14 +78,23 @@ public class TenantService {
      * List all tenants
      */
     public List<Tenant> listAll() {
-        return em.createQuery("SELECT t FROM Tenant t ORDER BY t.name", Tenant.class)
+        return em.createQuery("SELECT t FROM Tenant t WHERE t.isDeleted = false ORDER BY t.name", Tenant.class)
+                .getResultList();
+    }
+    
+    /**
+     * List all active tenants
+     */
+    public List<Tenant> listActive() {
+        return em.createQuery(
+                "SELECT t FROM Tenant t WHERE t.status = :status AND t.isDeleted = false ORDER BY t.name", Tenant.class)
+                .setParameter("status", TenantStatus.ACTIVE)
                 .getResultList();
     }
     
     /**
      * Create a new tenant with default schema and admin user
      */
-    @Transactional
     public Tenant createTenant(Tenant tenant, TenantAdmin admin) {
         if (tenant.getId() != null) {
             throw new IllegalArgumentException("New tenant cannot have an ID");
@@ -93,6 +109,9 @@ public class TenantService {
         }
         
         try {
+            // Apply default settings
+            tenant = settingsService.applyDefaultSettings(tenant);
+            
             // Persist the tenant
             em.persist(tenant);
             em.flush(); // Ensure ID is generated
@@ -119,7 +138,6 @@ public class TenantService {
     /**
      * Update an existing tenant
      */
-    @Transactional
     public Tenant updateTenant(Tenant tenant) {
         if (tenant.getId() == null) {
             throw new IllegalArgumentException("Cannot update tenant without ID");
@@ -140,8 +158,7 @@ public class TenantService {
     /**
      * Change tenant status
      */
-    @Transactional
-    public Tenant updateTenantStatus(Long tenantId, TenantStatus status) {
+    public Tenant updateTenantStatus(UUID tenantId, TenantStatus status) {
         Tenant tenant = em.find(Tenant.class, tenantId);
         if (tenant == null) {
             throw new IllegalArgumentException("Tenant not found with ID: " + tenantId);
@@ -149,6 +166,17 @@ public class TenantService {
         
         tenant.setStatus(status);
         return tenant;
+    }
+    
+    /**
+     * Soft delete a tenant
+     */
+    public void deleteTenant(UUID id) {
+        Tenant tenant = em.find(Tenant.class, id);
+        if (tenant != null) {
+            tenant.setDeleted(true);
+            em.merge(tenant);
+        }
     }
     
     /**

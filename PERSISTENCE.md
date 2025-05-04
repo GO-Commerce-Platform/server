@@ -20,26 +20,30 @@ The system is designed as a multi-tenant application where each tenant represent
 
 ```sql
 CREATE TABLE tenant (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    id VARCHAR(36) PRIMARY KEY,
     tenant_key VARCHAR(50) NOT NULL UNIQUE,
     name VARCHAR(255) NOT NULL,
     subdomain VARCHAR(100) NOT NULL UNIQUE,
     status ENUM('ACTIVE', 'INACTIVE', 'SUSPENDED', 'TRIAL') NOT NULL DEFAULT 'TRIAL',
     schema_name VARCHAR(50) NOT NULL UNIQUE,
     billing_plan VARCHAR(50) NOT NULL DEFAULT 'BASIC',
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    version INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     settings JSON
 );
 
 CREATE TABLE tenant_admin (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    tenant_id BIGINT NOT NULL,
+    id VARCHAR(36) PRIMARY KEY,
+    tenant_id VARCHAR(36) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     status ENUM('ACTIVE', 'INACTIVE') NOT NULL DEFAULT 'ACTIVE',
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    version INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_tenant_admin_tenant FOREIGN KEY (tenant_id) REFERENCES tenant(id) ON DELETE CASCADE
@@ -94,11 +98,13 @@ Each tenant has their own settings stored in the JSON `settings` column, which m
 
 ```sql
 CREATE TABLE customer (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    id VARCHAR(36) PRIMARY KEY,
     type ENUM('INDIVIDUAL', 'COMPANY') NOT NULL,
     status ENUM('ACTIVE', 'INACTIVE', 'BLOCKED') NOT NULL DEFAULT 'ACTIVE',
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    version INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     phone VARCHAR(20),
@@ -106,7 +112,7 @@ CREATE TABLE customer (
 );
 
 CREATE TABLE individual_customer (
-    customer_id BIGINT PRIMARY KEY,
+    customer_id VARCHAR(36) PRIMARY KEY,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     document_number VARCHAR(20) NOT NULL UNIQUE,
@@ -115,7 +121,7 @@ CREATE TABLE individual_customer (
 );
 
 CREATE TABLE company_customer (
-    customer_id BIGINT PRIMARY KEY,
+    customer_id VARCHAR(36) PRIMARY KEY,
     company_name VARCHAR(255) NOT NULL,
     trade_name VARCHAR(255),
     tax_id VARCHAR(30) NOT NULL UNIQUE,
@@ -129,8 +135,8 @@ CREATE TABLE company_customer (
 
 ```sql
 CREATE TABLE address (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    customer_id BIGINT NOT NULL,
+    id VARCHAR(36) PRIMARY KEY,
+    customer_id VARCHAR(36) NOT NULL,
     name VARCHAR(50) NOT NULL,
     recipient VARCHAR(150) NOT NULL,
     street VARCHAR(255) NOT NULL,
@@ -144,6 +150,8 @@ CREATE TABLE address (
     is_default BOOLEAN NOT NULL DEFAULT FALSE,
     is_billing BOOLEAN NOT NULL DEFAULT FALSE,
     is_shipping BOOLEAN NOT NULL DEFAULT FALSE,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    version INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_address_customer FOREIGN KEY (customer_id) REFERENCES customer(id) ON DELETE CASCADE
@@ -154,18 +162,20 @@ CREATE TABLE address (
 
 ```sql
 CREATE TABLE product_category (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    id VARCHAR(36) PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     description TEXT,
-    parent_id BIGINT,
+    parent_id VARCHAR(36),
     active BOOLEAN NOT NULL DEFAULT TRUE,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    version INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_category_parent FOREIGN KEY (parent_id) REFERENCES product_category(id) ON DELETE CASCADE
 );
 
 CREATE TABLE product (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    id VARCHAR(36) PRIMARY KEY,
     sku VARCHAR(100) NOT NULL UNIQUE,
     name VARCHAR(255) NOT NULL,
     description TEXT,
@@ -174,8 +184,10 @@ CREATE TABLE product (
     weight DECIMAL(10,2),
     dimensions JSON, -- {"length": 10, "width": 5, "height": 2} in cm
     attributes JSON, -- Flexible attributes schema
-    category_id BIGINT,
+    category_id VARCHAR(36),
     active BOOLEAN NOT NULL DEFAULT TRUE,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    version INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT uk_product_sku UNIQUE (sku),
@@ -183,11 +195,12 @@ CREATE TABLE product (
 );
 
 CREATE TABLE product_inventory (
-    product_id BIGINT PRIMARY KEY,
+    product_id VARCHAR(36) PRIMARY KEY,
     quantity_available INT NOT NULL DEFAULT 0,
     reorder_level INT NOT NULL DEFAULT 5,
     last_restock_date TIMESTAMP,
     reserved_quantity INT NOT NULL DEFAULT 0,
+    version INT NOT NULL DEFAULT 0,
     CONSTRAINT fk_inventory_product FOREIGN KEY (product_id) REFERENCES product(id) ON DELETE CASCADE
 );
 ```
@@ -196,7 +209,7 @@ CREATE TABLE product_inventory (
 
 ```sql
 CREATE TABLE price_list (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    id VARCHAR(36) PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     description TEXT,
     priority INT NOT NULL DEFAULT 0,
@@ -204,17 +217,20 @@ CREATE TABLE price_list (
     valid_from TIMESTAMP,
     valid_to TIMESTAMP,
     customer_type ENUM('ALL', 'INDIVIDUAL', 'COMPANY') NOT NULL DEFAULT 'ALL',
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    version INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 CREATE TABLE product_price (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    product_id BIGINT NOT NULL,
-    price_list_id BIGINT NOT NULL,
+    id VARCHAR(36) PRIMARY KEY,
+    product_id VARCHAR(36) NOT NULL,
+    price_list_id VARCHAR(36) NOT NULL,
     base_price DECIMAL(10,2) NOT NULL,
     sale_price DECIMAL(10,2),
     currency VARCHAR(3) NOT NULL DEFAULT 'USD',
+    version INT NOT NULL DEFAULT 0,
     CONSTRAINT uk_product_price UNIQUE (product_id, price_list_id),
     CONSTRAINT fk_price_product FOREIGN KEY (product_id) REFERENCES product(id) ON DELETE CASCADE,
     CONSTRAINT fk_price_list FOREIGN KEY (price_list_id) REFERENCES price_list(id) ON DELETE CASCADE
@@ -225,20 +241,22 @@ CREATE TABLE product_price (
 
 ```sql
 CREATE TABLE product_kit (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    id VARCHAR(36) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     description TEXT,
     sku VARCHAR(100) NOT NULL UNIQUE,
     active BOOLEAN NOT NULL DEFAULT TRUE,
     discount_type ENUM('PERCENTAGE', 'FIXED') NOT NULL DEFAULT 'PERCENTAGE',
     discount_value DECIMAL(10,2) NOT NULL DEFAULT 0,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    version INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 CREATE TABLE product_kit_item (
-    kit_id BIGINT NOT NULL,
-    product_id BIGINT NOT NULL,
+    kit_id VARCHAR(36) NOT NULL,
+    product_id VARCHAR(36) NOT NULL,
     quantity INT NOT NULL DEFAULT 1,
     CONSTRAINT pk_kit_item PRIMARY KEY (kit_id, product_id),
     CONSTRAINT fk_kit_item_kit FOREIGN KEY (kit_id) REFERENCES product_kit(id) ON DELETE CASCADE,
@@ -250,19 +268,21 @@ CREATE TABLE product_kit_item (
 
 ```sql
 CREATE TABLE customer_order (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    customer_id BIGINT NOT NULL,
+    id VARCHAR(36) PRIMARY KEY,
+    customer_id VARCHAR(36) NOT NULL,
     order_number VARCHAR(50) NOT NULL UNIQUE,
     status ENUM('DRAFT', 'PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELED', 'RETURNED') NOT NULL,
     total_amount DECIMAL(10,2) NOT NULL,
     shipping_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
     tax_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
     discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
-    billing_address_id BIGINT,
-    shipping_address_id BIGINT,
+    billing_address_id VARCHAR(36),
+    shipping_address_id VARCHAR(36),
     payment_method VARCHAR(50),
     payment_status ENUM('PENDING', 'AUTHORIZED', 'PAID', 'REFUNDED', 'FAILED') NOT NULL,
     notes TEXT,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    version INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT uk_order_number UNIQUE (order_number),
@@ -272,15 +292,17 @@ CREATE TABLE customer_order (
 );
 
 CREATE TABLE order_item (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    order_id BIGINT NOT NULL,
-    product_id BIGINT,
-    kit_id BIGINT,
+    id VARCHAR(36) PRIMARY KEY,
+    order_id VARCHAR(36) NOT NULL,
+    product_id VARCHAR(36),
+    kit_id VARCHAR(36),
     product_name VARCHAR(255) NOT NULL, -- Denormalized for historical record
     quantity INT NOT NULL,
     unit_price DECIMAL(10,2) NOT NULL,
     discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
     total_price DECIMAL(10,2) NOT NULL,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    version INT NOT NULL DEFAULT 0,
     CONSTRAINT fk_order_item_order FOREIGN KEY (order_id) REFERENCES customer_order(id) ON DELETE CASCADE,
     CONSTRAINT fk_order_item_product FOREIGN KEY (product_id) REFERENCES product(id),
     CONSTRAINT fk_order_item_kit FOREIGN KEY (kit_id) REFERENCES product_kit(id),
@@ -304,13 +326,15 @@ import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "product")
 public class Product extends PanacheEntityBase {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    public Long id; // Panache convention often uses public fields
+    @GeneratedValue
+    @Column(columnDefinition = "uuid")
+    public UUID id; // Using UUID instead of Long
 
     // Tenant identity is managed by the schema
 
@@ -344,6 +368,12 @@ public class Product extends PanacheEntityBase {
 
     @Column(nullable = false)
     public boolean active = true;
+    
+    @Column(name = "is_deleted", nullable = false)
+    public boolean isDeleted = false;
+    
+    @Version
+    public int version;
 
     @Column(name = "created_at", updatable = false)
     public Instant createdAt;
@@ -375,13 +405,15 @@ package dev.tiodati.saas.gocommerce.model; // Correct package
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "tenant") // This table resides in the default/shared schema
 public class Tenant extends PanacheEntityBase {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    public Long id;
+    @GeneratedValue
+    @Column(columnDefinition = "uuid")
+    public UUID id;
 
     @Column(name = "tenant_key", nullable = false, unique = true)
     public String tenantKey;
@@ -401,6 +433,12 @@ public class Tenant extends PanacheEntityBase {
 
     @Column(name = "billing_plan", nullable = false)
     public String billingPlan;
+    
+    @Column(name = "is_deleted", nullable = false)
+    public boolean isDeleted = false;
+    
+    @Version
+    public int version;
 
     @Column(columnDefinition = "json")
     public String settings;

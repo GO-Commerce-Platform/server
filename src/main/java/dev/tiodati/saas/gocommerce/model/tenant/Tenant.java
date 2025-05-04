@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "tenant")
@@ -16,8 +17,9 @@ import java.time.Instant;
 public class Tenant extends PanacheEntityBase {
     
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id", columnDefinition = "BINARY(16)")
+    private UUID id;
     
     @Column(name = "tenant_key", nullable = false, unique = true)
     private String tenantKey;
@@ -40,6 +42,12 @@ public class Tenant extends PanacheEntityBase {
     
     @Column(columnDefinition = "json")
     private String settings;
+    
+    @Column(name = "is_deleted", nullable = false)
+    private boolean isDeleted = false;
+    
+    @Version
+    private int version;
     
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;
