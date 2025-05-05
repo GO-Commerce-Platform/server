@@ -2,7 +2,6 @@ services:
   # MariaDB Database
   mariadb:
     image: mariadb:11.2
-    container_name: gocommerce-mariadb
     restart: unless-stopped
     environment:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD} # No default, should be set in .env
@@ -24,7 +23,6 @@ services:
   # Keycloak for Authentication
   keycloak:
     image: quay.io/keycloak/keycloak:latest
-    container_name: gocommerce-keycloak
     volumes:
       - ./storage/keycloak/providers:/opt/keycloak/providers
       - ./docker/keycloak-config:/opt/keycloak/data/import
@@ -32,11 +30,11 @@ services:
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://keycloak-db:5432/${KEYCLOAK_DB_SCHEMA:-keycloak}
-      KC_DB_USERNAME: ${KEYCLOAK_DB_USERNAME}
-      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USERNAME:-keycloak}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak}
       # Admin user for initial setup (using recommended environment variables)
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-adminpass}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
       # Runtime configuration
       KC_HOSTNAME: localhost # Adjust if needed for external access simulation
       KC_HTTP_PORT: ${KEYCLOAK_PORT:-9000} # Ensure internal port matches command
@@ -55,15 +53,14 @@ services:
 
   keycloak-db:
     image: postgres:latest
-    container_name: gocommerce-keycloak-db
     volumes:
       - ./storage/keycloak-db:/var/lib/postgresql/data
     environment:
       POSTGRES_DB: ${KEYCLOAK_DB_SCHEMA:-keycloak}
-      POSTGRES_USER: ${KEYCLOAK_DB_USERNAME}
-      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      POSTGRES_USER: ${KEYCLOAK_DB_USERNAME:-keycloak}
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${KEYCLOAK_DB_USERNAME}"]
+      test: ["CMD-SHELL", "pg_isready -U ${KEYCLOAK_DB_USERNAME:-keycloak}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -73,9 +70,8 @@ services:
   # Quarkus Application
   app:
     build:
-      context: .
-      dockerfile: docker/app/Dockerfile.jvm
-    container_name: gocommerce-app
+      context: ..
+      dockerfile: ./docker/app/Dockerfile.jvm
     depends_on:
       mariadb:
         condition: service_healthy

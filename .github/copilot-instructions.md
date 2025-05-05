@@ -93,6 +93,7 @@ GO-Commerce is a multi-tenant e-commerce SaaS platform built with Quarkus and ev
 - **Methods/Variables**: camelCase (e.g., `getProductById`)
 - **Constants**: UPPER_SNAKE_CASE (e.g., `DEFAULT_PAGE_SIZE`)
 - **Database Tables**: snake_case (e.g., `product_category`)
+- **Deprecated Approach**: try not to use Deprecated elements
 
 ### API Conventions
 - RESTful endpoints following standard HTTP methods
