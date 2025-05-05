@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- OAuth2 authentication flow with Keycloak integration
+  - Created authentication endpoints for login, token refresh, and logout
+  - Implemented JWT token validation and handling
+  - Added support for role extraction from tokens
+  - Integrated with Keycloak as the authentication provider
+  - Implemented comprehensive test coverage for authentication flow
+
 - Internationalization (i18n) framework with support for English, Spanish, Brazilian Portuguese (pt_BR) and Portuguese
   - Implemented message bundles for all four languages
   - Created `MessageService` for accessing localized messages
