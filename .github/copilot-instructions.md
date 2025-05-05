@@ -101,6 +101,51 @@ GO-Commerce is a multi-tenant e-commerce SaaS platform built with Quarkus and ev
 - JSON request/response bodies
 - OpenAPI documentation for all endpoints
 
+## Issue Workflow
+
+### Starting an Issue
+1. **Branch Creation**:
+   - Create a feature branch from main using the format: `username/issueXX` (e.g., `aquele-dinho/issue10`)
+   - Always base new feature branches on the latest main branch
+
+2. **Initial Analysis**:
+   - Review issue requirements and acceptance criteria
+   - Check related documentation in the `/wiki` directory
+   - Identify affected components and potential impacts
+   - Plan required changes before starting to code
+
+3. **Design Documentation**:
+   - For significant features, update or create design documentation
+   - Document key design decisions and alternatives considered
+   - Follow established architectural patterns and guidelines
+
+### Completing an Issue
+1. **Code Quality Check**:
+   - Ensure all tests pass (`mvn test`)
+   - Verify code meets project's coding standards
+   - Perform self-review before submission
+
+2. **Documentation**:
+   - Update `CHANGELOG.md` with a summary of changes
+   - Add specific documentation for new features or APIs
+   - Update any affected documentation in the `/wiki` directory
+
+3. **Version Control**:
+   - Create a descriptive commit message explaining the changes
+   - If appropriate, tag the version (for significant features/releases)
+   - Format: `v[major].[minor].[patch]-[descriptor]` (e.g., `v0.1.0-i18n`)
+
+4. **Pull Request**:
+   - Create a PR with a clear title referencing the issue number
+   - Include a detailed description of changes and testing performed
+   - Link the PR to the relevant issue
+   - Request review from team members
+
+5. **Post-Merge Actions**:
+   - Verify the feature in the development environment after merge
+   - Close the associated issue if it's completed
+   - Update project boards/tracking as necessary
+
 ## Development Workflow
 
 1. Local development with Docker Compose environment
