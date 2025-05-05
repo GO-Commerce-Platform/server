@@ -18,10 +18,13 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - gocommerce-network
 
   # Keycloak for Authentication
   keycloak:
     image: quay.io/keycloak/keycloak:latest
+    container_name: gocommerce-keycloak
     volumes:
       - ./storage/keycloak/providers:/opt/keycloak/providers
       - ./docker/keycloak-config:/opt/keycloak/data/import
@@ -47,9 +50,12 @@ services:
       keycloak-db:
         condition: service_healthy
     restart: unless-stopped
+    networks:
+      - gocommerce-network
 
   keycloak-db:
     image: postgres:latest
+    container_name: gocommerce-keycloak-db
     volumes:
       - ./storage/keycloak-db:/var/lib/postgresql/data
     environment:
@@ -61,25 +67,33 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - gocommerce-network
 
   # Quarkus Application
- # app:
- #   build:
- #     context: ..
- #     dockerfile: ./docker/app/Dockerfile.native
- #   container_name: gocommerce-app
- #   depends_on:
- #     mariadb:
- #       condition: service_healthy
- #     keycloak:
- #       condition: service_started
- #   ports:
- #     - "${APP_PORT:-8080}:8080"
- #   environment:
- #     - QUARKUS_DATASOURCE_JDBC_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-gocommerce}
- #     - QUARKUS_DATASOURCE_USERNAME=${DB_USERNAME:-gocommerceuser}
- #     - QUARKUS_DATASOURCE_PASSWORD=${DB_PASSWORD:-gocommercepass}
- #     - QUARKUS_OIDC_AUTH_SERVER_URL=http://keycloak:${KEYCLOAK_PORT:-9000}/realms/gocommerce
- #     - QUARKUS_OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-gocommerce-backend}
- #     - QUARKUS_OIDC_CREDENTIALS_SECRET=${OIDC_CLIENT_SECRET:-secret}
- #   restart: unless-stopped
+  app:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile.jvm
+    container_name: gocommerce-app
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      - QUARKUS_DATASOURCE_JDBC_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-gocommerce}
+      - QUARKUS_DATASOURCE_USERNAME=${DB_USERNAME:-gocommerceuser}
+      - QUARKUS_DATASOURCE_PASSWORD=${DB_PASSWORD:-gocommercepass}
+      - QUARKUS_OIDC_AUTH_SERVER_URL=http://keycloak:${KEYCLOAK_PORT:-9000}/realms/gocommerce
+      - QUARKUS_OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-gocommerce-client}
+      - QUARKUS_OIDC_CREDENTIALS_SECRET=${OIDC_CLIENT_SECRET:-NwASnqRj8AnokmBaDIVy9WTijHYrWHAe}
+    restart: unless-stopped
+    networks:
+      - gocommerce-network
+
+networks:
+  gocommerce-network:
+    driver: bridge
