@@ -31,34 +31,79 @@
   "roles": {
     "realm": [
       {
-        "name": "admin",
-        "description": "Platform administrator with full access"
+        "name": "platform-admin",
+        "description": "Platform administrator with full access",
+        "composite": true,
+        "composites": {
+          "realm": ["store-admin", "customer"]
+        }
       },
       {
-        "name": "tenant-admin",
-        "description": "Tenant administrator with access to own tenant resources"
+        "name": "store-admin",
+        "description": "Store administrator with access to own store resources",
+        "composite": true,
+        "composites": {
+          "realm": ["customer"]
+        }
       },
       {
-        "name": "user",
-        "description": "Regular user with restricted access"
+        "name": "customer",
+        "description": "Regular user with restricted access",
+        "composite": false
+      },
+      {
+        "name": "product-manager",
+        "description": "Can manage products within a store",
+        "composite": false
+      },
+      {
+        "name": "order-manager",
+        "description": "Can manage orders within a store",
+        "composite": false
+      },
+      {
+        "name": "customer-service",
+        "description": "Can handle customer support within a store",
+        "composite": false
       }
     ]
   },
   "users": [
     {
-      "username": "admin",
+      "username": "platform-admin",
       "enabled": true,
       "emailVerified": true,
+      "email": "platform.admin@gocommerce.dev",
+      "firstName": "Platform",
+      "lastName": "Admin",
       "credentials": [
         {
           "type": "password",
-          "value": "admin",
+          "value": "platform-admin",
           "temporary": false
         }
       ],
-      "realmRoles": ["admin"],
-      "clientRoles": {
-        "gocommerce-client": ["admin"]
+      "realmRoles": ["platform-admin"],
+      "requiredActions": []
+    },
+    {
+      "username": "store-admin",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "store.admin@gocommerce.dev",
+      "firstName": "Store",
+      "lastName": "Admin",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "store-admin",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["store-admin", "product-manager", "order-manager"],
+      "requiredActions": [],
+      "attributes": {
+        "storeId": ["11111111-1111-1111-1111-111111111111"]
       }
     }
   ],

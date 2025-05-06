@@ -4,7 +4,7 @@ This document provides essential context about the GO-Commerce project for AI as
 
 ## Project Overview
 
-GO-Commerce is a multi-tenant e-commerce SaaS platform built with Quarkus and event-driven architecture. The platform enables multiple businesses to operate their e-commerce storefronts with complete data isolation while sharing the same application infrastructure.
+GO-Commerce is a multi-store e-commerce SaaS platform built with Quarkus and event-driven architecture. The platform enables multiple businesses to operate their e-commerce storefronts with complete data isolation while sharing the same application infrastructure.
 
 ## Current Development Status
 
@@ -16,7 +16,7 @@ GO-Commerce is a multi-tenant e-commerce SaaS platform built with Quarkus and ev
 ## Technology Stack
 
 - **Backend Framework**: Quarkus (Java)
-- **Primary Database**: MariaDB (multi-tenant data using schema-per-tenant)
+- **Primary Database**: MariaDB (multi-store data using schema-per-store)
 - **Authentication**: Keycloak with PostgreSQL
 - **Messaging**: Apache Kafka for event-driven architecture
 - **Containerization**: Docker & Docker Compose
@@ -25,10 +25,10 @@ GO-Commerce is a multi-tenant e-commerce SaaS platform built with Quarkus and ev
 
 ## Architecture
 
-### Multi-Tenant Design
-- **Approach**: Schema-per-tenant database architecture
-- **Isolation**: Complete data isolation between tenants
-- **Resolution**: Subdomain-based tenant resolution (e.g., tenant1.gocommerce.com)
+### Multi-Store Design
+- **Approach**: Schema-per-store database architecture
+- **Isolation**: Complete data isolation between stores
+- **Resolution**: Subdomain-based store resolution (e.g., store1.gocommerce.com)
 
 ### Service Architecture
 - **API Layer**: RESTful endpoints with OpenAPI/Swagger documentation
@@ -43,10 +43,10 @@ GO-Commerce is a multi-tenant e-commerce SaaS platform built with Quarkus and ev
 
 ## Key Components (MVP Focus)
 
-1. **Multi-Tenant Foundation**
-   - Tenant resolver interfaces
+1. **Multi-Store Foundation**
+   - Store resolver interfaces
    - Database schema isolation
-   - Tenant context management
+   - Store context management
 
 2. **Authentication Framework**
    - Keycloak integration
@@ -82,7 +82,7 @@ GO-Commerce is a multi-tenant e-commerce SaaS platform built with Quarkus and ev
 ## Development Conventions
 
 ### Package Structure
-- `dev.tenant` - Multi-tenant core functionality
+- `dev.store` - Multi-store core functionality
 - `dev.auth` - Authentication and authorization
 - `dev.product` - Product management
 - `dev.customer` - Customer management
@@ -104,17 +104,23 @@ GO-Commerce is a multi-tenant e-commerce SaaS platform built with Quarkus and ev
 ## Issue Workflow
 
 ### Starting an Issue
-1. **Branch Creation**:
+1. **GitHub Issue Check**:
+   - List issues: `gh issue list --limit 100 | cat` to see existing issues
+   - View issue details: `gh issue view <number> --json title,body,assignees,labels | cat` to get details without editor
+   - Ensure no one else is already working on the issue
+   - Assign issue to yourself: `gh issue edit <number> --add-assignee @me --no-editor`
+
+2. **Branch Creation**:
    - Create a feature branch from main using the format: `username/issueXX` (e.g., `aquele-dinho/issue10`)
    - Always base new feature branches on the latest main branch
 
-2. **Initial Analysis**:
+3. **Initial Analysis**:
    - Review issue requirements and acceptance criteria
    - Check related documentation in the `/wiki` directory
    - Identify affected components and potential impacts
    - Plan required changes before starting to code
 
-3. **Design Documentation**:
+4. **Design Documentation**:
    - For significant features, update or create design documentation
    - Document key design decisions and alternatives considered
    - Follow established architectural patterns and guidelines
@@ -213,7 +219,7 @@ GO-Commerce is a multi-tenant e-commerce SaaS platform built with Quarkus and ev
 ## Phase Roadmap
 
 ### Phase 1: MVP (Current)
-- Multi-tenant foundation
+- Multi-store foundation
 - Core e-commerce functionality
 - Basic security model
 
@@ -240,19 +246,40 @@ GO-Commerce is a multi-tenant e-commerce SaaS platform built with Quarkus and ev
 ### General Coding Principles
 - Follow SOLID principles in all implementations
 - Prefer composition over inheritance
-- Write unit tests for all business logic
 - Validate all user inputs at the API boundary
 - Use constructor dependency injection rather than field injection
 - Keep methods small and focused on a single responsibility
 - Avoid static methods except for utility classes
+- Write readable and understable comments
 - Prefer immutability when possible
+- **Avoid overengineering** - Choose the simplest approach that solves the problem:
+  - Implement the minimum viable solution first
+  - Add complexity only when justified by actual requirements
+  - Don't create abstractions for hypothetical future needs
+  - Prefer standard framework features over custom implementations
+  - Optimize for readability and maintainability, not cleverness
+  - Use design patterns appropriately, not dogmatically
 
-### Multi-Tenant Implementation Rules
-- All repository classes must use TenantContext to filter data
-- Tenant IDs must never be exposed in external APIs
-- Tenant-specific configuration must be fetched from TenantConfigService
-- Never query across multiple tenants in a single transaction
-- Use @TenantScoped annotation for tenant-specific services
+### Multi-Store Implementation Rules
+- All repository classes must use StoreContext to filter data
+- Store IDs must never be exposed in external APIs
+- Store-specific configuration must be fetched from StoreConfigService
+- Never query across multiple stores in a single transaction
+- Use @StoreScoped annotation for store-specific services
+
+### Testing Rules
+- **Prefer real implementations over mocks** whenever practical:
+  - Use actual resource bundles instead of mocking them
+  - Set up test databases with test data rather than mocking repositories
+  - Create simple test implementations of interfaces rather than extensive mocks
+  - Only mock external services that cannot be easily instantiated in tests
+- Write tests that validate behavior, not implementation details
+- Use test containers for database and infrastructure dependencies
+- Implement integration tests for critical paths
+- Follow the AAA pattern (Arrange, Act, Assert) for test structure
+- Create focused test data factories to simplify test setup
+- Test edge cases and error scenarios, not just happy paths
+- Avoid test interdependencies - each test should be self-contained
 
 ### API Design Rules
 - Follow REST best practices
@@ -275,14 +302,14 @@ GO-Commerce is a multi-tenant e-commerce SaaS platform built with Quarkus and ev
 - All business logic belongs in service classes, not in resources or repositories
 - Implement service interfaces for better testability
 - Handle transactions at the service level
-- Log all significant business events
+- Log all significant business events using, if possible, the framework artifacts. 
 - Use dedicated exception types for different error scenarios
 
 ### Security Rules
 - Never store sensitive data in plain text
 - Use Keycloak roles for authorization checks
 - Implement @RolesAllowed annotations on secured methods
-- Validate all data access against current tenant context
+- Validate all data access against current store context
 - Don't trust client-provided identifiers without verification
 - Use principal from security context, never allow impersonation
 

@@ -8,7 +8,6 @@ import java.util.Map;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.rest.client.RestClientBuilder;
-import org.jboss.logging.Logger;
 import org.jose4j.jwt.JwtClaims;
 import org.jose4j.jwt.NumericDate;
 import org.jose4j.jwt.consumer.InvalidJwtException;
@@ -18,6 +17,7 @@ import org.jose4j.jwt.consumer.JwtConsumerBuilder;
 import dev.tiodati.saas.gocommerce.auth.dto.LoginRequest;
 import dev.tiodati.saas.gocommerce.auth.dto.RefreshTokenRequest;
 import dev.tiodati.saas.gocommerce.auth.dto.TokenResponse;
+import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.NotAuthorizedException;
 import jakarta.ws.rs.WebApplicationException;
@@ -29,8 +29,6 @@ import jakarta.ws.rs.core.Response;
  */
 @ApplicationScoped
 public class KeycloakAuthService implements AuthService {
-
-    private static final Logger LOG = Logger.getLogger(KeycloakAuthService.class);
     
     @ConfigProperty(name = "quarkus.oidc.auth-server-url")
     String authServerUrl;
@@ -45,7 +43,7 @@ public class KeycloakAuthService implements AuthService {
      * {@inheritDoc}
      */
     @Override
-    public TokenResponse login(LoginRequest loginRequest) {
+    public TokenResponse login(LoginRequest LoginRequest) {
         try {
             // Remove "/realms/{realm}" from the end to get the base URL
             String keycloakBaseUrl = authServerUrl.substring(0, authServerUrl.lastIndexOf("/realms/"));
@@ -63,8 +61,8 @@ public class KeycloakAuthService implements AuthService {
             
             // Prepare the form data for token request
             Form form = new Form()
-                    .param("username", loginRequest.username())
-                    .param("password", loginRequest.password())
+                    .param("username", LoginRequest.username())
+                    .param("password", LoginRequest.password())
                     .param("grant_type", "password")
                     .param("client_id", clientId)
                     .param("client_secret", clientSecret);
@@ -73,7 +71,7 @@ public class KeycloakAuthService implements AuthService {
             Response response = tokenClient.getToken(form);
             
             if (response.getStatus() == 200) {
-                Map<String, Object> tokenData = response.readEntity(Map.class);
+                Map<String, Object> tokenData = response.readEntity(new jakarta.ws.rs.core.GenericType<Map<String, Object>>() {});
                 
                 // Extract token information
                 String accessToken = (String) tokenData.get("access_token");
@@ -86,17 +84,17 @@ public class KeycloakAuthService implements AuthService {
                 
                 return new TokenResponse(accessToken, refreshToken, tokenType, expiresIn, roles);
             } else {
-                // This is an expected authentication failure, log at debug level
-                LOG.debug("Authentication failed with status: " + response.getStatus());
+                // This is an expected authentication failure, Log at debug level
+                Log.debug("Authentication failed with status: " + response.getStatus());
                 throw new NotAuthorizedException("Authentication failed: " + response.getStatusInfo().getReasonPhrase());
             }
         } catch (WebApplicationException e) {
-            // Specific web exceptions like 401 should be logged at debug level since they're expected
-            LOG.debug("Authentication failed: " + e.getMessage());
+            // Specific web exceptions like 401 should be Logged at debug level since they're expected
+            Log.debug("Authentication failed: " + e.getMessage());
             throw new NotAuthorizedException("Authentication failed: " + e.getMessage());
         } catch (Exception e) {
-            // Unexpected exceptions should still be logged at error level
-            LOG.error("Unexpected error during authentication", e);
+            // Unexpected exceptions should still be Logged at error level
+            Log.error("Unexpected error during authentication", e);
             throw new RuntimeException("Authentication error: " + e.getMessage(), e);
         }
     }
@@ -132,7 +130,7 @@ public class KeycloakAuthService implements AuthService {
             Response response = tokenClient.getToken(form);
             
             if (response.getStatus() == 200) {
-                Map<String, Object> tokenData = response.readEntity(Map.class);
+                Map<String, Object> tokenData = response.readEntity(new jakarta.ws.rs.core.GenericType<Map<String, Object>>() {});
                 
                 // Extract token information
                 String accessToken = (String) tokenData.get("access_token");
@@ -145,17 +143,17 @@ public class KeycloakAuthService implements AuthService {
                 
                 return new TokenResponse(accessToken, refreshToken, tokenType, expiresIn, roles);
             } else {
-                // This is an expected failure, log at debug level
-                LOG.debug("Token refresh failed with status: " + response.getStatus());
+                // This is an expected failure, Log at debug level
+                Log.debug("Token refresh failed with status: " + response.getStatus());
                 throw new NotAuthorizedException("Token refresh failed: " + response.getStatusInfo().getReasonPhrase());
             }
         } catch (WebApplicationException e) {
-            // Specific web exceptions should be logged at debug level since they're expected
-            LOG.debug("Token refresh failed: " + e.getMessage());
+            // Specific web exceptions should be Logged at debug level since they're expected
+            Log.debug("Token refresh failed: " + e.getMessage());
             throw new NotAuthorizedException("Token refresh failed: " + e.getMessage());
         } catch (Exception e) {
-            // Unexpected exceptions should still be logged at error level
-            LOG.error("Unexpected error during token refresh", e);
+            // Unexpected exceptions should still be Logged at error level
+            Log.error("Unexpected error during token refresh", e);
             throw new RuntimeException("Token refresh error: " + e.getMessage(), e);
         }
     }
@@ -172,26 +170,26 @@ public class KeycloakAuthService implements AuthService {
             // Extract realm name from the auth server URL
             String realm = authServerUrl.substring(authServerUrl.lastIndexOf("/") + 1);
             
-            // Create Keycloak logout endpoint URL
-            String logoutEndpoint = keycloakBaseUrl + "/realms/" + realm + "/protocol/openid-connect/logout";
+            // Create Keycloak Logout endpoint URL
+            String LogoutEndpoint = keycloakBaseUrl + "/realms/" + realm + "/protocol/openid-connect/Logout";
             
             // Build the REST client for Keycloak
-            KeycloakLogoutClient logoutClient = RestClientBuilder.newBuilder()
-                    .baseUri(URI.create(logoutEndpoint))
+            KeycloakLogoutClient LogoutClient = RestClientBuilder.newBuilder()
+                    .baseUri(URI.create(LogoutEndpoint))
                     .build(KeycloakLogoutClient.class);
             
-            // Prepare the form data for logout
+            // Prepare the form data for Logout
             Form form = new Form()
                     .param("refresh_token", refreshToken)
                     .param("client_id", clientId)
                     .param("client_secret", clientSecret);
             
-            // Send the logout request to Keycloak
-            Response response = logoutClient.logout(form);
+            // Send the Logout request to Keycloak
+            Response response = LogoutClient.logout(form);
             
             return response.getStatus() == 204 || response.getStatus() == 200;
         } catch (Exception e) {
-            LOG.error("Error during logout", e);
+            Log.error("Error during Logout", e);
             return false;
         }
     }
@@ -225,12 +223,12 @@ public class KeycloakAuthService implements AuthService {
             NumericDate now = NumericDate.fromMilliseconds(System.currentTimeMillis());
             return now.isBefore(expirationTime);
         } catch (InvalidJwtException e) {
-            // For expected validation failures, just log at debug level
-            LOG.debug("Token validation failed: " + e.getMessage());
+            // For expected validation failures, just Log at debug level
+            Log.debug("Token validation failed: " + e.getMessage());
             return false;
         } catch (Exception e) {
-            // For unexpected errors, log at error level
-            LOG.error("Unexpected error during token validation", e);
+            // For unexpected errors, Log at error level
+            Log.error("Unexpected error during token validation", e);
             return false;
         }
     }
@@ -272,7 +270,7 @@ public class KeycloakAuthService implements AuthService {
             
             return Collections.emptyList();
         } catch (Exception e) {
-            LOG.error("Error extracting roles from token", e);
+            Log.error("Error extracting roles from token", e);
             return Collections.emptyList();
         }
     }

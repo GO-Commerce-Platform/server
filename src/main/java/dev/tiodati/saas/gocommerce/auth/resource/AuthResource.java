@@ -4,12 +4,12 @@ import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
-import org.jboss.logging.Logger;
 
 import dev.tiodati.saas.gocommerce.auth.dto.LoginRequest;
 import dev.tiodati.saas.gocommerce.auth.dto.RefreshTokenRequest;
 import dev.tiodati.saas.gocommerce.auth.dto.TokenResponse;
 import dev.tiodati.saas.gocommerce.auth.service.AuthService;
+import io.quarkus.logging.Log;
 import jakarta.annotation.security.PermitAll;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -35,8 +35,6 @@ import jakarta.ws.rs.core.Response.Status;
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Authentication", description = "Operations for authentication and token management")
 public class AuthResource {
-
-    private static final Logger LOG = Logger.getLogger(AuthResource.class);
     
     @Inject
     AuthService authService;
@@ -62,12 +60,12 @@ public class AuthResource {
             TokenResponse tokenResponse = authService.login(loginRequest);
             return Response.ok(tokenResponse).build();
         } catch (NotAuthorizedException e) {
-            LOG.debug("Authentication failed: " + e.getMessage());
+            Log.debug("Authentication failed: " + e.getMessage());
             return Response.status(Status.UNAUTHORIZED)
                     .entity(new ErrorResponse("Authentication failed: Invalid username or password"))
                     .build();
         } catch (Exception e) {
-            LOG.error("Authentication error", e);
+            Log.error("Authentication error", e);
             return Response.status(Status.INTERNAL_SERVER_ERROR)
                     .entity(new ErrorResponse("Authentication error: " + e.getMessage()))
                     .build();
@@ -95,12 +93,12 @@ public class AuthResource {
             TokenResponse tokenResponse = authService.refreshToken(refreshRequest);
             return Response.ok(tokenResponse).build();
         } catch (NotAuthorizedException e) {
-            LOG.debug("Token refresh failed: " + e.getMessage());
+            Log.debug("Token refresh failed: " + e.getMessage());
             return Response.status(Status.UNAUTHORIZED)
                     .entity(new ErrorResponse("Token refresh failed: Invalid or expired refresh token"))
                     .build();
         } catch (Exception e) {
-            LOG.error("Token refresh error", e);
+            Log.error("Token refresh error", e);
             return Response.status(Status.INTERNAL_SERVER_ERROR)
                     .entity(new ErrorResponse("Token refresh error: " + e.getMessage()))
                     .build();
@@ -139,7 +137,7 @@ public class AuthResource {
                         .build();
             }
         } catch (Exception e) {
-            LOG.error("Logout error", e);
+            Log.error("Logout error", e);
             return Response.status(Status.INTERNAL_SERVER_ERROR)
                     .entity(new ErrorResponse("Logout error: " + e.getMessage()))
                     .build();
@@ -179,7 +177,7 @@ public class AuthResource {
                         .build();
             }
         } catch (Exception e) {
-            LOG.error("Token validation error", e);
+            Log.error("Token validation error", e);
             return Response.status(Status.INTERNAL_SERVER_ERROR)
                     .entity(new ErrorResponse("Token validation error: " + e.getMessage()))
                     .build();

@@ -124,7 +124,7 @@ Authorization: Bearer {accessToken}
 The GO-Commerce platform uses the following roles:
 
 1. **admin** - Platform administrators with full access to all functionality
-2. **tenant-admin** - Tenant administrators with access to their tenant's resources only
+2. **store-admin** - Store administrators with access to their store's resources only
 3. **user** - Regular users with restricted access
 
 The roles are included in the token response and can be used for client-side authorization logic.

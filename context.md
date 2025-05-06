@@ -4,7 +4,7 @@ This document provides essential context about the GO-Commerce project for AI as
 
 ## Project Overview
 
-GO-Commerce is a multi-tenant e-commerce SaaS platform built with Quarkus and event-driven architecture. The platform enables multiple businesses to operate their e-commerce storefronts with complete data isolation while sharing the same application infrastructure.
+GO-Commerce is a multi-store e-commerce SaaS platform built with Quarkus and event-driven architecture. The platform enables multiple businesses to operate their e-commerce storefronts with complete data isolation while sharing the same application infrastructure.
 
 ## Current Development Status
 
@@ -15,7 +15,7 @@ GO-Commerce is a multi-tenant e-commerce SaaS platform built with Quarkus and ev
 ## Technology Stack
 
 - **Backend Framework**: Quarkus (Java)
-- **Primary Database**: MariaDB (multi-tenant data using schema-per-tenant)
+- **Primary Database**: MariaDB (multi-store data using schema-per-store)
 - **Authentication**: Keycloak with PostgreSQL
 - **Messaging**: Apache Kafka for event-driven architecture
 - **Containerization**: Docker & Docker Compose
@@ -24,10 +24,10 @@ GO-Commerce is a multi-tenant e-commerce SaaS platform built with Quarkus and ev
 
 ## Architecture
 
-### Multi-Tenant Design
-- **Approach**: Schema-per-tenant database architecture
-- **Isolation**: Complete data isolation between tenants
-- **Resolution**: Subdomain-based tenant resolution (e.g., tenant1.gocommerce.com)
+### Multi-Store Design
+- **Approach**: Schema-per-store database architecture
+- **Isolation**: Complete data isolation between stores
+- **Resolution**: Subdomain-based store resolution (e.g., store1.gocommerce.com)
 
 ### Service Architecture
 - **API Layer**: RESTful endpoints with OpenAPI/Swagger documentation
@@ -42,10 +42,10 @@ GO-Commerce is a multi-tenant e-commerce SaaS platform built with Quarkus and ev
 
 ## Key Components (MVP Focus)
 
-1. **Multi-Tenant Foundation**
-   - Tenant resolver interfaces
+1. **Multi-Store Foundation**
+   - Store resolver interfaces
    - Database schema isolation
-   - Tenant context management
+   - Store context management
 
 2. **Authentication Framework**
    - Keycloak integration
@@ -81,7 +81,7 @@ GO-Commerce is a multi-tenant e-commerce SaaS platform built with Quarkus and ev
 ## Development Conventions
 
 ### Package Structure
-- `dev.tenant` - Multi-tenant core functionality
+- `dev.store` - Multi-store core functionality
 - `dev.auth` - Authentication and authorization
 - `dev.product` - Product management
 - `dev.customer` - Customer management
@@ -109,7 +109,7 @@ GO-Commerce is a multi-tenant e-commerce SaaS platform built with Quarkus and ev
 ## Phase Roadmap
 
 ### Phase 1: MVP (Current)
-- Multi-tenant foundation
+- Multi-store foundation
 - Core e-commerce functionality
 - Basic security model
 
@@ -143,12 +143,12 @@ GO-Commerce is a multi-tenant e-commerce SaaS platform built with Quarkus and ev
 - Avoid static methods except for utility classes
 - Prefer immutability when possible
 
-### Multi-Tenant Implementation Rules
-- All repository classes must use TenantContext to filter data
-- Tenant IDs must never be exposed in external APIs
-- Tenant-specific configuration must be fetched from TenantConfigService
-- Never query across multiple tenants in a single transaction
-- Use @TenantScoped annotation for tenant-specific services
+### Multi-Store Implementation Rules
+- All repository classes must use StoreContext to filter data
+- Store IDs must never be exposed in external APIs
+- Store-specific configuration must be fetched from StoreConfigService
+- Never query across multiple stores in a single transaction
+- Use @StoreScoped annotation for store-specific services
 
 ### API Design Rules
 - Follow REST best practices
@@ -178,7 +178,7 @@ GO-Commerce is a multi-tenant e-commerce SaaS platform built with Quarkus and ev
 - Never store sensitive data in plain text
 - Use Keycloak roles for authorization checks
 - Implement @RolesAllowed annotations on secured methods
-- Validate all data access against current tenant context
+- Validate all data access against current store context
 - Don't trust client-provided identifiers without verification
 - Use principal from security context, never allow impersonation
 

@@ -5,136 +5,175 @@ import io.vertx.ext.web.RoutingContext;
 import jakarta.enterprise.context.RequestScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 
 import java.util.Locale;
 import java.util.Optional;
 
 /**
- * Implementation of LocaleResolver that resolves the locale from the HTTP request.
- * Looks for locale information in the following order:
- * 1. URL parameter "lang"
- * 2. Cookie "locale"
- * 3. Accept-Language header
- * 4. Default locale from configuration
+ * Implementation of {@link LocaleResolver} that determines the user's locale based on HTTP request information.
+ * The locale is resolved by checking the following sources in order of priority:
+ * <ol>
+ *   <li>URL query parameter named "lang" (e.g., /products?lang=es)</li>
+ *   <li>Cookie named "locale"</li>
+ *   <li>Accept-Language HTTP header sent by the client's browser</li>
+ *   <li>A default locale configured for the application (fallback)</li>
+ * </ol>
  */
 @RequestScoped
 public class RequestLocaleResolver implements LocaleResolver {
     
-    private static final Logger LOG = Logger.getLogger(RequestLocaleResolver.class);
     private static final String LANG_PARAM = "lang";
     private static final String LOCALE_COOKIE = "locale";
     
+    // Injects the current Vert.x HTTP request context to access request details.
     @Inject
     CurrentVertxRequest currentRequest;
     
+    // Injects the default locale from application configuration (e.g., application.properties).
+    // Defaults to "en" if not specified.
     @ConfigProperty(name = "quarkus.default-locale", defaultValue = "en")
     String defaultLocale;
     
+    // Injects the list of supported locales from application configuration.
+    // This is an Optional value, meaning it might not be configured.
     @ConfigProperty(name = "quarkus.locales")
     Optional<String> supportedLocales;
     
+    // Caches the resolved locale for the current request to avoid redundant lookups.
     private Locale currentLocale;
     
+    /**
+     * Retrieves the resolved locale for the current request.
+     * If the locale has already been resolved and cached, the cached value is returned.
+     * Otherwise, it resolves the locale using {@link #resolveLocale()} and caches it.
+     *
+     * @return The {@link Locale} for the current request.
+     */
     @Override
     public Locale getLocale() {
+        // Return cached locale if already resolved for this request
         if (currentLocale != null) {
             return currentLocale;
         }
         
+        // Resolve and cache the locale
         currentLocale = resolveLocale();
         return currentLocale;
     }
     
+    /**
+     * Sets the locale for the current user and persists it in a cookie for subsequent requests.
+     * The provided locale will only be set if it's a supported locale as defined by {@link #isSupportedLocale(String)}.
+     *
+     * @param locale The {@link Locale} to set.
+     */
     @Override
     public void setLocale(Locale locale) {
         if (locale != null && isSupportedLocale(locale.toLanguageTag())) {
-            currentLocale = locale;
+            this.currentLocale = locale;
             
-            // Store in cookie for future requests
+            // Store the selected locale in a cookie for future requests.
+            // The cookie is set to be secure, HTTP-only, and expires in 1 year.
             if (currentRequest != null && currentRequest.getCurrent() != null) {
                 currentRequest.getCurrent().response()
                     .addCookie(io.vertx.core.http.Cookie.cookie(LOCALE_COOKIE, locale.toLanguageTag())
-                        .setPath("/")
-                        .setMaxAge(365 * 24 * 60 * 60) // 1 year
-                        .setSecure(true)
-                        .setHttpOnly(true));
-            }
-        }
-    }
-    
-    @Override
-    public void setLocale(String languageTag) {
-        if (languageTag != null && !languageTag.isEmpty()) {
-            try {
-                Locale locale = Locale.forLanguageTag(languageTag);
-                setLocale(locale);
-            } catch (Exception e) {
-                LOG.warn("Invalid locale language tag: " + languageTag, e);
+                        .setPath("/") // Cookie accessible from all paths
+                        .setMaxAge(365 * 24 * 60 * 60) // Expires in 1 year
+                        .setSecure(true) // Transmit only over HTTPS
+                        .setHttpOnly(true)); // Not accessible via client-side JavaScript
             }
         }
     }
     
     /**
-     * Resolve the locale from the current request.
+     * Sets the locale for the current user using a language tag (e.g., "en-US") and persists it.
+     * This method converts the language tag to a {@link Locale} object and then calls {@link #setLocale(Locale)}.
+     * Logs a warning if the provided language tag is invalid.
+     *
+     * @param languageTag The language tag string representing the locale to set.
+     */
+    @Override
+    public void setLocale(String languageTag) {
+        if (languageTag != null && !languageTag.isEmpty()) {
+            try {
+                setLocale(Locale.forLanguageTag(languageTag));
+            } catch (Exception e) {
+                Log.warn("Invalid locale language tag: " + languageTag, e);
+            }
+        }
+    }
+    
+    /**
+     * Resolves the locale by inspecting the current HTTP request.
+     * It checks for the locale in the URL parameter, cookie, and Accept-Language header, in that order.
+     * If no locale is found in these sources, it falls back to the default application locale.
+     *
+     * @return The resolved {@link Locale}.
      */
     private Locale resolveLocale() {
         RoutingContext routingContext = currentRequest != null ? currentRequest.getCurrent() : null;
+        // If there's no active HTTP request, fall back to the default locale.
         if (routingContext == null) {
+            Log.debug("No routing context available, using default locale");
             return Locale.forLanguageTag(defaultLocale);
         }
         
-        // First check URL parameter
+        // 1. Check for locale in the "lang" URL query parameter.
         String langParam = routingContext.request().getParam(LANG_PARAM);
         if (langParam != null && !langParam.isEmpty() && isSupportedLocale(langParam)) {
             return Locale.forLanguageTag(langParam);
         }
         
-        // Then check cookie
+        // 2. Check for locale in the "locale" cookie.
         io.vertx.core.http.Cookie localeCookie = routingContext.request().getCookie(LOCALE_COOKIE);
         if (localeCookie != null && isSupportedLocale(localeCookie.getValue())) {
             return Locale.forLanguageTag(localeCookie.getValue());
         }
         
-        // Then check Accept-Language header
+        // 3. Check for locale in the "Accept-Language" HTTP header.
         String acceptLanguage = routingContext.request().getHeader("Accept-Language");
         if (acceptLanguage != null && !acceptLanguage.isEmpty()) {
-            // Parse the Accept-Language header
-            // Format is typically: "fr-CH, fr;q=0.9, en;q=0.8, de;q=0.7, *;q=0.5"
-            String[] languages = acceptLanguage.split(",");
-            for (String language : languages) {
-                // Extract the language tag (without quality factor)
-                String languageTag = language.trim().split(";")[0].trim();
-                if (isSupportedLocale(languageTag)) {
-                    return Locale.forLanguageTag(languageTag);
-                }
+            // Parse the Accept-Language header to find the best matching supported locale.
+            // This can be complex due to quality values (e.g., "en-US,en;q=0.9,es;q=0.8").
+            // For simplicity, we take the first language tag if supported.
+            // A more robust solution would involve parsing and matching quality values.
+            String[] preferredLocales = acceptLanguage.split(",")[0].split(";")[0].trim().split("-");
+            String lang = preferredLocales[0];
+            if (isSupportedLocale(lang)) {
+                return Locale.forLanguageTag(lang);
             }
         }
         
-        // Default locale as fallback
+        // 4. If no locale is found from other sources, use the application's default locale.
+        Log.debug("Using default application locale: " + defaultLocale);
         return Locale.forLanguageTag(defaultLocale);
     }
     
     /**
-     * Check if the given locale is supported by the application.
-     * 
-     * @param localeTag The locale language tag to check
-     * @return true if supported, false otherwise
+     * Checks if a given locale (represented by its language tag) is supported by the application.
+     * Support is determined by the 'quarkus.locales' configuration property.
+     * If 'quarkus.locales' is not configured, all locales are considered supported.
+     *
+     * @param localeTag The language tag of the locale to check (e.g., "en", "pt-BR").
+     * @return {@code true} if the locale is supported or if no specific locales are configured; {@code false} otherwise.
      */
     private boolean isSupportedLocale(String localeTag) {
+        // If the 'quarkus.locales' property is not set, consider all locales as supported.
         if (supportedLocales.isEmpty()) {
-            // If no supported locales are configured, accept any locale
             return true;
         }
         
+        // Get the comma-separated list of supported locales from configuration.
         String[] locales = supportedLocales.get().split(",");
         for (String supportedLocale : locales) {
-            // Simple match for language part (e.g., "en" matches "en-US")
+            // Perform a case-insensitive check. Allows for partial matches (e.g., "en" matches "en-US").
             if (localeTag.trim().toLowerCase().startsWith(supportedLocale.trim().toLowerCase())) {
                 return true;
             }
         }
         
+        // The provided localeTag is not in the list of supported locales.
         return false;
     }
 }
