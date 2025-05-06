@@ -1,69 +1,107 @@
 package dev.tiodati.saas.gocommerce.i18n;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.when;
 
 import java.util.Locale;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 
-import io.quarkus.test.junit.QuarkusTest;
+class MessageServiceTest {
 
-@QuarkusTest
-public class MessageServiceTest {
+    private MessageService messageService;
+    private TestLocaleResolver localeResolver;
 
-    @Mock
-    @Default
-    LocaleResolver localeResolver;
-    
-    @InjectMocks
-    MessageService messageService = new MessageService();
-    
-    private final Locale ENGLISH = Locale.ENGLISH;
-    private final Locale SPANISH = new Locale("es");
-    private final Locale PORTUGUESE = new Locale("pt");
-    
+    private final Locale PT_BR = Locale.forLanguageTag("pt-BR");
+
     @BeforeEach
     void setUp() {
-        // Initialize mocks
-        MockitoAnnotations.openMocks(this);
+        // Using the default locale (English) from TestLocaleResolver
+        localeResolver = new TestLocaleResolver();
+        messageService = new MessageService();
+        messageService.localeResolver = localeResolver;
+    }
+
+    @Test
+    void getMessage_withValidKey_returnsMessage() {
+        String result = messageService.getMessage("test.key");
+        assertEquals("Test message", result);
+    }
+
+    @Test
+    void getMessage_withValidKeyAndParams_returnsFormattedMessage() {
+        String result = messageService.getMessage("test.key.params", "John", 5);
+        assertEquals("Hello, John! You have 5 messages.", result);
+    }
+
+    @Test
+    void getMessage_withMissingKey_returnsKeyItself() {
+        String result = messageService.getMessage("missing.key");
+        assertEquals("missing.key", result);
+    }
+
+    @Test
+    void getMessage_withEmptyKey_returnsEmptyString() {
+        String result = messageService.getMessage("");
+        assertEquals("", result);
+    }
+
+    @Test
+    void getMessage_withNullKey_returnsEmptyString() {
+        String result = messageService.getMessage(null);
+        assertEquals("", result);
+    }
+
+    @Test
+    void getMessage_withSpecificLocale_returnsLocalizedMessage() {
+        String result = messageService.getMessage("welcome", PT_BR);
+        assertEquals("Bem vindo!", result);
+    }
+
+    @Test
+    void getMessage_withSpecificLocaleAndParams_returnsFormattedLocalizedMessage() {
+        String result = messageService.getMessage("greeting", PT_BR, "João", "Segunda-feira");
+        assertEquals("Olá, João! Hoje é Segunda-feira.", result);
+    }
+
+    /**
+     * Simple LocaleResolver implementation for testing
+     */
+    static class TestLocaleResolver implements LocaleResolver {
         
-        when(localeResolver.getLocale()).thenReturn(ENGLISH);
-    }
-    
-    @Test
-    void testGetMessage_withDefaultLocale() {
-        assertEquals("Product Name", messageService.getMessage("product.name"));
-        assertEquals("First Name", messageService.getMessage("customer.firstName"));
-    }
-    
-    @Test
-    void testGetMessage_withSpecificLocale() {
-        assertEquals("Nombre del producto", messageService.getMessage("product.name", SPANISH));
-        assertEquals("Nome do produto", messageService.getMessage("product.name", PORTUGUESE));
-    }
-    
-    @Test
-    void testGetMessage_withParameters() {
-        assertEquals("Minimum length is 8 characters", 
-                messageService.getMessage("validation.minLength", 8));
-    }
-    
-    @Test
-    void testGetMessage_withSpecificLocaleAndParameters() {
-        assertEquals("La longitud mínima es de 8 caracteres", 
-                messageService.getMessage("validation.minLength", SPANISH, 8));
-        assertEquals("O comprimento mínimo é de 8 caracteres", 
-                messageService.getMessage("validation.minLength", PORTUGUESE, 8));
-    }
-    
-    @Test
-    void testGetMessage_withNonExistentKey() {
-        String nonExistentKey = "non.existent.key";
-        assertEquals(nonExistentKey, messageService.getMessage(nonExistentKey));
+        /**
+         * English is the default language for the application
+         */
+        public static final Locale DEFAULT_LOCALE = Locale.ENGLISH;
+        
+        private Locale locale;
+        
+        /**
+         * Creates a TestLocaleResolver with the default locale (English)
+         */
+        public TestLocaleResolver() {
+            this.locale = DEFAULT_LOCALE;
+        }
+        
+        /**
+         * Creates a TestLocaleResolver with a specific locale
+         */
+        public TestLocaleResolver(Locale locale) {
+            this.locale = locale;
+        }
+        
+        @Override
+        public Locale getLocale() {
+            return locale;
+        }
+        
+        public void setLocale(Locale locale) {
+            this.locale = locale;
+        }
+
+        @Override
+        public void setLocale(String languageTag) {
+            this.locale = Locale.forLanguageTag(languageTag);
+        }
     }
 }

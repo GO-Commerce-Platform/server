@@ -16,61 +16,61 @@ for label in "${LABELS[@]}"; do
   gh label create "$label" --force || echo "Label $label may already exist"
 done
 
-# Multi-Tenant Foundation Issues
-echo "Creating Multi-Tenant Foundation issues..."
+# Multi-Store Foundation Issues
+echo "Creating Multi-Store Foundation issues..."
 
-gh issue create --title "Set up schema-per-tenant infrastructure" \
+gh issue create --title "Set up schema-per-store infrastructure" \
   --body "## Description
-Implement the database schema isolation mechanism that supports multiple tenants with proper data separation.
+Implement the database schema isolation mechanism that supports multiple stores with proper data separation.
 
 ## Tasks
-- [ ] Create TenantResolver with subdomain support
+- [ ] Create StoreResolver with subdomain support
 - [ ] Implement schema-based multi-tenancy in Hibernate
-- [ ] Set up tenant context management
+- [ ] Set up store context management
 
 ## Acceptance Criteria
-- Tenant resolver correctly identifies tenant from subdomain
-- Database operations are properly isolated per tenant schema
-- Application can switch between tenant contexts correctly
+- Store resolver correctly identifies store from subdomain
+- Database operations are properly isolated per store schema
+- Application can switch between store contexts correctly
 
 ## Epic
 Epic 1: Foundation and Infrastructure" \
   --label "infrastructure" --label "multi-tenancy" --label "high-priority" \
   --milestone "Phase 1"
 
-gh issue create --title "Develop tenant provisioning system" \
+gh issue create --title "Develop store provisioning system" \
   --body "## Description
-Create APIs and services to register and provision new tenants on the platform.
+Create APIs and services to register and provision new stores on the platform.
 
 ## Tasks
-- [ ] Implement tenant entity model and repository
-- [ ] Create tenant registration API
-- [ ] Develop automated schema creation for new tenants
-- [ ] Set up tenant configuration storage
+- [ ] Implement store entity model and repository
+- [ ] Create store registration API
+- [ ] Develop automated schema creation for new stores
+- [ ] Set up store configuration storage
 
 ## Acceptance Criteria
-- New tenants can be registered via API
-- Tenant database schemas are automatically created
-- Tenant configuration is properly stored and retrieved
+- New stores can be registered via API
+- Store database schemas are automatically created
+- Store configuration is properly stored and retrieved
 
 ## Epic
 Epic 1: Foundation and Infrastructure" \
   --label "infrastructure" --label "multi-tenancy" --label "api" \
   --milestone "Phase 1"
 
-gh issue create --title "Implement tenant context management" \
+gh issue create --title "Implement store context management" \
   --body "## Description
-Create a system to track and manage the current tenant context throughout request processing.
+Create a system to track and manage the current store context throughout request processing.
 
 ## Tasks
-- [ ] Implement tenant identification from requests
-- [ ] Create tenant context holder
-- [ ] Set up request filters for tenant resolution
+- [ ] Implement store identification from requests
+- [ ] Create store context holder
+- [ ] Set up request filters for store resolution
 
 ## Acceptance Criteria
-- Application correctly identifies tenant from incoming requests
-- Tenant context is maintained throughout the request lifecycle
-- Operations are executed in the correct tenant context
+- Application correctly identifies store from incoming requests
+- Store context is maintained throughout the request lifecycle
+- Operations are executed in the correct store context
 
 ## Epic
 Epic 1: Foundation and Infrastructure" \

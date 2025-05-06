@@ -5,7 +5,7 @@ import java.util.Map;
 
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -20,7 +20,7 @@ import jakarta.ws.rs.core.MediaType;
 @Tag(name = "Health", description = "Health check endpoints")
 public class HealthResource {
 
-    private static final Logger LOG = Logger.getLogger(HealthResource.class);
+    // private static final Logger LOG = Logger.getLogger(HealthResource.class);
     
     @Inject
     EntityManager em;
@@ -34,14 +34,14 @@ public class HealthResource {
         response.put("timestamp", System.currentTimeMillis());
         
         try {
-            // Try to access tenant table to verify database connectivity
-            long tenantCount = (long) em.createQuery("SELECT COUNT(t) FROM Tenant t").getSingleResult();
+            // Try to access store table to verify database connectivity
+            long storeCount = (long) em.createQuery("SELECT COUNT(t) FROM Store t").getSingleResult();
             response.put("database", Map.of(
                 "status", "UP",
-                "tenantCount", tenantCount
+                "storeCount", storeCount
             ));
         } catch (Exception e) {
-            LOG.error("Database health check failed", e);
+            Log.error("Database health check failed", e);
             response.put("database", Map.of(
                 "status", "DOWN",
                 "error", e.getMessage()

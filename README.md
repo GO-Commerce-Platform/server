@@ -1,15 +1,15 @@
 # GO-Commerce
 
-A multi-tenant e-commerce SaaS platform built with Quarkus and event-driven architecture.
+A multi-store e-commerce SaaS platform built with Quarkus and event-driven architecture.
 
 ## Project Overview
 
-GO-Commerce is a scalable, multi-tenant e-commerce platform designed to support multiple storefronts with complete data isolation. The platform uses an event-driven architecture with Apache Kafka for asynchronous communication between services.
+GO-Commerce is a scalable, multi-store e-commerce platform designed to support multiple storefronts with complete data isolation. The platform uses an event-driven architecture with Apache Kafka for asynchronous communication between services.
 
 ## Technology Stack
 
 - **Backend Framework**: Quarkus
-- **Database**: MariaDB (multi-tenant data), PostgreSQL (Keycloak)
+- **Database**: MariaDB (multi-store data), PostgreSQL (Keycloak)
 - **Authentication**: Keycloak for identity and access management
 - **Messaging**: Apache Kafka for event-driven architecture
 - **Containerization**: Docker & Docker Compose
@@ -19,7 +19,7 @@ GO-Commerce is a scalable, multi-tenant e-commerce platform designed to support 
 The project is being developed in phases, starting with an MVP:
 
 ### Phase 1: MVP
-- Multi-tenant foundation with schema-per-tenant approach
+- Multi-store foundation with schema-per-store approach
 - Core authentication with Keycloak integration
 - Basic product and inventory management
 - Essential customer profiles

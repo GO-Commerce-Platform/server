@@ -2,7 +2,7 @@ package dev.tiodati.saas.gocommerce.i18n;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 
 import java.text.MessageFormat;
 import java.util.Locale;
@@ -16,7 +16,6 @@ import java.util.ResourceBundle;
 @ApplicationScoped
 public class MessageService {
     
-    private static final Logger LOG = Logger.getLogger(MessageService.class);
     private static final String BUNDLE_NAME = "messages";
     
     @Inject
@@ -64,10 +63,10 @@ public class MessageService {
             ResourceBundle bundle = ResourceBundle.getBundle(BUNDLE_NAME, locale);
             return bundle.getString(key);
         } catch (MissingResourceException e) {
-            LOG.warn("Message key not found: " + key + " for locale: " + locale);
+            Log.warn("Message key not found: " + key + " for locale: " + locale);
             return key;
         } catch (Exception e) {
-            LOG.error("Error retrieving message: " + key, e);
+            Log.error("Error retrieving message: " + key, e);
             return key;
         }
     }
