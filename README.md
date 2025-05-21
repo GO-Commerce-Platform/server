@@ -112,6 +112,21 @@ The Docker configuration is organized as follows:
   - `rebuild-docker.sh` - Script to tear down and rebuild the entire environment
   - `run-tests.sh` - Script to run tests with required Docker dependencies
 
+## Code Organization
+
+The project follows a **Package by Feature** approach. This means that code is organized into modules based on the primary business feature or domain it represents. Each feature package aims to be self-contained, including its own DTOs, resources (controllers), services, and models (entities) where applicable.
+
+Key top-level feature packages include:
+- `dev.tiodati.saas.gocommerce.platform`: For platform-level administration (e.g., creating and managing stores).
+- `dev.tiodati.saas.gocommerce.store`: For functionalities related to individual store operations.
+- `dev.tiodati.saas.gocommerce.product`: For product management within a store.
+- `dev.tiodati.saas.gocommerce.user`: For customer and general user management.
+- `dev.tiodati.saas.gocommerce.auth`: For authentication, authorization, and Keycloak integration.
+- `dev.tiodati.saas.gocommerce.i18n`: For internationalization.
+- `dev.tiodati.saas.gocommerce.shared` (or `common`): For truly cross-cutting concerns like utilities, base classes, and shared configurations not specific to a single feature.
+
+This structure promotes high cohesion within feature modules and low coupling between them, enhancing maintainability and scalability.
+
 ## License
 
 This project is dual-licensed:

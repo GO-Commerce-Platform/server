@@ -111,21 +111,25 @@
     </dependency>
     <dependency>
       <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-keycloak-admin-client-reactive</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
       <artifactId>quarkus-junit5</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Add mockito-inline for static mock support -->
     <dependency>
       <groupId>io.rest-assured</groupId>
       <artifactId>rest-assured</artifactId>
       <scope>test</scope>
     </dependency>
-    <!-- Add mockito-inline for static mock support -->
+    <!-- Add mockito-junit-jupiter for MockitoExtension class -->
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-junit5-mockito</artifactId>
       <scope>test</scope>
     </dependency>
-    <!-- Add mockito-junit-jupiter for MockitoExtension class -->
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-inline</artifactId>
@@ -133,33 +137,33 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-junit-jupiter</artifactId>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-junit-jupiter</artifactId>
       <version>5.2.0</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-        <groupId>io.quarkus</groupId>
-        <artifactId>quarkus-test-security</artifactId>
       <scope>test</scope>
     </dependency>
     <!-- Add JWT security testing dependency -->
     <dependency>
       <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-test-security-jwt</artifactId>
+      <artifactId>quarkus-test-security</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
-        <groupId>org.flywaydb</groupId>
-        <artifactId>flyway-core</artifactId>
-        <version>10.15.0</version>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-test-security-jwt</artifactId>
+      <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-core</artifactId>
+      <version>10.15.0</version>
+    </dependency>
+    <!-- Add H2 Database for testing -->
     <dependency>
       <groupId>org.flywaydb</groupId>
       <artifactId>flyway-mysql</artifactId>
       <version>10.15.0</version>
     </dependency>
-    <!-- Add H2 Database for testing -->
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-jdbc-h2</artifactId>

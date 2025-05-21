@@ -74,6 +74,25 @@ mvn clean test
 
 ## Code Style Guidelines
 
+### Package Structure: Package by Feature
+
+The project adheres to a **Package by Feature** organizational strategy. This means that source code is structured around business functionalities or domains rather than technical layers. Each primary feature should reside in its own top-level package under `dev.tiodati.saas.gocommerce`.
+
+For example:
+- `dev.tiodati.saas.gocommerce.platform` (for platform administration)
+- `dev.tiodati.saas.gocommerce.store` (for individual store operations)
+- `dev.tiodati.saas.gocommerce.product` (for product management)
+
+Within each feature package, you can further organize by technical role if needed (e.g., `dto/`, `resource/`, `service/`, `model/`).
+
+**Guiding Principles:**
+- **High Cohesion:** Keep code related to a single feature together.
+- **Low Coupling:** Minimize dependencies between different feature packages.
+- **Clarity:** Make it easy to locate code related to a specific feature.
+- **Shared Code:** Place genuinely cross-cutting concerns (e.g., generic utilities, base classes) in a `dev.tiodati.saas.gocommerce.shared` package.
+
+This approach helps in maintaining a modular, scalable, and understandable codebase, especially as the project grows.
+
 ### Simple > Complex
 
 Always favor simpler solutions:
