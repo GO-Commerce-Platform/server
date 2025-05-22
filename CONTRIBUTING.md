@@ -1,187 +1,61 @@
 # Contributing to GO-Commerce
 
-Thank you for your interest in contributing to the GO-Commerce project! This document provides guidelines and standards for contributing to the codebase.
+Thank you for your interest in contributing to GO-Commerce! This document provides guidelines and instructions for contributing to this project.
 
-## Core Development Principles
+## Getting Started
 
-### 1. Simplicity and Practicality First
+1. Fork the repository
+2. Clone your fork: `git clone https://github.com/YOUR-USERNAME/GO-Commerce.git`
+3. Set up the development environment following the instructions in the README.md
 
-**Avoid overengineering at all costs.** This is our most important principle. We value simple, maintainable solutions over complex architectures.
+## Issue Workflow
 
-- Implement the minimum viable solution first
-- Add complexity only when justified by actual requirements
-- Don't create abstractions for hypothetical future needs
-- Prefer standard framework features over custom implementations
-- Choose readability and maintainability over cleverness
-- Use design patterns appropriately, not dogmatically
+### Starting an Issue
+1. **GitHub Issue Check**:
+   - Ensure no one else is already working on the issue
+   - Assign issue to yourself
 
-### 2. Code Quality Standards
+2. **Branch Creation**:
+   - Create a feature branch from main using the format: `username/issueXX` (e.g., `aquele-dinho/issue10`)
+   - Always base new feature branches on the latest main branch
 
-- Follow SOLID principles, but don't overdo it
-- Write unit tests for business logic (aim for >80% coverage)
-- Keep methods small and focused (≤20 lines preferred)
-- Use meaningful names that clearly express intent
-- Document public APIs and non-obvious implementations
-- Follow consistent code style
+3. **Initial Analysis**:
+   - Review issue requirements and acceptance criteria
+   - Check related documentation in the `/wiki` directory
+   - Identify affected components and potential impacts
 
-### 3. Testing Requirements
+4. **Design Documentation**:
+   - For significant features, update or create design documentation
+   - Document key design decisions and alternatives considered
 
-- Unit tests for all service methods
-- Integration tests for all endpoints
-- Test both success and error cases
-- Mock external dependencies
-- Use TestSecurity annotation for testing secured endpoints
-- Keep test code clean and maintainable
+### Completing an Issue
+1. **Code Quality Check**:
+   - Ensure all tests pass (`mvn test`)
+   - Verify code meets project's coding standards
 
-## Development Workflow
+2. **Documentation**:
+   - Update `CHANGELOG.md` with a summary of changes
+   - Update any affected documentation
 
-### Before You Start
+3. **Version Control**:
+   - Create a descriptive commit message explaining the changes
 
-1. **Understand the issue:** Read the requirements thoroughly
-2. **Check the docs:** Review relevant documentation in the `/wiki` directory
-3. **Plan your approach:** Consider the simplest solution that meets requirements
-4. **Ask questions:** If something is unclear, ask before implementing
+4. **Pull Request**:
+   - Create a PR with a clear title referencing the issue number
+   - Include a detailed description of changes and testing performed
+   - Link the PR to the relevant issue
 
-### Creating a Branch
+## Development Guidelines
 
-Create branches from `main` using the naming format `username/issueXX`:
+Follow the coding conventions and architecture principles outlined in the COPILOT.md document.
 
-```bash
-git checkout main
-git pull
-git checkout -b aquele-dinho/issue25
-```
+### Core Principles
+- Follow SOLID principles
+- Prefer composition over inheritance
+- Validate all user inputs at the API boundary
+- Avoid overengineering - choose the simplest approach that solves the problem
+- Write comprehensive tests for all code
 
-### Commits
+## License
 
-Write clear, descriptive commit messages:
-
-```
-Issue #25: Add order validation service
-
-- Create OrderValidationService with inventory check 
-- Add unit tests for validation logic
-- Update order placement flow to use validation
-```
-
-### Testing Your Changes
-
-Before submitting:
-
-```bash
-mvn clean test
-```
-
-## Code Style Guidelines
-
-### Simple > Complex
-
-Always favor simpler solutions:
-
-```java
-// GOOD - Simple, readable approach
-public List<Product> getActiveProducts() {
-    return productRepository.findByStatus("ACTIVE");
-}
-
-// AVOID - Overengineered solution
-public List<Product> getActiveProducts() {
-    return productRepository.findAll().stream()
-        .filter(product -> ProductStatus.ACTIVE.equals(product.getStatus()))
-        .collect(Collectors.toList());
-}
-```
-
-### Avoid Overabstraction
-
-Don't create unnecessary abstractions:
-
-```java
-// GOOD - Direct, clear implementation
-@Service
-public class ProductService {
-    private final ProductRepository repository;
-    
-    // Implementation...
-}
-
-// AVOID - Unnecessary abstraction for simple service
-public interface ProductService {
-    List<Product> findAll();
-}
-
-@Service
-public class ProductServiceImpl implements ProductService {
-    // Implementation...
-}
-```
-
-### Use Framework Features
-
-Leverage the framework instead of reinventing solutions:
-
-```java
-// GOOD - Using Quarkus/Jakarta validation
-public record ProductRequest(
-    @NotBlank String name,
-    @NotNull @Positive BigDecimal price
-) {}
-
-// AVOID - Custom validation
-public class ProductRequest {
-    private String name;
-    private BigDecimal price;
-    
-    public void validate() {
-        if (name == null || name.isBlank()) {
-            throw new ValidationException("Name is required");
-        }
-        if (price == null || price.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new ValidationException("Price must be positive");
-        }
-    }
-}
-```
-
-### Testing Should Be Simple Too
-
-Keep tests focused and readable:
-
-```java
-// GOOD - Clear, focused test
-@Test
-void shouldReturnActiveProducts() {
-    // Given
-    given(repository.findByStatus("ACTIVE")).willReturn(List.of(product1, product2));
-    
-    // When
-    List<Product> result = service.getActiveProducts();
-    
-    // Then
-    assertEquals(2, result.size());
-}
-
-// AVOID - Overengineered test setup
-@Test
-void shouldReturnActiveProducts() {
-    // Complex test setup with unnecessary abstractions and helpers
-    TestDataBuilder builder = new TestDataBuilder();
-    ProductTestFixture fixture = builder.withProducts(3)
-        .withStatus("ACTIVE")
-        .withPriceRange(10.0, 20.0)
-        .build();
-        
-    // Test execution and verification
-}
-```
-
-## Pull Request Process
-
-1. Ensure all tests pass and code meets quality standards
-2. Update documentation if necessary
-3. Submit a PR with a clear title referencing the issue
-4. Respond to code review feedback
-
-## Questions?
-
-If you have any questions about contributing, please reach out to the team through the project's communication channels.
+By contributing to GO-Commerce, you agree that your contributions will be licensed under the project's dual license as specified in the LICENSE file.

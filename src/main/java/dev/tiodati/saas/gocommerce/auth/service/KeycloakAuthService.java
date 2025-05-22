@@ -171,7 +171,7 @@ public class KeycloakAuthService implements AuthService {
             String realm = authServerUrl.substring(authServerUrl.lastIndexOf("/") + 1);
             
             // Create Keycloak Logout endpoint URL
-            String LogoutEndpoint = keycloakBaseUrl + "/realms/" + realm + "/protocol/openid-connect/Logout";
+            String LogoutEndpoint = keycloakBaseUrl + "/realms/" + realm + "/protocol/openid-connect/logout";
             
             // Build the REST client for Keycloak
             KeycloakLogoutClient LogoutClient = RestClientBuilder.newBuilder()

@@ -44,3 +44,5 @@ nb-configuration.xml
 
 /storage
 /wrapper
+*.log
+*.log

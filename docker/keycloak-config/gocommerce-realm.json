@@ -105,6 +105,19 @@
       "attributes": {
         "storeId": ["11111111-1111-1111-1111-111111111111"]
       }
+    },
+    {
+      "username": "service-account-gocommerce-client",
+      "enabled": true,
+      "serviceAccountClientId": "gocommerce-client",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "view-users",
+          "query-users",
+          "query-groups"
+        ]
+      }
     }
   ],
   "scopeMappings": []

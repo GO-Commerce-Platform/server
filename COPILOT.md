@@ -82,11 +82,13 @@ GO-Commerce is a multi-store e-commerce SaaS platform built with Quarkus and eve
 ## Development Conventions
 
 ### Package Structure
-- `dev.store` - Multi-store core functionality
-- `dev.auth` - Authentication and authorization
-- `dev.product` - Product management
-- `dev.customer` - Customer management
-- `dev.order` - Order processing
+- `dev.tiodati.saas.gocommerce.platform` - Platform-level administration
+- `dev.tiodati.saas.gocommerce.store` - Store operations functionality
+- `dev.tiodati.saas.gocommerce.product` - Product management
+- `dev.tiodati.saas.gocommerce.user` - Customer and user management
+- `dev.tiodati.saas.gocommerce.auth` - Authentication and authorization
+- `dev.tiodati.saas.gocommerce.i18n` - Internationalization
+- `dev.tiodati.saas.gocommerce.shared` - Cross-cutting concerns
 
 ### Naming Conventions
 - **Classes**: PascalCase (e.g., `ProductService`)
