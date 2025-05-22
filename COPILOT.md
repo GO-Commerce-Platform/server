@@ -357,3 +357,64 @@ GO-Commerce is a multi-store e-commerce SaaS platform built with Quarkus and eve
   - Avoid traditional Builder pattern implementation (use Lombok's @Builder)
   - Use static factory methods instead of constructors for better naming
   - Example: `Product.fromDto(productDto)` instead of `new Product(productDto)`
+
+  
+## CHANGELOG Management
+
+### Pre-Release Phase (Current)
+- **DO NOT update CHANGELOG.md** during initial development (pre-v1.0.0)
+- The project is in MVP development phase and documentation should be limited to:
+  - Code comments
+  - Wiki documentation
+  - PR descriptions
+  - Issue documentation
+
+### Post-Release Phase
+- Once v1.0.0 is released, maintain CHANGELOG.md following the Keep a Changelog format
+- Document all notable changes under appropriate sections:
+  - Added
+  - Changed
+  - Deprecated
+  - Removed
+  - Fixed
+  - Security
+
+## Documentation Priorities
+
+1. **Code Documentation**
+   - Use JavaDoc for all public methods, classes, and interfaces
+   - Document parameters, return values, and exceptions
+   - Explain non-obvious logic with inline comments
+
+2. **Design Documentation**
+   - Update `/wiki` documentation for significant architectural changes
+   - Document key design decisions and rationale
+   - Keep data model documentation current
+
+3. **API Documentation**
+   - Maintain OpenAPI annotations for all endpoints
+   - Document request/response structures
+   - Include example requests where helpful
+
+## Multi-Store Architecture Documentation
+
+When documenting multi-store features:
+- Clearly identify which database schema stores the data (platform vs store-specific)
+- Document how store resolution works for the component
+- Explain any store-specific configuration options
+- Note security considerations for cross-store data access
+
+## Issue Completion Requirements
+
+Before closing any issue, ensure:
+1. Code is properly documented with comments
+2. Integration tests validate the functionality
+3. Wiki documentation is updated if the feature impacts architecture
+4. PR description thoroughly documents what was changed and why
+
+## Documentation Format Guidelines
+
+- Use Markdown for all documentation
+- Structure content with clear hierarchical headings
+- Include code examples where applicable
+- For complex concepts, include diagrams (using mermaid or similar)

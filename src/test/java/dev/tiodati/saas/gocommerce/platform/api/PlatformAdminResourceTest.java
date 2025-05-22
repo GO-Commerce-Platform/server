@@ -31,7 +31,7 @@ public class PlatformAdminResourceTest {
         
         validRequest = new CreateStoreRequest(
             "Test Store", 
-            "test-store", 
+            "test-store",
             adminUser
         );
     }
@@ -51,7 +51,7 @@ public class PlatformAdminResourceTest {
             .log().ifValidationFails() // Add logging for debugging
             .statusCode(Status.CREATED.getStatusCode())
             .body("id", notNullValue())
-            .body("name", is("Test Store"))
+            .body("storeName", is("Test Store"))
             .body("subdomain", is("test-store"))
             .body("fullDomain", is("test-store.gocommerce.com"))
             .body("status", is("ACTIVE"))

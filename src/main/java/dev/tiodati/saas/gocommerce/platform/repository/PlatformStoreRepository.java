@@ -5,13 +5,13 @@ import java.util.UUID;
 
 import jakarta.enterprise.context.ApplicationScoped;
 
-import dev.tiodati.saas.gocommerce.platform.entity.PlatformStore;
+import dev.tiodati.saas.gocommerce.platform.entity.PlatformStores;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 
 @ApplicationScoped
-public class PlatformStoreRepository implements PanacheRepositoryBase<PlatformStore, UUID> {
+public class PlatformStoreRepository implements PanacheRepositoryBase<PlatformStores, UUID> {
     
-    public Optional<PlatformStore> findBySubdomain(String subdomain) {
+    public Optional<PlatformStores> findBySubdomain(String subdomain) {
         return find("subdomain = ?1 AND isDeleted = false", subdomain).firstResultOptional();
     }
     

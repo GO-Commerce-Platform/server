@@ -40,7 +40,7 @@ public class PlatformAdminServiceImplTest {
 
         createStoreRequest = new CreateStoreRequest(
             "Test Store Service",
-            "test-store-service", 
+            "test-store-service",
             adminUser
         );
         
@@ -58,7 +58,7 @@ public class PlatformAdminServiceImplTest {
             // Verify the store was created with the correct data
             assertNotNull(response, "Response should not be null");
             assertNotNull(response.id(), "Store ID should not be null");
-            assertEquals("Test Store Service", response.name(), "Store name should match request");
+            assertEquals("Test Store Service", response.storeName(), "Store name should match request");
             assertEquals("test-store-service", response.subdomain(), "Store subdomain should match request");
             assertEquals("test-store-service.gocommerce.com", response.fullDomain(), "Store full domain should be correctly formed");
             assertEquals("ACTIVE", response.status(), "Store status should be ACTIVE");
