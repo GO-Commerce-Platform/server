@@ -1,22 +1,18 @@
 package dev.tiodati.saas.gocommerce.store.config;
 
-import io.quarkus.logging.Log;
-
 import dev.tiodati.saas.gocommerce.store.StoreContext;
 import dev.tiodati.saas.gocommerce.store.model.Store;
 import io.quarkus.arc.lookup.LookupIfProperty;
-import io.quarkus.hibernate.orm.PersistenceUnitExtension;
 import io.quarkus.hibernate.orm.runtime.tenant.TenantResolver;
+import io.quarkus.logging.Log;
 import io.quarkus.vertx.http.runtime.CurrentVertxRequest;
 import io.vertx.ext.web.RoutingContext;
 import jakarta.enterprise.context.RequestScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 
-@LookupIfProperty(name = "quarkus.hibernate-orm.multistore", stringValue = "SCHEMA")
+@LookupIfProperty(name = "quarkus.hibernate-orm.multitenant", stringValue = "SCHEMA")
 @RequestScoped
-@PersistenceUnitExtension
-// Added @PersistenceUnitExtension to fix the warning about future compatibility
 public class StoreSchemaResolver implements TenantResolver {
     
     private static final String DEFAULT_STORE_ID = "default";
