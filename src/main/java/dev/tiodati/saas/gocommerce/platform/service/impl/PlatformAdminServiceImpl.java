@@ -1,10 +1,14 @@
 package dev.tiodati.saas.gocommerce.platform.service.impl;
 
+import java.time.Instant;
+import java.util.UUID;
+
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import dev.tiodati.saas.gocommerce.platform.api.dto.CreateStoreRequest;
 import dev.tiodati.saas.gocommerce.platform.api.dto.StoreResponse;
-import dev.tiodati.saas.gocommerce.platform.entity.PlatformStore;
+import dev.tiodati.saas.gocommerce.platform.entity.PlatformStores;
 import dev.tiodati.saas.gocommerce.platform.entity.StoreStatus;
 import dev.tiodati.saas.gocommerce.platform.repository.PlatformStoreRepository;
 import dev.tiodati.saas.gocommerce.platform.service.PlatformAdminService;
@@ -15,17 +19,16 @@ import jakarta.transaction.Transactional;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 
-import java.time.OffsetDateTime;
-
 @ApplicationScoped
 public class PlatformAdminServiceImpl implements PlatformAdminService {
     
     private static final Logger LOG = Logger.getLogger(PlatformAdminServiceImpl.class);
     
     private final PlatformStoreRepository storeRepository;
-    // For now, we'll mock Keycloak admin and schema creation
-    // private final KeycloakAdminClient keycloakClient;
-    // private final DatabaseSchemaService schemaService;
+    
+    // Default domain suffix for stores from application properties file
+    @ConfigProperty(name = "gocommerce.store.default-domain-suffix", defaultValue = "gocommerce.com")
+     String defaultDomainSuffix;
     
     @Inject
     public PlatformAdminServiceImpl(PlatformStoreRepository storeRepository) {
@@ -43,15 +46,19 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
             throw new WebApplicationException("Store with this subdomain already exists", Response.Status.CONFLICT);
         }
         
-        try {
+        try {   
+            // Create schema name from subdomain
+            String schemaName = "store_" + request.subdomain().replaceAll("-", "_");
+                
             // Create store entity with explicit timestamps
-            OffsetDateTime now = OffsetDateTime.now();
-            PlatformStore store = PlatformStore.builder()
-                .name(request.name())
+            var now = Instant.now();
+            var store = PlatformStores.builder()
+                .id(UUID.randomUUID())
                 .subdomain(request.subdomain())
-                .domainSuffix("gocommerce.com")
-                .status(StoreStatus.PENDING_SETUP)
-                .deleted(false)
+                .domainSuffix(defaultDomainSuffix)
+                .schemaName(schemaName)
+                .storeName(request.name())
+                .status(StoreStatus.CREATING)
                 .createdAt(now)
                 .updatedAt(now)
                 .build();
@@ -64,7 +71,6 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
             // keycloakClient.createUser(realmId, request.adminUser());
             
             // TODO: Create database schema for the store
-            // String schemaName = "store_" + request.subdomain().replaceAll("-", "_");
             // schemaService.createSchema(schemaName);
             // store.setDatabaseSchema(schemaName);
             
@@ -81,7 +87,7 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
             // Return the response DTO with explicitly set timestamp
             return new StoreResponse(
                 store.getId(),
-                store.getName(),
+                store.getStoreName(),
                 store.getSubdomain(),
                 store.getFullDomain(),
                 store.getStatus().toString(),

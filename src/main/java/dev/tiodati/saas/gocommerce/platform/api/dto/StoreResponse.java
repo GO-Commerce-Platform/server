@@ -1,13 +1,13 @@
 package dev.tiodati.saas.gocommerce.platform.api.dto;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public record StoreResponse(
     UUID id,
-    String name,
+    String storeName,
     String subdomain,
     String fullDomain,
     String status,
-    OffsetDateTime createdAt
+    Instant createdAt
 ) {}
