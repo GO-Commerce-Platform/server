@@ -11,5 +11,13 @@ public enum StoreStatus {
     /** Store is temporarily inactive, can be reactivated. */
     INACTIVE,
     /** Store is suspended due to policy violations or other reasons. */
-    SUSPENDED
+    SUSPENDED,
+    /** Store is permanently closed and cannot be reactivated. */
+    CLOSED,
+    /** Store is archived, typically for historical purposes. */
+    ARCHIVED,
+    /** Store is in the process of being deleted. */
+    DELETING,
+    /** Store has been deleted and is no longer accessible. */
+    DELETED
 }

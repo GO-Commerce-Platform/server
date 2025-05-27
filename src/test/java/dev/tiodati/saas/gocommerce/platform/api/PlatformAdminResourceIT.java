@@ -1,12 +1,7 @@
 package dev.tiodati.saas.gocommerce.platform.api;
 
 import static io.restassured.RestAssured.given;
-import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-
-import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
@@ -16,15 +11,10 @@ import dev.tiodati.saas.gocommerce.platform.entity.StoreStatus; // Added import
 import io.quarkus.test.junit.QuarkusIntegrationTest;
 import io.quarkus.test.security.TestSecurity;
 import io.restassured.http.ContentType;
-import io.restassured.response.Response;
-import jakarta.inject.Inject;
 import jakarta.ws.rs.core.Response.Status;
 
 @QuarkusIntegrationTest
 public class PlatformAdminResourceIT {
-
-    @Inject
-    PlatformStoreRepository storeRepository;
 
     @Test
     @TestSecurity(user = "admin", roles = { "Platform Admin" })

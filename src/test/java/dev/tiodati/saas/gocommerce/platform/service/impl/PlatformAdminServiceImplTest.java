@@ -16,7 +16,7 @@ import dev.tiodati.saas.gocommerce.exception.custom.ResourceNotFoundException;
 import dev.tiodati.saas.gocommerce.platform.api.dto.CreateStoreRequest;
 import dev.tiodati.saas.gocommerce.platform.api.dto.StoreResponse; // Import StoreResponse
 import dev.tiodati.saas.gocommerce.platform.api.dto.UpdateStoreRequest; // Import UpdateStoreRequest
-import dev.tiodati.saas.gocommerce.platform.entity.PlatformStore;
+import dev.tiodati.saas.gocommerce.platform.entity.PlatformStores;
 import dev.tiodati.saas.gocommerce.platform.entity.StoreStatus;
 import dev.tiodati.saas.gocommerce.platform.repository.PlatformStoreRepository;
 import dev.tiodati.saas.gocommerce.platform.service.PlatformAdminService;
@@ -62,17 +62,17 @@ public class PlatformAdminServiceImplTest {
 
         assertNotNull(createdStoreResponse);
         assertNotNull(createdStoreResponse.id());
-        assertEquals(uniqueCreateRequest.name(), createdStoreResponse.name());
+        assertEquals(uniqueCreateRequest.name(), createdStoreResponse.storeName());
         assertEquals(uniqueCreateRequest.subdomain(),
                 createdStoreResponse.subdomain());
         assertEquals(uniqueCreateRequest.status().toString(),
                 createdStoreResponse.status());
 
-        Optional<PlatformStore> persistedStoreOpt = platformStoreRepository
+        Optional<PlatformStores> persistedStoreOpt = platformStoreRepository
                 .findByIdOptional(createdStoreResponse.id());
         assertTrue(persistedStoreOpt.isPresent());
-        PlatformStore persistedStore = persistedStoreOpt.get();
-        assertEquals(uniqueCreateRequest.name(), persistedStore.getName());
+        PlatformStores persistedStore = persistedStoreOpt.get();
+        assertEquals(uniqueCreateRequest.name(), persistedStore.getStoreName());
         assertEquals(uniqueCreateRequest.subdomain(),
                 persistedStore.getSubdomain());
         assertEquals(uniqueCreateRequest.email(), persistedStore.getEmail());
@@ -133,7 +133,7 @@ public class PlatformAdminServiceImplTest {
 
         // Assert
         assertNotNull(updatedStoreResponse);
-        assertEquals("Updated Store Name", updatedStoreResponse.name());
+        assertEquals("Updated Store Name", updatedStoreResponse.storeName());
         assertEquals(StoreStatus.INACTIVE.toString(),
                 updatedStoreResponse.status()); // Assert against String status
         // Assertions for email, description are removed as they are not in
@@ -141,11 +141,11 @@ public class PlatformAdminServiceImplTest {
         // updatedStoreResponse.email() would not exist if StoreResponse doesn't
         // have it.
 
-        Optional<PlatformStore> fetchedStoreOpt = platformStoreRepository
+        Optional<PlatformStores> fetchedStoreOpt = platformStoreRepository
                 .findByIdOptional(storeId); // Changed to findByIdOptional
         assertTrue(fetchedStoreOpt.isPresent());
-        PlatformStore fetchedStore = fetchedStoreOpt.get();
-        assertEquals("Updated Store Name", fetchedStore.getName());
+        PlatformStores fetchedStore = fetchedStoreOpt.get();
+        assertEquals("Updated Store Name", fetchedStore.getStoreName());
         assertEquals(StoreStatus.INACTIVE, fetchedStore.getStatus());
         assertEquals("updated@store.com", fetchedStore.getEmail());
         assertEquals("Updated description", fetchedStore.getDescription());
@@ -188,7 +188,7 @@ public class PlatformAdminServiceImplTest {
         platformAdminService.deleteStore(storeId);
 
         // Assert: Verify the store is marked as deleted (soft delete)
-        Optional<PlatformStore> deletedStoreOpt = platformStoreRepository
+        Optional<PlatformStores> deletedStoreOpt = platformStoreRepository
                 .findByIdOptional(storeId);
         assertTrue(deletedStoreOpt.isPresent(),
                 "Store should still be found in the database for soft delete.");
