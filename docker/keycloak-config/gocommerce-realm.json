@@ -25,44 +25,156 @@
       "authorizationServicesEnabled": true,
       "serviceAccountsEnabled": true,
       "standardFlowEnabled": true,
-      "directAccessGrantsEnabled": true
+      "directAccessGrantsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "PLATFORM_ADMIN realm to client",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "usermodel.realm.role.mapping.role.prefix": "",
+            "role": "PLATFORM_ADMIN",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "false",
+            "multivalued": "true",
+            "claim.name": "resource_access.gocommerce-client.roles"
+          }
+        },
+        {
+          "name": "STORE_ADMIN realm to client",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "usermodel.realm.role.mapping.role.prefix": "",
+            "role": "STORE_ADMIN",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "false",
+            "multivalued": "true",
+            "claim.name": "resource_access.gocommerce-client.roles"
+          }
+        },
+        {
+          "name": "PRODUCT_MANAGER realm to client",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "usermodel.realm.role.mapping.role.prefix": "",
+            "role": "PRODUCT_MANAGER",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "false",
+            "multivalued": "true",
+            "claim.name": "resource_access.gocommerce-client.roles"
+          }
+        },
+        {
+          "name": "ORDER_MANAGER realm to client",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "usermodel.realm.role.mapping.role.prefix": "",
+            "role": "ORDER_MANAGER",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "false",
+            "multivalued": "true",
+            "claim.name": "resource_access.gocommerce-client.roles"
+          }
+        },
+        {
+          "name": "CUSTOMER_SERVICE realm to client",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "usermodel.realm.role.mapping.role.prefix": "",
+            "role": "CUSTOMER_SERVICE",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "false",
+            "multivalued": "true",
+            "claim.name": "resource_access.gocommerce-client.roles"
+          }
+        },
+        {
+          "name": "CUSTOMER realm to client",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "usermodel.realm.role.mapping.role.prefix": "",
+            "role": "CUSTOMER",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "false",
+            "multivalued": "true",
+            "claim.name": "resource_access.gocommerce-client.roles"
+          }
+        },
+        {
+          "name": "store-roles-script-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-script-mapper",
+          "consentRequired": false,
+          "config": {
+            "script": "var storeRoles = {};\nvar storeIdAttribute = user.getAttribute('storeId');\n\nif (storeIdAttribute && storeIdAttribute.length > 0) {\n    var userStoreId = storeIdAttribute[0];\n    var userAssignedRealmRoles = user.getRealmRoleMappings();\n    var rolesInStore = [];\n\n    for (var i = 0; i < userAssignedRealmRoles.size(); i++) {\n        var roleModel = userAssignedRealmRoles.get(i);\n        var roleName = roleModel.getName();\n        \n        if (roleName === \"STORE_ADMIN\" || \n            roleName === \"PRODUCT_MANAGER\" || \n            roleName === \"ORDER_MANAGER\" ||\n            roleName === \"CUSTOMER_SERVICE\") {\n            rolesInStore.push(roleName);\n        }\n    }\n\n    if (rolesInStore.length > 0) {\n        storeRoles[userStoreId] = rolesInStore;\n    }\n}\n\nexports = storeRoles;",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "multivalued": "false",
+            "jsonType.label": "JSON",
+            "claim.name": "store_roles"
+          }
+        }
+      ]
     }
   ],
   "roles": {
     "realm": [
       {
-        "name": "platform-admin",
+        "name": "PLATFORM_ADMIN",
         "description": "Platform administrator with full access",
         "composite": true,
         "composites": {
-          "realm": ["store-admin", "customer"]
+          "realm": [
+            "STORE_ADMIN",
+            "CUSTOMER"
+          ]
         }
       },
       {
-        "name": "store-admin",
+        "name": "STORE_ADMIN",
         "description": "Store administrator with access to own store resources",
         "composite": true,
         "composites": {
-          "realm": ["customer"]
+          "realm": [
+            "CUSTOMER"
+          ]
         }
       },
       {
-        "name": "customer",
+        "name": "CUSTOMER",
         "description": "Regular user with restricted access",
         "composite": false
       },
       {
-        "name": "product-manager",
+        "name": "PRODUCT_MANAGER",
         "description": "Can manage products within a store",
         "composite": false
       },
       {
-        "name": "order-manager",
+        "name": "ORDER_MANAGER",
         "description": "Can manage orders within a store",
         "composite": false
       },
       {
-        "name": "customer-service",
+        "name": "CUSTOMER_SERVICE",
         "description": "Can handle customer support within a store",
         "composite": false
       }
@@ -83,7 +195,9 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["platform-admin"],
+      "realmRoles": [
+        "PLATFORM_ADMIN"
+      ],
       "requiredActions": []
     },
     {
@@ -100,10 +214,16 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["store-admin", "product-manager", "order-manager"],
+      "realmRoles": [
+        "STORE_ADMIN",
+        "PRODUCT_MANAGER",
+        "ORDER_MANAGER"
+      ],
       "requiredActions": [],
       "attributes": {
-        "storeId": ["11111111-1111-1111-1111-111111111111"]
+        "storeId": [
+          "11111111-1111-1111-1111-111111111111"
+        ]
       }
     },
     {

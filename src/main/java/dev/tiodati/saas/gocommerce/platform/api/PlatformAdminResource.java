@@ -1,6 +1,5 @@
 package dev.tiodati.saas.gocommerce.platform.api;
 
-
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
@@ -36,10 +35,10 @@ public class PlatformAdminResource {
     @RolesAllowed("Platform Admin")
     @Operation(summary = "Create a new store", description = "Creates a new store in the platform with the specified information")
     @APIResponses({
-        @APIResponse(responseCode = "201", description = "Store successfully created"),
-        @APIResponse(responseCode = "400", description = "Invalid input data"),
-        @APIResponse(responseCode = "403", description = "Insufficient permissions to create a store"),
-        @APIResponse(responseCode = "409", description = "Store with the given subdomain already exists")
+            @APIResponse(responseCode = "201", description = "Store successfully created"),
+            @APIResponse(responseCode = "400", description = "Invalid input data"),
+            @APIResponse(responseCode = "403", description = "Insufficient permissions to create a store"),
+            @APIResponse(responseCode = "409", description = "Store with the given subdomain already exists")
     })
     public Response createStore(@Valid CreateStoreRequest request) {
         StoreResponse createdStore = platformAdminService.createStore(request);

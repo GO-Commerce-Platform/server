@@ -11,31 +11,32 @@ import java.util.ResourceBundle;
 
 /**
  * Service for managing internationalized messages.
- * Provides methods to retrieve messages from resource bundles based on the current locale.
+ * Provides methods to retrieve messages from resource bundles based on the
+ * current locale.
  */
 @ApplicationScoped
 public class MessageService {
-    
+
     private static final String BUNDLE_NAME = "messages";
-    
+
     @Inject
     @dev.tiodati.saas.gocommerce.i18n.Default
     LocaleResolver localeResolver;
-    
+
     /**
      * Gets a message for the current locale.
-     * 
+     *
      * @param key The message key
      * @return The localized message or the key itself if not found
      */
     public String getMessage(String key) {
         return getMessage(key, localeResolver.getLocale());
     }
-    
+
     /**
      * Gets a message for the current locale with parameter substitution.
-     * 
-     * @param key The message key
+     *
+     * @param key    The message key
      * @param params The parameters to substitute in the message
      * @return The formatted localized message or the key itself if not found
      */
@@ -46,11 +47,11 @@ public class MessageService {
         }
         return MessageFormat.format(message, params);
     }
-    
+
     /**
      * Gets a message for a specific locale.
-     * 
-     * @param key The message key
+     *
+     * @param key    The message key
      * @param locale The locale to use
      * @return The localized message or the key itself if not found
      */
@@ -58,7 +59,7 @@ public class MessageService {
         if (key == null || key.isEmpty()) {
             return "";
         }
-        
+
         try {
             ResourceBundle bundle = ResourceBundle.getBundle(BUNDLE_NAME, locale);
             return bundle.getString(key);
@@ -70,11 +71,11 @@ public class MessageService {
             return key;
         }
     }
-    
+
     /**
      * Gets a message for a specific locale with parameter substitution.
-     * 
-     * @param key The message key
+     *
+     * @param key    The message key
      * @param locale The locale to use
      * @param params The parameters to substitute in the message
      * @return The formatted localized message or the key itself if not found

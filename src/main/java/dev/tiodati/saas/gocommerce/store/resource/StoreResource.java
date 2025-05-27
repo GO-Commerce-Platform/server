@@ -44,39 +44,37 @@ import jakarta.ws.rs.core.Response;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Store Management", description = "Operations for managing stores")
-@RolesAllowed("admin")  // Base restriction - only admins can access store management
+@RolesAllowed("admin") // Base restriction - only admins can access store managemen
 public class StoreResource {
 
     // private static final Logger LOG = Logger.getLogger(StoreResource.class);
-    
+
     private final StoreService storeService;
     private final PasswordHashingUtil passwordHashingUtil;
-    
+
     @Inject
     public StoreResource(StoreService storeService, PasswordHashingUtil passwordHashingUtil) {
         this.storeService = storeService;
         this.passwordHashingUtil = passwordHashingUtil;
     }
-    
+
     @GET
     @Operation(summary = "List all stores", description = "Returns a list of all stores")
     @APIResponses({
-        @APIResponse(responseCode = "200", description = "List of stores retrieved successfully", 
-                     content = @Content(schema = @Schema(implementation = StoreDto.class)))
+            @APIResponse(responseCode = "200", description = "List of stores retrieved successfully", content = @Content(schema = @Schema(implementation = StoreDto.class)))
     })
     public List<StoreDto> listStores() {
         return storeService.listAll().stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
     }
-    
+
     @GET
-    @Path("/{id}")
+    @Path("/{ id }")
     @Operation(summary = "Get store by ID", description = "Returns a store by its ID")
     @APIResponses({
-        @APIResponse(responseCode = "200", description = "Store retrieved successfully", 
-                     content = @Content(schema = @Schema(implementation = StoreDto.class))),
-        @APIResponse(responseCode = "404", description = "Store not found")
+            @APIResponse(responseCode = "200", description = "Store retrieved successfully", content = @Content(schema = @Schema(implementation = StoreDto.class))),
+            @APIResponse(responseCode = "404", description = "Store not found")
     })
     public Response getStore(@PathParam("id") UUID id) {
         return storeService.findById(id)
@@ -84,13 +82,13 @@ public class StoreResource {
                 .map(dto -> Response.ok(dto).build())
                 .orElse(Response.status(Response.Status.NOT_FOUND).build());
     }
-    
+
     @POST
     @Operation(summary = "Create a new store", description = "Creates a new store with an admin user")
     @APIResponses({
-        @APIResponse(responseCode = "201", description = "Store created successfully"),
-        @APIResponse(responseCode = "400", description = "Invalid input"),
-        @APIResponse(responseCode = "409", description = "Store key or subdomain already exists")
+            @APIResponse(responseCode = "201", description = "Store created successfully"),
+            @APIResponse(responseCode = "400", description = "Invalid input"),
+            @APIResponse(responseCode = "409", description = "Store key or subdomain already exists")
     })
     public Response createStore(@Valid CreateStoreDto createStoreDto) {
         // Check if store key or subdomain already exists
@@ -99,56 +97,57 @@ public class StoreResource {
                     .entity(Map.of("error", "Store key already exists"))
                     .build();
         }
-        
+
         if (storeService.findBySubdomain(createStoreDto.subdomain()).isPresent()) {
             return Response.status(Response.Status.CONFLICT)
                     .entity(Map.of("error", "Subdomain already exists"))
                     .build();
         }
-        
+
         try {
             Store store = new Store();
             store.setName(createStoreDto.name());
             store.setStoreKey(createStoreDto.storeKey());
             store.setSubdomain(createStoreDto.subdomain());
             store.setStatus(StoreStatus.valueOf("PENDING")); // Default status
-            
+
             StoreAdmin admin = new StoreAdmin();
             admin.setUsername(createStoreDto.adminUsername());
             admin.setEmail(createStoreDto.adminEmail());
             admin.setPasswordHash(passwordHashingUtil.hashPassword(createStoreDto.adminPassword()));
-            
+
             Store createdStore = storeService.createStore(store, admin);
-            return Response.created(URI.create("/api/admin/stores/" + createdStore.getId())).entity(convertToDto(createdStore)).build();
+            return Response.created(URI.create("/api/admin/stores/" + createdStore.getId()))
+                    .entity(convertToDto(createdStore)).build();
         } catch (Exception e) {
             Log.error("Error creating store", e);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Error creating store").build();
         }
     }
-    
+
     @PUT
-    @Path("/{id}")
+    @Path("/{ id }")
     @Operation(summary = "Update store", description = "Updates an existing store")
     @RequiresStoreRole({}) // Verify store access even for admin operations
     @APIResponses({
-        @APIResponse(responseCode = "200", description = "Store updated successfully"),
-        @APIResponse(responseCode = "404", description = "Store not found"),
-        @APIResponse(responseCode = "409", description = "Subdomain already exists")
+            @APIResponse(responseCode = "200", description = "Store updated successfully"),
+            @APIResponse(responseCode = "404", description = "Store not found"),
+            @APIResponse(responseCode = "409", description = "Subdomain already exists")
     })
     public Response updateStore(
             @PathParam("id") UUID id,
             @Valid StoreDto storeDto) {
-        
+
         try {
             Store store = storeService.findById(id)
                     .orElseThrow(() -> new NotFoundException("Store not found with ID: " + id));
-            
+
             // Update fields (except storeKey and schemaName which cannot be changed)
             store.setName(storeDto.name());
             store.setStatus(storeDto.status());
             store.setBillingPlan(storeDto.billingPlan());
             store.setSettings(storeDto.settings());
-            
+
             // Check if trying to update subdomain and if it's already taken
             if (!store.getSubdomain().equals(storeDto.subdomain())) {
                 if (storeService.findBySubdomain(storeDto.subdomain()).isPresent()) {
@@ -158,10 +157,10 @@ public class StoreResource {
                 }
                 store.setSubdomain(storeDto.subdomain());
             }
-            
+
             store = storeService.updateStore(store);
             return Response.ok(convertToDto(store)).build();
-            
+
         } catch (NotFoundException e) {
             return Response.status(Response.Status.NOT_FOUND)
                     .entity(Map.of("error", e.getMessage()))
@@ -173,27 +172,27 @@ public class StoreResource {
                     .build();
         }
     }
-    
+
     @PATCH
-    @Path("/{id}/status")
+    @Path("/{ id }/status")
     @Operation(summary = "Update store status", description = "Updates a store's status")
     @RequiresStoreRole({}) // Verify store access even for admin operations
     @APIResponses({
-        @APIResponse(responseCode = "200", description = "Store status updated successfully"),
-        @APIResponse(responseCode = "400", description = "Invalid status"),
-        @APIResponse(responseCode = "404", description = "Store not found")
+            @APIResponse(responseCode = "200", description = "Store status updated successfully"),
+            @APIResponse(responseCode = "400", description = "Invalid status"),
+            @APIResponse(responseCode = "404", description = "Store not found")
     })
     public Response updateStoreStatus(
             @PathParam("id") UUID id,
             Map<String, String> body) {
-        
+
         String status = body.get("status");
         if (status == null) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity(Map.of("error", "Status is required"))
                     .build();
         }
-        
+
         try {
             StoreStatus storeStatus = StoreStatus.valueOf(status.toUpperCase());
             Store store = storeService.updateStoreStatus(id, storeStatus);
@@ -209,14 +208,14 @@ public class StoreResource {
                     .build();
         }
     }
-    
+
     @DELETE
-    @Path("/{id}")
+    @Path("/{ id }")
     @Operation(summary = "Delete store", description = "Soft deletes a store")
     @RequiresStoreRole({}) // Verify store access even for admin operations
     @APIResponses({
-        @APIResponse(responseCode = "204", description = "Store deleted successfully"),
-        @APIResponse(responseCode = "404", description = "Store not found")
+            @APIResponse(responseCode = "204", description = "Store deleted successfully"),
+            @APIResponse(responseCode = "404", description = "Store not found")
     })
     public Response deleteStore(@PathParam("id") UUID id) {
         try {
@@ -229,16 +228,15 @@ public class StoreResource {
                     .build();
         }
     }
-    
+
     private StoreDto convertToDto(Store store) {
         return new StoreDto(
-            store.getId(),
-            store.getStoreKey(),
-            store.getName(),
-            store.getSubdomain(),
-            store.getStatus(),
-            store.getBillingPlan(),
-            store.getSettings()
-        );
+                store.getId(),
+                store.getStoreKey(),
+                store.getName(),
+                store.getSubdomain(),
+                store.getStatus(),
+                store.getBillingPlan(),
+                store.getSettings());
     }
 }

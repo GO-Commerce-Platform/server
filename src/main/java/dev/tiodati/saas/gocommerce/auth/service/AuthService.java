@@ -8,7 +8,7 @@ import dev.tiodati.saas.gocommerce.auth.dto.TokenResponse;
  * Service interface for authentication operations
  */
 public interface AuthService {
-    
+
     /**
      * Authenticate a user and generate access and refresh tokens
      *
@@ -17,7 +17,7 @@ public interface AuthService {
      * @throws jakarta.ws.rs.NotAuthorizedException if authentication fails
      */
     TokenResponse login(LoginRequest loginRequest);
-    
+
     /**
      * Generate new tokens using a refresh token
      *
@@ -26,7 +26,7 @@ public interface AuthService {
      * @throws jakarta.ws.rs.NotAuthorizedException if refresh token is invalid or expired
      */
     TokenResponse refreshToken(RefreshTokenRequest refreshTokenRequest);
-    
+
     /**
      * Invalidate a user's refresh token
      *
@@ -34,10 +34,10 @@ public interface AuthService {
      * @return true if successfully invalidated
      */
     boolean logout(String refreshToken);
-    
+
     /**
      * Validate an access token
-     * 
+     *
      * @param token The token to validate
      * @return true if token is valid
      */

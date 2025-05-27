@@ -18,30 +18,30 @@ import jakarta.inject.Inject;
  */
 @ApplicationScoped
 public class SchemaManager {
-    
+
     private final DataSource dataSource;
-    
+
     @Inject
     public SchemaManager(DataSource dataSource) {
         this.dataSource = dataSource;
     }
-    
+
     /**
      * Creates a new database schema for a store
-     * 
+     *
      * @param schemaName The schema name to create
      * @throws SQLException if schema creation fails
      */
     public void createSchema(String schemaName) throws SQLException {
         Log.info("Creating schema: " + schemaName);
-        
-        try (Connection conn = dataSource.getConnection(); 
-             Statement stmt = conn.createStatement()) {
-            
-            // Create schema if it doesn't exist
+
+        try (Connection conn = dataSource.getConnection();
+                Statement stmt = conn.createStatement()) {
+
+            // Create schema if it doesn't exis
             stmt.execute("CREATE SCHEMA IF NOT EXISTS " + schemaName);
             Log.info("Schema created successfully: " + schemaName);
-            
+
             // Run migrations on new schema
             migrateSchema(schemaName);
         } catch (SQLException e) {
@@ -49,15 +49,15 @@ public class SchemaManager {
             throw e;
         }
     }
-    
+
     /**
      * Runs Flyway migrations on a specific store schema
-     * 
+     *
      * @param schemaName The schema name to migrate
      */
     public void migrateSchema(String schemaName) {
         Log.info("Running migrations on schema: " + schemaName);
-        
+
         try {
             runFlywayMigration(schemaName);
             Log.info("Migrations completed for schema: " + schemaName);
@@ -66,37 +66,37 @@ public class SchemaManager {
             throw e;
         }
     }
-    
+
     /**
      * Protected method that runs the actual Flyway migration.
      * This is extracted to make the class more testable.
-     * 
+     *
      * @param schemaName The schema name to migrate
      */
     protected void runFlywayMigration(String schemaName) {
         FluentConfiguration flywayConfig = Flyway.configure()
-            .dataSource(dataSource)
-            .schemas(schemaName)
-            .locations("db/migration/stores")
-            .baselineOnMigrate(true)
-            .validateOnMigrate(true);
-            
+                .dataSource(dataSource)
+                .schemas(schemaName)
+                .locations("db/migration/stores")
+                .baselineOnMigrate(true)
+                .validateOnMigrate(true);
+
         Flyway flyway = flywayConfig.load();
         flyway.migrate();
     }
-    
+
     /**
      * Drops a schema and all its objects (use with caution!)
-     * 
+     *
      * @param schemaName The schema name to drop
      * @throws SQLException if schema deletion fails
      */
     public void dropSchema(String schemaName) throws SQLException {
         Log.warn("Dropping schema: " + schemaName);
-        
-        try (Connection conn = dataSource.getConnection(); 
-             Statement stmt = conn.createStatement()) {
-            
+
+        try (Connection conn = dataSource.getConnection();
+                Statement stmt = conn.createStatement()) {
+
             stmt.execute("DROP SCHEMA IF EXISTS " + schemaName + " CASCADE");
             Log.info("Schema dropped: " + schemaName);
         } catch (SQLException e) {

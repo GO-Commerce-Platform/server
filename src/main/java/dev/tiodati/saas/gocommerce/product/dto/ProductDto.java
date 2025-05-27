@@ -18,5 +18,5 @@ public record ProductDto(
     boolean isActive,
     UUID categoryId,
     Instant createdAt,
-    Instant updatedAt
-) {}
+    Instant updatedA
+) { }

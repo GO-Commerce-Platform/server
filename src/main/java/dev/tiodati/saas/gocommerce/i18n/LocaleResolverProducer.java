@@ -10,14 +10,15 @@ import jakarta.inject.Inject;
  */
 @ApplicationScoped
 public class LocaleResolverProducer {
-    
+
     @Inject
     RequestLocaleResolver requestLocaleResolver;
-    
+
     /**
      * Produces a LocaleResolver implementation.
-     * Currently returns the RequestLocaleResolver which uses HTTP request information.
-     * 
+     * Currently returns the RequestLocaleResolver which uses HTTP request
+     * information.
+     *
      * @return A LocaleResolver implementation
      */
     @Produces

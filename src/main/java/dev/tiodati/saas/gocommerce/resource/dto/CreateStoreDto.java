@@ -6,39 +6,25 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record CreateStoreDto(
-    @NotBlank(message = "Store key is required")
-    @Pattern(regexp = "^[a-z0-9-]{3,50}$", message = "Store key must contain only lowercase letters, numbers, and hyphens, and be between 3-50 characters")
-    String storeKey,
-    
-    @NotBlank(message = "Store name is required")
-    @Size(min = 3, max = 255, message = "Store name must be between 3-255 characters")
-    String name,
-    
-    @NotBlank(message = "Subdomain is required")
-    @Pattern(regexp = "^[a-z0-9-]{3,100}$", message = "Subdomain must contain only lowercase letters, numbers, and hyphens, and be between 3-100 characters")
-    String subdomain,
-    
-    String billingPlan,
-    
-    String settings,
-    
-    // Admin details
-    //admin username
-    @NotBlank(message = "Admin username is required")
-    @Pattern(regexp = "^[a-zA-Z0-9._-]{3,50}$", message = "Admin username must contain only letters, numbers, dots, underscores, and hyphens, and be between 3-50 characters")
-    String adminUsername,
+        @NotBlank(message = "Store key is required") @Pattern(regexp = "^[a-z0-9-]{3,50}$", message = "Store key must contain only lowercase letters, numbers, and hyphens, and be between 3-50 characters") String storeKey,
 
-    @NotBlank(message = "Admin email is required")
-    @Email(message = "Admin email must be valid")
-    String adminEmail,
-    
-    @NotBlank(message = "Admin password is required")
-    @Size(min = 8, message = "Admin password must be at least 8 characters")
-    String adminPassword,
-    
-    @NotBlank(message = "Admin first name is required")
-    String adminFirstName,
-    
-    @NotBlank(message = "Admin last name is required")
-    String adminLastName
-) {}
+        @NotBlank(message = "Store name is required") @Size(min = 3, max = 255, message = "Store name must be between 3-255 characters") String name,
+
+        @NotBlank(message = "Subdomain is required") @Pattern(regexp = "^[a-z0-9-]{3,100}$", message = "Subdomain must contain only lowercase letters, numbers, and hyphens, and be between 3-100 characters") String subdomain,
+
+        String billingPlan,
+
+        String settings,
+
+        // Admin details
+        // admin username
+        @NotBlank(message = "Admin username is required") @Pattern(regexp = "^[a-zA-Z0-9._-]{3,50}$", message = "Admin username must contain only letters, numbers, dots, underscores, and hyphens, and be between 3-50 characters") String adminUsername,
+
+        @NotBlank(message = "Admin email is required") @Email(message = "Admin email must be valid") String adminEmail,
+
+        @NotBlank(message = "Admin password is required") @Size(min = 8, message = "Admin password must be at least 8 characters") String adminPassword,
+
+        @NotBlank(message = "Admin first name is required") String adminFirstName,
+
+        @NotBlank(message = "Admin last name is required") String adminLastName) {
+}

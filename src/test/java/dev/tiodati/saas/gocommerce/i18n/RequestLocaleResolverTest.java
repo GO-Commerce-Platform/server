@@ -1,109 +1,101 @@
 package dev.tiodati.saas.gocommerce.i18n;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.equalTo;
 
-import java.util.Locale;
-import java.util.Optional;
-
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.vertx.http.runtime.CurrentVertxRequest;
-import io.vertx.core.http.Cookie;
-import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.http.HttpServerResponse;
-import io.vertx.ext.web.RoutingContext;
 
+/**
+ * Integration tests for {@link RequestLocaleResolver}. These tests verify
+ * locale resolution by making HTTP requests to a test endpoint that utilizes
+ * the {@link RequestLocaleResolver}.
+ */
 @QuarkusTest
-public class RequestLocaleResolverTest {
+public class RequestLocaleResolverTest { // Consider renaming to
+                                         // RequestLocaleResolverIntegrationTest
 
-    private RequestLocaleResolver localeResolver;
-    private RoutingContext routingContext;
-    private HttpServerRequest request;
-    private HttpServerResponse response;
+    /**
+     * Endpoint for testing locale resolution. This endpoint is used to
+     * verify that the locale is correctly resolved based on different sources
+     * such as URL parameters, cookies, and Accept-Language headers.
+     */
+    private static final String TEST_ENDPOINT_RESOLVE = "/_test/locale/resolve";
 
-    @BeforeEach
-    public void setUp() {
-        localeResolver = new RequestLocaleResolver();
-        routingContext = mock(RoutingContext.class);
-        request = mock(HttpServerRequest.class);
-        response = mock(HttpServerResponse.class);
+    /**
+     * Endpoint for testing setting the locale via a URL parameter. This endpoint
+     * allows setting the locale and expects the "locale" cookie to be set in the
+     * response.
+     */
+    private static final String TEST_ENDPOINT_SET_LANG = "/_test/locale/set/{lang}";
 
-        when(routingContext.request()).thenReturn(request);
-        when(routingContext.response()).thenReturn(response);
-
-        // Correctly mock and assign CurrentVertxRequest
-        CurrentVertxRequest mockCvRequest = mock(CurrentVertxRequest.class);
-        when(mockCvRequest.getCurrent()).thenReturn(routingContext);
-        localeResolver.currentRequest = mockCvRequest; // Assign the mock object
-
-        localeResolver.defaultLocale = "en";
-        localeResolver.supportedLocales = Optional.of("en,es,pt");
-    }
-
+    /**
+     * Tests that the locale is correctly resolved from the "lang" URL
+     * parameter. Assumes "es" is a supported locale.
+     */
     @Test
     public void testResolveLocaleFromUrlParameter() {
-        when(request.getParam("lang")).thenReturn("es");
-
-        Locale locale = localeResolver.getLocale();
-
-        assertNotNull(locale);
-        assertEquals("es", locale.getLanguage());
+        given().queryParam("lang", "es").when().get(TEST_ENDPOINT_RESOLVE)
+                .then().statusCode(200).body(equalTo("es"));
     }
 
+    /**
+     * Tests that the locale is correctly resolved from the "locale" cookie.
+     * Assumes "pt" is a supported locale or will be resolved (e.g. to pt-BR).
+     * The RequestLocaleResolver logic might map "pt" to "pt-BR" if "pt-BR" is
+     * configured and "pt" is a prefix. For this test, we expect the resolver to
+     * handle "pt".
+     */
     @Test
     public void testResolveLocaleFromCookie() {
-        when(request.getParam("lang")).thenReturn(null);
-        Cookie cookie = Cookie.cookie("locale", "pt");
-        when(request.getCookie("locale")).thenReturn(cookie);
-
-        Locale locale = localeResolver.getLocale();
-
-        assertNotNull(locale);
-        assertEquals("pt", locale.getLanguage());
+        given().cookie("locale", "pt").when().get(TEST_ENDPOINT_RESOLVE).then()
+                .statusCode(200).body(equalTo("pt")); // RequestLocaleResolver
+                                                      // supports "pt" and
+                                                      // "pt-BR"
     }
 
+    /**
+     * Tests that the locale is correctly resolved from the Accept-Language
+     * header. Assumes "es" is preferred and supported.
+     */
     @Test
     public void testResolveLocaleFromAcceptLanguageHeader() {
-        when(request.getParam("lang")).thenReturn(null);
-        when(request.getCookie("locale")).thenReturn(null);
-        when(request.getHeader("Accept-Language")).thenReturn("fr-CH,fr;q=0.9,en;q=0.8");
-
-        Locale locale = localeResolver.getLocale();
-
-        assertNotNull(locale);
-        assertEquals("en", locale.getLanguage());
+        given().header("Accept-Language", "es,en;q=0.8").when()
+                .get(TEST_ENDPOINT_RESOLVE).then().statusCode(200)
+                .body(equalTo("es"));
     }
 
+    /**
+     * Tests that the resolver falls back to the default locale ("en") when no
+     * other source provides a locale.
+     */
     @Test
     public void testDefaultLocaleFallback() {
-        when(request.getParam("lang")).thenReturn(null);
-        when(request.getCookie("locale")).thenReturn(null);
-        when(request.getHeader("Accept-Language")).thenReturn(null);
-
-        Locale locale = localeResolver.getLocale();
-
-        assertNotNull(locale);
-        assertEquals("en", locale.getLanguage());
+        given()
+                // No lang param, no cookie, no specific Accept-Language that
+                // matches other than default
+                .when().get(TEST_ENDPOINT_RESOLVE).then().statusCode(200)
+                .body(equalTo("en")); // Default locale is 'en'
     }
 
+    /**
+     * Tests setting the locale via an endpoint and verifies that the "locale"
+     * cookie is set correctly. Then, it makes a subsequent request to ensure
+     * the new locale is resolved (implicitly via the cookie).
+     */
     @Test
-    public void testSetLocale() {
-        localeResolver.setLocale("es");
+    public void testSetLocaleAndVerifyCookie() {
+        // Set locale to "es"
+        given().pathParam("lang", "es").when().put(TEST_ENDPOINT_SET_LANG)
+                .then().statusCode(204) // No Content
+                .cookie("locale", "es"); // Verify cookie is set in the response
 
-        Locale locale = localeResolver.getLocale();
-
-        assertNotNull(locale);
-        assertEquals("es", locale.getLanguage());
-        verify(response).addCookie(Mockito.argThat(cookie ->
-            cookie.getName().equals("locale") &&
-            cookie.getValue().equals("es")
-        ));
+        // Verify that a subsequent request (simulating browser sending the
+        // cookie) resolves to "es"
+        given().cookie("locale", "es") // Simulate the cookie being sent back by
+                                       // the client
+                .when().get(TEST_ENDPOINT_RESOLVE).then().statusCode(200)
+                .body(equalTo("es"));
     }
 }
