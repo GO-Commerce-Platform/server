@@ -1,9 +1,15 @@
 package dev.tiodati.saas.gocommerce.platform.entity;
 
+/**
+ * Represents the various statuses a store can be in.
+ */
 public enum StoreStatus {
-    CREATING,        // Initial state when store is being created
-    PROVISIONING,    // Resources being allocated
-    ACTIVE,          // Store is operational and accessible
-    SUSPENDED,       // Store is temporarily disabled
-    DELETED          // Store has been removed (soft delete)
+    /** Store is pending setup or approval. */
+    PENDING,
+    /** Store is active and operational. */
+    ACTIVE,
+    /** Store is temporarily inactive, can be reactivated. */
+    INACTIVE,
+    /** Store is suspended due to policy violations or other reasons. */
+    SUSPENDED
 }

@@ -12,4 +12,4 @@ public record StoreDto(
     StoreStatus status,
     String billingPlan,
     String settings
-) {}
+) { }

@@ -1,0 +1,27 @@
+CHECKSTYLE VIOLATIONS SUMMARY
+==========================
+
+Total violations: 268
+
+VIOLATIONS BY TYPE
+-----------------
+Missing final newline: 0
+Line too long: 0
+Trailing whitespace: 0
+Javadoc issues: 211
+Missing package-info.java: 0
+Naming convention issues: 11
+Other issues: 46
+
+FILES WITH MOST VIOLATIONS
+-----------------------
+  22 [WARN] /Users/aquele_dinho/Projects/gocommerce/./src/main/java/dev/tiodati/saas/gocommerce/auth/model/Roles.java
+  19 [WARN] /Users/aquele_dinho/Projects/gocommerce/./src/test/java/dev/tiodati/saas/gocommerce/i18n/MessageServiceTest.java
+  15 [WARN] /Users/aquele_dinho/Projects/gocommerce/./src/main/java/dev/tiodati/saas/gocommerce/auth/service/KeycloakAuthService.java
+  13 [WARN] /Users/aquele_dinho/Projects/gocommerce/./src/main/java/dev/tiodati/saas/gocommerce/store/model/StoreAdmin.java
+  13 [WARN] /Users/aquele_dinho/Projects/gocommerce/./src/main/java/dev/tiodati/saas/gocommerce/store/model/Store.java
+  12 [WARN] /Users/aquele_dinho/Projects/gocommerce/./src/main/java/dev/tiodati/saas/gocommerce/product/dto/ProductDto.java
+  11 [WARN] /Users/aquele_dinho/Projects/gocommerce/./src/main/java/dev/tiodati/saas/gocommerce/platform/entity/PlatformStore.java
+  11 [WARN] /Users/aquele_dinho/Projects/gocommerce/./src/main/java/dev/tiodati/saas/gocommerce/auth/resource/AuthResource.java
+  10 [WARN] /Users/aquele_dinho/Projects/gocommerce/./src/main/java/dev/tiodati/saas/gocommerce/product/dto/CreateProductDto.java
+   8 [WARN] /Users/aquele_dinho/Projects/gocommerce/./src/main/java/dev/tiodati/saas/gocommerce/store/service/StoreSettingsService.java

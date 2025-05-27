@@ -17,7 +17,7 @@ import jakarta.interceptor.InterceptorBinding;
 @Inherited
 @InterceptorBinding
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.TYPE, ElementType.METHOD})
+@Target({ ElementType.TYPE, ElementType.METHOD })
 public @interface RequiresRole {
     @Nonbinding Roles[] value();
 }

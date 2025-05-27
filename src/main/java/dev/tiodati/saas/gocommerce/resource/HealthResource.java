@@ -5,8 +5,8 @@ import java.util.Map;
 
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
-import io.quarkus.logging.Log;
 
+import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
@@ -21,7 +21,7 @@ import jakarta.ws.rs.core.MediaType;
 public class HealthResource {
 
     // private static final Logger LOG = Logger.getLogger(HealthResource.class);
-    
+
     @Inject
     EntityManager em;
 
@@ -32,23 +32,21 @@ public class HealthResource {
         Map<String, Object> response = new HashMap<>();
         response.put("status", "UP");
         response.put("timestamp", System.currentTimeMillis());
-        
+
         try {
             // Try to access store table to verify database connectivity
             long storeCount = (long) em.createQuery("SELECT COUNT(t) FROM Store t").getSingleResult();
             response.put("database", Map.of(
-                "status", "UP",
-                "storeCount", storeCount
-            ));
+                    "status", "UP",
+                    "storeCount", storeCount));
         } catch (Exception e) {
             Log.error("Database health check failed", e);
             response.put("database", Map.of(
-                "status", "DOWN",
-                "error", e.getMessage()
-            ));
+                    "status", "DOWN",
+                    "error", e.getMessage()));
             response.put("status", "DEGRADED");
         }
-        
+
         return response;
     }
 }

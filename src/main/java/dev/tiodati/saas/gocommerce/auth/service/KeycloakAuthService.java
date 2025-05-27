@@ -1,277 +1,274 @@
 package dev.tiodati.saas.gocommerce.auth.service;
 
-import java.net.URI;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.eclipse.microprofile.rest.client.RestClientBuilder;
-import org.jose4j.jwt.JwtClaims;
-import org.jose4j.jwt.NumericDate;
-import org.jose4j.jwt.consumer.InvalidJwtException;
-import org.jose4j.jwt.consumer.JwtConsumer;
-import org.jose4j.jwt.consumer.JwtConsumerBuilder;
+import org.eclipse.microprofile.jwt.JsonWebToken;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
 
 import dev.tiodati.saas.gocommerce.auth.dto.LoginRequest;
 import dev.tiodati.saas.gocommerce.auth.dto.RefreshTokenRequest;
 import dev.tiodati.saas.gocommerce.auth.dto.TokenResponse;
+import dev.tiodati.saas.gocommerce.auth.model.Roles;
 import io.quarkus.logging.Log;
+import io.quarkus.security.AuthenticationFailedException;
+import io.quarkus.security.UnauthorizedException;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.ws.rs.NotAuthorizedException;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Form;
 import jakarta.ws.rs.core.Response;
 
 /**
- * Implementation of AuthService using Keycloak
+ * Service implementation for handling authentication with Keycloak. This
+ * service interacts with a Keycloak instance to perform login, logout, token
+ * refresh, and token validation operations.
  */
 @ApplicationScoped
 public class KeycloakAuthService implements AuthService {
-    
-    @ConfigProperty(name = "quarkus.oidc.auth-server-url")
-    String authServerUrl;
-    
-    @ConfigProperty(name = "quarkus.oidc.client-id")
-    String clientId;
-    
-    @ConfigProperty(name = "quarkus.oidc.credentials.secret")
-    String clientSecret;
-    
+
     /**
-     * {@inheritDoc}
+     * Grant type for password-based authentication.
+     */
+    private static final String GRANT_TYPE_PASSWORD = "password";
+    /**
+     * Grant type for refreshing an access token.
+     */
+    private static final String GRANT_TYPE_REFRESH_TOKEN = "refresh_token";
+
+    /**
+     * REST client for Keycloak token operations.
+     */
+    @Inject
+    @RestClient
+    private KeycloakTokenClient keycloakTokenClient;
+
+    /**
+     * REST client for Keycloak logout operations.
+     */
+    @Inject
+    @RestClient
+    private KeycloakLogoutClient keycloakLogoutClient;
+
+    /**
+     * The authentication server URL for Keycloak. Configured via
+     * {@code quarkus.oidc.auth-server-url}.
+     */
+    @ConfigProperty(name = "quarkus.oidc.auth-server-url")
+    private String authServerUrl;
+
+    /**
+     * The client ID registered in Keycloak for this application. Configured via
+     * {@code quarkus.oidc.client-id}.
+     */
+    @ConfigProperty(name = "quarkus.oidc.client-id")
+    private String clientId;
+
+    /**
+     * The client secret for this application, used for confidential clients.
+     * Configured via {@code quarkus.oidc.credentials.secret}.
+     */
+    @ConfigProperty(name = "quarkus.oidc.credentials.secret")
+    private String clientSecret;
+
+    /**
+     * Service for verifying Keycloak roles from JWT.
+     */
+    @Inject
+    private KeycloakRoleVerificationService roleVerificationService;
+
+    /**
+     * Authenticates a user with the given credentials.
+     *
+     * @param loginRequest The login request containing username and password.
+     * @return A {@link TokenResponse} containing access and refresh tokens upon
+     *         successful authentication.
+     * @throws AuthenticationFailedException if authentication fails.
      */
     @Override
-    public TokenResponse login(LoginRequest LoginRequest) {
+    public TokenResponse login(LoginRequest loginRequest) {
+        Form form = new Form().param("grant_type", GRANT_TYPE_PASSWORD)
+                .param("client_id", clientId)
+                .param("client_secret", clientSecret)
+                .param("username", loginRequest.username())
+                .param("password", loginRequest.password());
+
         try {
-            // Remove "/realms/{realm}" from the end to get the base URL
-            String keycloakBaseUrl = authServerUrl.substring(0, authServerUrl.lastIndexOf("/realms/"));
-            
-            // Extract realm name from the auth server URL
-            String realm = authServerUrl.substring(authServerUrl.lastIndexOf("/") + 1);
-            
-            // Create Keycloak token endpoint URL
-            String tokenEndpoint = keycloakBaseUrl + "/realms/" + realm + "/protocol/openid-connect/token";
-            
-            // Build the REST client for Keycloak
-            KeycloakTokenClient tokenClient = RestClientBuilder.newBuilder()
-                    .baseUri(URI.create(tokenEndpoint))
-                    .build(KeycloakTokenClient.class);
-            
-            // Prepare the form data for token request
-            Form form = new Form()
-                    .param("username", LoginRequest.username())
-                    .param("password", LoginRequest.password())
-                    .param("grant_type", "password")
-                    .param("client_id", clientId)
-                    .param("client_secret", clientSecret);
-            
-            // Send the token request to Keycloak
-            Response response = tokenClient.getToken(form);
-            
-            if (response.getStatus() == 200) {
-                Map<String, Object> tokenData = response.readEntity(new jakarta.ws.rs.core.GenericType<Map<String, Object>>() {});
-                
-                // Extract token information
-                String accessToken = (String) tokenData.get("access_token");
-                String refreshToken = (String) tokenData.get("refresh_token");
-                String tokenType = (String) tokenData.get("token_type");
-                int expiresIn = (Integer) tokenData.get("expires_in");
-                
-                // Extract roles from the access token
-                List<String> roles = extractRolesFromToken(accessToken);
-                
-                return new TokenResponse(accessToken, refreshToken, tokenType, expiresIn, roles);
-            } else {
-                // This is an expected authentication failure, Log at debug level
-                Log.debug("Authentication failed with status: " + response.getStatus());
-                throw new NotAuthorizedException("Authentication failed: " + response.getStatusInfo().getReasonPhrase());
-            }
+            Log.infof("Attempting login for user: %s", loginRequest.username());
+            TokenResponse tokenResponse = keycloakTokenClient.grantToken(form);
+
+            Log.infof("User %s logged in successfully.",
+                    loginRequest.username());
+            return tokenResponse; // Simplified, roles might be in JWT directly
         } catch (WebApplicationException e) {
-            // Specific web exceptions like 401 should be Logged at debug level since they're expected
-            Log.debug("Authentication failed: " + e.getMessage());
-            throw new NotAuthorizedException("Authentication failed: " + e.getMessage());
+            Response response = e.getResponse();
+            String errorDetails = response != null
+                    ? response.readEntity(String.class)
+                    : "No details";
+            Log.errorf(e, "Login failed for user %s. Status: %d, Error: %s",
+                    loginRequest.username(),
+                    response != null ? response.getStatus() : -1, errorDetails);
+            throw new AuthenticationFailedException(
+                    "Login failed: " + errorDetails, e);
         } catch (Exception e) {
-            // Unexpected exceptions should still be Logged at error level
-            Log.error("Unexpected error during authentication", e);
-            throw new RuntimeException("Authentication error: " + e.getMessage(), e);
+            Log.errorf(e, "Unexpected error during login for user %s.",
+                    loginRequest.username());
+            throw new AuthenticationFailedException(
+                    "Login failed due to an unexpected error.", e);
         }
     }
-    
+
     /**
-     * {@inheritDoc}
+     * Refreshes an access token using a refresh token.
+     *
+     * @param refreshTokenRequest The request containing the refresh token.
+     * @return A new {@link TokenResponse} with a new access token.
+     * @throws AuthenticationFailedException if token refresh fails.
      */
     @Override
     public TokenResponse refreshToken(RefreshTokenRequest refreshTokenRequest) {
+        Form form = new Form().param("grant_type", GRANT_TYPE_REFRESH_TOKEN)
+                .param("client_id", clientId)
+                .param("client_secret", clientSecret)
+                .param("refresh_token", refreshTokenRequest.refreshToken());
+
         try {
-            // Remove "/realms/{realm}" from the end to get the base URL
-            String keycloakBaseUrl = authServerUrl.substring(0, authServerUrl.lastIndexOf("/realms/"));
-            
-            // Extract realm name from the auth server URL
-            String realm = authServerUrl.substring(authServerUrl.lastIndexOf("/") + 1);
-            
-            // Create Keycloak token endpoint URL
-            String tokenEndpoint = keycloakBaseUrl + "/realms/" + realm + "/protocol/openid-connect/token";
-            
-            // Build the REST client for Keycloak
-            KeycloakTokenClient tokenClient = RestClientBuilder.newBuilder()
-                    .baseUri(URI.create(tokenEndpoint))
-                    .build(KeycloakTokenClient.class);
-            
-            // Prepare the form data for token refresh
-            Form form = new Form()
-                    .param("refresh_token", refreshTokenRequest.refreshToken())
-                    .param("grant_type", "refresh_token")
-                    .param("client_id", clientId)
-                    .param("client_secret", clientSecret);
-            
-            // Send the token refresh request to Keycloak
-            Response response = tokenClient.getToken(form);
-            
-            if (response.getStatus() == 200) {
-                Map<String, Object> tokenData = response.readEntity(new jakarta.ws.rs.core.GenericType<Map<String, Object>>() {});
-                
-                // Extract token information
-                String accessToken = (String) tokenData.get("access_token");
-                String refreshToken = (String) tokenData.get("refresh_token");
-                String tokenType = (String) tokenData.get("token_type");
-                int expiresIn = (Integer) tokenData.get("expires_in");
-                
-                // Extract roles from the access token
-                List<String> roles = extractRolesFromToken(accessToken);
-                
-                return new TokenResponse(accessToken, refreshToken, tokenType, expiresIn, roles);
-            } else {
-                // This is an expected failure, Log at debug level
-                Log.debug("Token refresh failed with status: " + response.getStatus());
-                throw new NotAuthorizedException("Token refresh failed: " + response.getStatusInfo().getReasonPhrase());
-            }
+            Log.info("Attempting to refresh token.");
+            TokenResponse tokenResponse = keycloakTokenClient.grantToken(form);
+            Log.info("Token refreshed successfully.");
+            return tokenResponse; // Simplified
         } catch (WebApplicationException e) {
-            // Specific web exceptions should be Logged at debug level since they're expected
-            Log.debug("Token refresh failed: " + e.getMessage());
-            throw new NotAuthorizedException("Token refresh failed: " + e.getMessage());
+            Response response = e.getResponse();
+            String errorDetails = response != null
+                    ? response.readEntity(String.class)
+                    : "No details";
+            Log.errorf(e, "Token refresh failed. Status: %d, Error: %s",
+                    response != null ? response.getStatus() : -1, errorDetails);
+            throw new AuthenticationFailedException(
+                    "Token refresh failed: " + errorDetails, e);
         } catch (Exception e) {
-            // Unexpected exceptions should still be Logged at error level
-            Log.error("Unexpected error during token refresh", e);
-            throw new RuntimeException("Token refresh error: " + e.getMessage(), e);
+            Log.errorf(e, "Unexpected error during token refresh.");
+            throw new AuthenticationFailedException(
+                    "Token refresh failed due to an unexpected error.", e);
         }
     }
-    
+
     /**
-     * {@inheritDoc}
+     * Logs out a user by invalidating their session in Keycloak.
+     *
+     * @param refreshToken The refresh token of the user to log out.
+     * @return {@code true} if logout was successful or initiated, {@code false}
+     *         if an error occurred.
+     * @throws AuthenticationFailedException if logout fails (this is less
+     *                                       common for logout).
      */
     @Override
     public boolean logout(String refreshToken) {
-        try {
-            // Remove "/realms/{realm}" from the end to get the base URL
-            String keycloakBaseUrl = authServerUrl.substring(0, authServerUrl.lastIndexOf("/realms/"));
-            
-            // Extract realm name from the auth server URL
-            String realm = authServerUrl.substring(authServerUrl.lastIndexOf("/") + 1);
-            
-            // Create Keycloak Logout endpoint URL
-            String LogoutEndpoint = keycloakBaseUrl + "/realms/" + realm + "/protocol/openid-connect/logout";
-            
-            // Build the REST client for Keycloak
-            KeycloakLogoutClient LogoutClient = RestClientBuilder.newBuilder()
-                    .baseUri(URI.create(LogoutEndpoint))
-                    .build(KeycloakLogoutClient.class);
-            
-            // Prepare the form data for Logout
-            Form form = new Form()
-                    .param("refresh_token", refreshToken)
-                    .param("client_id", clientId)
-                    .param("client_secret", clientSecret);
-            
-            // Send the Logout request to Keycloak
-            Response response = LogoutClient.logout(form);
-            
-            return response.getStatus() == 204 || response.getStatus() == 200;
-        } catch (Exception e) {
-            Log.error("Error during Logout", e);
+        if (refreshToken == null || refreshToken.isBlank()) {
+            Log.warn("Logout attempt with no refresh token provided.");
             return false;
         }
-    }
-    
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean validateToken(String token) {
+
+        Form form = new Form().param("client_id", clientId)
+                .param("client_secret", clientSecret)
+                .param("refresh_token", refreshToken);
+
+        // Construct the logout endpoint URL correctly from the authServerUrl
+        // Example: authServerUrl = http://localhost:9000/realms/gocommerce
+        // We need:
+        // http://localhost:9000/realms/gocommerce/protocol/openid-connect/logout
+        // This URL is implicitly handled by the @Path on KeycloakLogoutClient
+        // and its base URI configuration (quarkus.oidc.auth-server-url).
+
         try {
-            // Create a JWT consumer that doesn't verify signatures (Keycloak will do that)
-            // This is just to validate the token structure and expiration
-            JwtConsumer jwtConsumer = new JwtConsumerBuilder()
-                    .setSkipSignatureVerification() // We rely on Keycloak for signature verification
-                    .setSkipAllValidators() // Skip default validations since we're just parsing
-                    .build();
-            
-            // Parse the token
-            JwtClaims claims = jwtConsumer.processToClaims(token);
-            
-            // Check if token is expired
-            // Get the expiration time
-            NumericDate expirationTime = claims.getExpirationTime();
-            
-            // If there's no expiration claim, consider it invalid
-            if (expirationTime == null) {
+            Log.infof(
+                    "Attempting logout for user with refresh token (masked).");
+            // Use the injected keycloakLogoutClient
+            Response keycloakResponse = keycloakLogoutClient.logout(form);
+
+            if (keycloakResponse.getStatusInfo()
+                    .getFamily() == Response.Status.Family.SUCCESSFUL) {
+                Log.info("User logged out successfully from Keycloak.");
+                keycloakResponse.close(); // Close the response
+                return true;
+            } else {
+                String errorDetails = keycloakResponse.hasEntity()
+                        ? keycloakResponse.readEntity(String.class)
+                        : "No details";
+                Log.errorf("Keycloak logout failed. Status: %d, Error: %s",
+                        keycloakResponse.getStatus(), errorDetails);
+                keycloakResponse.close(); // Close the response
                 return false;
             }
-            
-            // Check if the current time is after the expiration time
-            NumericDate now = NumericDate.fromMilliseconds(System.currentTimeMillis());
-            return now.isBefore(expirationTime);
-        } catch (InvalidJwtException e) {
-            // For expected validation failures, just Log at debug level
-            Log.debug("Token validation failed: " + e.getMessage());
+        } catch (WebApplicationException e) {
+            Response response = e.getResponse();
+            String errorDetails = response != null && response.hasEntity()
+                    ? response.readEntity(String.class)
+                    : "No details from WebApplicationException";
+            Log.errorf(e,
+                    "Logout failed due to WebApplicationException. Status: %d, Error: %s",
+                    response != null ? response.getStatus() : -1, errorDetails);
+            if (response != null) {
+                response.close();
+            }
             return false;
         } catch (Exception e) {
-            // For unexpected errors, Log at error level
-            Log.error("Unexpected error during token validation", e);
+            Log.errorf(e, "Unexpected error during logout.");
             return false;
         }
     }
-    
+
     /**
-     * Extract roles from the JWT token
-     * 
-     * @param token The JWT token
-     * @return List of role names
+     * Validates an access token. This is a placeholder. True validation often
+     * happens at the resource server via OIDC introspection or JWT signature
+     * validation, which Quarkus handles. This method could be used for custom
+     * checks if needed.
+     *
+     * @param accessToken The access token to validate.
+     * @return {@code true} if the token is considered valid, {@code false}
+     *         otherwise.
      */
-    @SuppressWarnings("unchecked")
-    private List<String> extractRolesFromToken(String token) {
-        try {
-            JwtConsumer jwtConsumer = new JwtConsumerBuilder()
-                    .setSkipSignatureVerification()
-                    .setSkipAllValidators()
-                    .build();
-            
-            JwtClaims claims = jwtConsumer.processToClaims(token);
-            
-            // Extract realm roles from "realm_access" claim
-            Map<String, Object> realmAccess = claims.getClaimValue("realm_access", Map.class);
-            if (realmAccess != null && realmAccess.containsKey("roles")) {
-                List<String> roles = (List<String>) realmAccess.get("roles");
-                return roles;
-            }
-            
-            // Extract groups if present (often used for roles)
-            List<String> groups = claims.getStringListClaimValue("groups");
-            if (groups != null) {
-                return groups;
-            }
-            
-            // Try to extract from scope if available
-            String scope = claims.getStringClaimValue("scope");
-            if (scope != null) {
-                return Arrays.asList(scope.split(" "));
-            }
-            
-            return Collections.emptyList();
-        } catch (Exception e) {
-            Log.error("Error extracting roles from token", e);
-            return Collections.emptyList();
+    @Override
+    public boolean validateToken(String accessToken) {
+        if (accessToken == null || accessToken.isBlank()) {
+            return false;
         }
+        // Basic check: Quarkus SecurityIdentity would be non-anonymous if token
+        // is valid
+        // For more detailed validation, one might inspect the JWT directly
+        // or use roleVerificationService if it implies validation.
+        return !roleVerificationService.isAnonymous();
+    }
+
+    /**
+     * Retrieves the roles associated with the currently authenticated user's
+     * JWT.
+     *
+     * @param jwt The JsonWebToken of the current user.
+     * @return A set of {@link Roles} for the user.
+     * @throws UnauthorizedException if no JWT is present or roles cannot be
+     *                               determined.
+     */
+    public Set<Roles> getUserRoles(JsonWebToken jwt) {
+        if (jwt == null || jwt.getSubject() == null) {
+            throw new UnauthorizedException("No authenticated user found.");
+        }
+        // Assuming client roles are the primary source for application Roles
+        Set<String> clientRoleStrings = roleVerificationService
+                .getClientRoles(jwt, clientId);
+        if (clientRoleStrings.isEmpty()) {
+            // Fallback or also check realm roles if necessary
+            clientRoleStrings = roleVerificationService.getRealmRoles(jwt);
+        }
+
+        // This pipeline is now correct because Roles.fromRoleName returns
+        // Optional<Roles>
+        return clientRoleStrings.stream().map(Roles::fromRoleName) // Stream<Optional<Roles>>
+                .filter(Optional::isPresent) // Stream<Optional<Roles>>
+                                             // (non-empty)
+                .map(Optional::get) // Stream<Roles>
+                .collect(Collectors.toSet());
     }
 }

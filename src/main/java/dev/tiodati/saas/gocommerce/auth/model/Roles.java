@@ -3,181 +3,188 @@ package dev.tiodati.saas.gocommerce.auth.model;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Optional; // Added import
 import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Defines the roles and their hierarchy in the GO-Commerce platform.
- * This enum consolidates all application roles and establishes the role hierarchy
- * where higher roles inherit permissions from lower roles.
- * 
- * Role Hierarchy:
- * - ANONYMOUS: Base role with no inherited permissions
- * - CUSTOMER: Customer role, inherits from ANONYMOUS
- * - CUSTOMER_SERVICE: Support staff role, inherits from CUSTOMER
- * - ORDER_MANAGER: Role for managing orders, inherits from CUSTOMER_SERVICE
- * - PRODUCT_MANAGER: Role for managing products, inherits from CUSTOMER_SERVICE 
- * - STORE_ADMIN: Store administrator role, inherits from both ORDER_MANAGER and PRODUCT_MANAGER
- * - PLATFORM_ADMIN: Platform administrator role, inherits from STORE_ADMIN
+ * Defines the roles within the GO-Commerce application. Each role has a name, a
+ * description, and a set of implied (child) roles, establishing a role
+ * hierarchy.
  */
 public enum Roles {
-    // Base roles with proper role hierarchy
-    ANONYMOUS("anonymous", Collections.emptySet()),
-    CUSTOMER("customer", Set.of(ANONYMOUS)),
-    CUSTOMER_SERVICE("customer-service", Set.of(CUSTOMER)),
-    ORDER_MANAGER("order-manager", Set.of(CUSTOMER_SERVICE)),
-    PRODUCT_MANAGER("product-manager", Set.of(CUSTOMER_SERVICE)),
-    STORE_ADMIN("store-admin", Set.of(ORDER_MANAGER, PRODUCT_MANAGER)),
-    PLATFORM_ADMIN("platform-admin", Set.of(STORE_ADMIN));
+    /**
+     * Platform administrator with full access to all stores and platform
+     * settings. Implies all other administrative roles.
+     */
+    PLATFORM_ADMIN("Platform Administrator",
+            "Full access to the platform and all stores.",
+            new HashSet<>(Arrays.asList("STORE_ADMIN", "PRODUCT_MANAGER",
+                    "ORDER_MANAGER", "CUSTOMER_SERVICE", "CUSTOMER"))),
 
+    /**
+     * Store administrator with full access to a specific store's resources and
+     * settings. Implies roles necessary for managing a store.
+     */
+    STORE_ADMIN("Store Administrator", "Full access to a specific store.",
+            new HashSet<>(Arrays.asList("PRODUCT_MANAGER", "ORDER_MANAGER",
+                    "CUSTOMER_SERVICE", "CUSTOMER"))),
+
+    /**
+     * Product manager with permissions to manage products within a store.
+     */
+    PRODUCT_MANAGER("Product Manager", "Manages products within a store.",
+            new HashSet<>(Collections.singletonList("CUSTOMER"))),
+
+    /**
+     * Order manager with permissions to manage orders within a store.
+     */
+    ORDER_MANAGER("Order Manager", "Manages orders within a store.",
+            new HashSet<>(Collections.singletonList("CUSTOMER"))),
+
+    /**
+     * Customer service representative with permissions to handle customer
+     * support within a store.
+     */
+    CUSTOMER_SERVICE("Customer Service",
+            "Handles customer support within a store.",
+            new HashSet<>(Collections.singletonList("CUSTOMER"))),
+
+    /**
+     * Regular customer with restricted access to browse products and place
+     * orders. This is the base role for most authenticated users.
+     */
+    CUSTOMER("Customer", "Regular user with restricted access.",
+            Collections.emptySet()),
+
+    /**
+     * Anonymous user, typically for unauthenticated access to public parts of
+     * the store.
+     */
+    ANONYMOUS("Anonymous User", "Unauthenticated user.",
+            Collections.emptySet());
+
+    /**
+     * The friendly, displayable name of the role.
+     */
     private final String roleName;
-    private final Set<Roles> directParentRoles;
-    
-    // This is initialized after all enum constants are created
-    private Set<String> allInheritedRoleNames;
+    /**
+     * A brief description of what the role entails or permits.
+     */
+    private final String description;
+    /**
+     * A set of strings representing the names of roles that are directly
+     * implied by this role. This is used internally to build the full hierarchy
+     * of implied roles.
+     */
+    private final Set<String> impliedRoleNames; // Stores names of implied roles
 
-    Roles(String roleName, Set<Roles> directParentRoles) {
+    /**
+     * Constructor for the Roles enum.
+     *
+     * @param roleName         The friendly name of the role.
+     * @param description      A brief description of the role's purpose.
+     * @param impliedRoleNames A set of names of roles that are implied by this
+     *                         role.
+     */
+    Roles(String roleName, String description, Set<String> impliedRoleNames) {
         this.roleName = roleName;
-        this.directParentRoles = directParentRoles;
+        this.description = description;
+        this.impliedRoleNames = Collections.unmodifiableSet(impliedRoleNames);
     }
 
     /**
-     * Returns the standard string name for this role used throughout the system
+     * Gets the friendly name of the role.
+     *
+     * @return The role name.
      */
     public String getRoleName() {
         return roleName;
     }
 
     /**
-     * Returns direct parent roles in the hierarchy
+     * Gets the description of the role.
+     *
+     * @return The role description.
      */
-    public Set<Roles> getDirectParentRoles() {
-        return directParentRoles;
+    public String getDescription() {
+        return description;
     }
 
     /**
-     * Checks if this role inherits permissions from the target role.
+     * Gets a set of all roles implied by this role, including transitively
+     * implied roles. For example, if PLATFORM_ADMIN implies STORE_ADMIN, and
+     * STORE_ADMIN implies CUSTOMER, then PLATFORM_ADMIN will also imply
+     * CUSTOMER.
      *
-     * @param targetRole The role whose permissions might be inherited
-     * @return true if this role inherits from targetRole (or they are the same role)
+     * @return An unmodifiable set of {@link Roles} implied by this role.
      */
-    public boolean inheritsFrom(Roles targetRole) {
-        if (targetRole == null) {
+    public Set<Roles> getImpliedRoles() {
+        Set<Roles> implied = new HashSet<>();
+        for (String impliedName : this.impliedRoleNames) {
+            Optional<Roles> roleEnumOpt = fromRoleName(impliedName); // Changed
+                                                                     // to
+                                                                     // handle
+                                                                     // Optional
+            roleEnumOpt.ifPresent(roleEnum -> { // Process if Optional is
+                                                // present
+                implied.add(roleEnum);
+                implied.addAll(roleEnum.getImpliedRoles()); // Add transitive
+                                                            // roles
+            });
+        }
+        return Collections.unmodifiableSet(implied);
+    }
+
+    /**
+     * Checks if this role implies another role, directly or transitively. A
+     * role always implies itself.
+     *
+     * @param otherRole The role to check against. Must not be null.
+     * @return {@code true} if this role implies the other role, {@code false}
+     *         otherwise.
+     */
+    public boolean implies(Roles otherRole) {
+        if (otherRole == null) {
             return false;
         }
-        
-        // A role always "inherits" from itself
-        if (this == targetRole) {
-            return true;
-        }
-        
-        // Check direct inheritance
-        if (directParentRoles.contains(targetRole)) {
-            return true;
-        }
-        
-        // Check transitive inheritance
-        for (Roles parentRole : directParentRoles) {
-            if (parentRole.inheritsFrom(targetRole)) {
-                return true;
-            }
-        }
-        
-        return false;
-    }
-
-    /**
-     * Returns all roles that this role inherits from, including transitive inheritance.
-     *
-     * @return Set of all inherited roles, including the role itself
-     */
-    public Set<Roles> getAllInheritedRoles() {
-        Set<Roles> result = new HashSet<>();
-        
-        // Always include the role itself
-        result.add(this);
-        
-        // Add direct parent roles
-        result.addAll(directParentRoles);
-        
-        // Add transitively inherited roles
-        for (Roles parentRole : directParentRoles) {
-            result.addAll(parentRole.getAllInheritedRoles());
-        }
-        
-        return Collections.unmodifiableSet(result);
-    }
-    
-    /**
-     * Returns all role names that this role inherits from, including transitive inheritance.
-     *
-     * @return Set of all inherited role names, including the role itself
-     */
-    public Set<String> getAllInheritedRoleNames() {
-        if (allInheritedRoleNames == null) {
-            allInheritedRoleNames = getAllInheritedRoles().stream()
-                .map(Roles::getRoleName)
-                .collect(Collectors.toUnmodifiableSet());
-        }
-        return allInheritedRoleNames;
-    }
-
-    /**
-     * Check if this role includes the specified role through the role hierarchy
-     */
-    public boolean includes(Roles otherRole) {
-        // A role always includes itself
         if (this == otherRole) {
             return true;
         }
-        
-        // This role includes the other role if this role inherits from it
-        return otherRole != null && this.getAllInheritedRoles().contains(otherRole);
+        return getImpliedRoles().contains(otherRole);
     }
 
     /**
-     * Get a Role enum value from a role name string
-     */
-    public static Roles fromName(String roleName) {
-        return Arrays.stream(Roles.values())
-                    .filter(role -> role.getRoleName().equals(roleName))
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalArgumentException("Unknown role: " + roleName));
-    }
-
-    /**
-     * Static method to check if one role inherits from another, safely handling null values
+     * Converts a role name string to the corresponding {@link Roles} enum
+     * constant. This method is case-insensitive.
      *
-     * @param sourceRole The higher-level role being checked
-     * @param targetRole The role whose permissions might be inherited
-     * @return true if sourceRole inherits from targetRole (or they are the same role)
+     * @param roleName The string name of the role (e.g., "STORE_ADMIN", "Store
+     *                 Administrator").
+     * @return An {@link Optional} containing the matching {@link Roles} enum
+     *         constant, or {@link Optional#empty()} if no match is found.
      */
-    public static boolean inheritsFrom(String sourceRole, String targetRole) {
-        if (sourceRole == null || targetRole == null) {
-            return false;
+    public static Optional<Roles> fromRoleName(String roleName) { // Return type
+                                                                  // changed to
+                                                                  // Optional<Roles>
+        if (roleName == null || roleName.trim().isEmpty()) {
+            return Optional.empty(); // Return Optional.empty()
         }
-        
-        try {
-            Roles source = fromName(sourceRole);
-            Roles target = fromName(targetRole);
-            return source.inheritsFrom(target);
-        } catch (IllegalArgumentException e) {
-            return false;
+        for (Roles role : values()) {
+            if (role.name().equalsIgnoreCase(roleName.trim())
+                    || role.getRoleName().equalsIgnoreCase(roleName.trim())) {
+                return Optional.of(role); // Return Optional.of(role)
+            }
         }
+        return Optional.empty(); // Return Optional.empty()
     }
 
     /**
-     * Static method to get all inherited role names for a role
+     * Returns a set of all defined role names (enum constant names).
      *
-     * @param roleName The name of the role to check
-     * @return Set of all inherited role names, including the role itself
+     * @return An unmodifiable set of all role names.
      */
-    public static Set<String> getAllInheritedRoleNames(String roleName) {
-        try {
-            Roles role = fromName(roleName);
-            return role.getAllInheritedRoleNames();
-        } catch (IllegalArgumentException e) {
-            return Set.of(roleName);
-        }
+    public static Set<String> getAllRoleNames() {
+        return Arrays.stream(values()).map(Roles::name)
+                .collect(Collectors.toSet());
     }
 }

@@ -11,4 +11,4 @@ public record TokenResponse(
     String tokenType,
     int expiresIn,
     List<String> roles
-) {}
+) { }
