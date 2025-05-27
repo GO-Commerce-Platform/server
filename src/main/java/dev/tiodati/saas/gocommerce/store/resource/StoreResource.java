@@ -39,7 +39,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
-@Path("/api/admin/stores")
+@Path("/api/v1/admin/stores")
 @ApplicationScoped
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -47,9 +47,14 @@ import jakarta.ws.rs.core.Response;
 @RolesAllowed("admin") // Base restriction - only admins can access store managemen
 public class StoreResource {
 
-    // private static final Logger LOG = Logger.getLogger(StoreResource.class);
-
+    /**
+     * Service for managing store operations.
+     */
     private final StoreService storeService;
+
+    /**
+     * Utility for password hashing.
+     */
     private final PasswordHashingUtil passwordHashingUtil;
 
     @Inject

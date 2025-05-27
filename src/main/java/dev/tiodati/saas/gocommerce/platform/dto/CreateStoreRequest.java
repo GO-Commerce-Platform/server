@@ -35,17 +35,7 @@ public record CreateStoreRequest(
 
         @NotBlank(message = "Default locale cannot be blank.") @Size(max = 10, message = "Default locale cannot exceed 10 characters (e.g., en-US).") String defaultLocale,
 
-        @NotNull(message = "Status cannot be null.") StoreStatus status, // Consider
-                                                                         // defaulting
-                                                                         // in
-                                                                         // service
-                                                                         // if
-                                                                         // null,
-                                                                         // or
-                                                                         // make
-                                                                         // it
-                                                                         // optional
-                                                                         // here
+        @NotNull(message = "Status cannot be null.") StoreStatus status,
 
         @Size(max = 255, message = "Description cannot exceed 255 characters.") String description) {
     /**

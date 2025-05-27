@@ -25,7 +25,7 @@ import jakarta.ws.rs.core.Response;
 /**
  * REST resource for managing locale and demonstrating internationalization.
  */
-@Path("/api/locale")
+@Path("/api/v1/locale")
 @RequestScoped
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)

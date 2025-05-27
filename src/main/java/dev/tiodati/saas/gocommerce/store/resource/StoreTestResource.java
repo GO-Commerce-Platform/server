@@ -17,7 +17,7 @@ import jakarta.ws.rs.core.Response;
 /**
  * Resource for testing store functionality and tenant resolution.
  */
-@Path("/api/store-test")
+@Path("/api/v1/store-test")
 @ApplicationScoped
 public class StoreTestResource {
 

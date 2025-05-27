@@ -33,32 +33,32 @@ public class RequestLocaleResolver implements LocaleResolver {
      */
     private static final String LOCALE_COOKIE = "locale";
 
-    /**
-     * Injects the current Vert.x HTTP request context to access request
-     * details.
-     */
-    @Inject
-    private CurrentVertxRequest currentRequest; // Made private
-
-    /**
-     * Injects the default locale from application configuration (e.g.,
-     * application.properties). Defaults to "en" if not specified.
-     */
-    @ConfigProperty(name = "quarkus.default-locale", defaultValue = "en")
-    private String defaultLocale; // Made private
-
-    /**
-     * Injects the list of supported locales from application configuration.
-     * This is an Optional value, meaning it might not be configured.
-     */
-    @ConfigProperty(name = "quarkus.locales")
-    private Optional<String> supportedLocales; // Made private
+    private final CurrentVertxRequest currentRequest;
+    private final String defaultLocale;
+    private final Optional<String> supportedLocales;
 
     /**
      * Caches the resolved locale for the current request to avoid redundant
      * lookups.
      */
     private Locale currentLocale;
+
+    /**
+     * Constructs a new RequestLocaleResolver.
+     *
+     * @param currentRequest   The current Vert.x HTTP request context.
+     * @param defaultLocale    The default locale string.
+     * @param supportedLocales Optional string of comma-separated supported
+     *                         locales.
+     */
+    @Inject
+    public RequestLocaleResolver(CurrentVertxRequest currentRequest,
+            @ConfigProperty(name = "quarkus.default-locale", defaultValue = "en") String defaultLocale,
+            @ConfigProperty(name = "quarkus.locales") Optional<String> supportedLocales) {
+        this.currentRequest = currentRequest;
+        this.defaultLocale = defaultLocale;
+        this.supportedLocales = supportedLocales;
+    }
 
     /**
      * Retrieves the resolved locale for the current request. If the locale has

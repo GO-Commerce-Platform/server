@@ -4,7 +4,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /**
- * DTO for login requests
+ * DTO for login requests.
+ * @param username the username
+ * @param password the password
  */
 public record LoginRequest(
     @NotBlank(message = "Username is required")

@@ -24,6 +24,9 @@ import jakarta.ws.rs.core.Response;
 @Tag(name = "Platform Administration", description = "Endpoints for platform-level store management")
 public class PlatformAdminResource {
 
+    /**
+     * Service for platform administration tasks, such as creating stores.
+     */
     private final PlatformAdminService platformAdminService;
 
     @Inject

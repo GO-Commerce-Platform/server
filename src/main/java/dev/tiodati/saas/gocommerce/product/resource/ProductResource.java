@@ -40,7 +40,7 @@ import jakarta.ws.rs.core.Response;
 /**
  * REST endpoint for managing store products.
  */
-@Path("/api/stores/{ storeId }/products")
+@Path("/api/v1/stores/{ storeId }/products")
 @ApplicationScoped
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -48,9 +48,15 @@ import jakarta.ws.rs.core.Response;
 @RequiresStoreRole({}) // Default store validation for all endpoints
 public class ProductResource {
 
-    // private static final Logger LOG = Logger.getLogger(ProductResource.class);
-
+    /**
+     * Service for product management, handling CRUD operations and business logic.
+     */
     private final ProductService productService;
+
+    /**
+     * Validator for checking user permissions and roles.
+     * This is used to enforce security checks programmatically.
+     */
     private final PermissionValidator permissionValidator;
 
     @Inject
@@ -60,7 +66,7 @@ public class ProductResource {
     }
 
     /**
-     * Get a list of products for a store
+     * Get a list of products for a store.
      *
      * @param storeId    The store ID
      * @param page       Page number for pagination
@@ -85,7 +91,7 @@ public class ProductResource {
     }
 
     /**
-     * Get a specific product by ID
+     * Get a specific product by ID.
      *
      * @param storeId   The store ID
      * @param productId The product ID
@@ -109,7 +115,7 @@ public class ProductResource {
     }
 
     /**
-     * Create a new product for a store
+     * Create a new product for a store.
      *
      * @param storeId    The store ID
      * @param productDto The product data
@@ -139,7 +145,7 @@ public class ProductResource {
     }
 
     /**
-     * Update an existing produc
+     * Update an existing product.
      *
      * @param storeId    The store ID
      * @param productId  The product ID
@@ -176,7 +182,7 @@ public class ProductResource {
     }
 
     /**
-     * Delete a produc
+     * Delete a product (soft delete).
      *
      * @param storeId   The store ID
      * @param productId The product ID
@@ -208,7 +214,7 @@ public class ProductResource {
     }
 
     /**
-     * Bulk operation - update product inventory
+     * Bulk operation - update product inventory.
      *
      * @param storeId          The store ID
      * @param inventoryUpdates Map of product IDs to new stock quantities

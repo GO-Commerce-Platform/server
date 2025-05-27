@@ -28,13 +28,16 @@ import jakarta.ws.rs.core.Response;
 /**
  * REST endpoint for managing store settings.
  */
-@Path("/api/admin/stores/{ storeId }/settings")
+@Path("/api/v1/admin/stores/{ storeId }/settings")
 @ApplicationScoped
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Store Settings", description = "Operations for managing store settings")
 public class StoreSettingsResource {
 
+    /**
+     * Service for managing store settings.
+     */
     private final StoreSettingsService settingsService;
 
     @Inject
@@ -43,7 +46,7 @@ public class StoreSettingsResource {
     }
 
     /**
-     * Get a store setting by path
+     * Get a store setting by path.
      *
      * @param storeId      The store ID
      * @param path         The setting path (e.g., "theme.primaryColor")
@@ -75,7 +78,7 @@ public class StoreSettingsResource {
     }
 
     /**
-     * Update a store setting
+     * Update a store setting.
      *
      * @param storeId The store ID
      * @param body    Map containing path and value properties
@@ -120,7 +123,7 @@ public class StoreSettingsResource {
     }
 
     /**
-     * Bulk update store settings
+     * Bulk update store settings.
      *
      * @param storeId  The store ID
      * @param settings Map of setting paths to values

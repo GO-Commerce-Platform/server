@@ -45,31 +45,29 @@ public class KeycloakRoleVerificationService {
      */
     private static final String PREFERRED_USERNAME_CLAIM = "preferred_username";
 
+    private final SecurityIdentity securityIdentity;
+    private final JsonWebToken currentJwt;
+    private final String clientId;
+    private final String storeRolesClaimName;
+
     /**
-     * The current security identity provided by Quarkus.
+     * Constructs a new KeycloakRoleVerificationService.
+     *
+     * @param securityIdentity    The current security identity.
+     * @param currentJwt          The current JSON Web Token.
+     * @param clientId            The OIDC client ID.
+     * @param storeRolesClaimName The claim name for store-specific roles.
      */
     @Inject
-    private SecurityIdentity securityIdentity;
-
-    /**
-     * The current JSON Web Token for the authenticated user.
-     */
-    @Inject
-    private JsonWebToken currentJwt;
-
-    /**
-     * The client ID used for resource-specific role checks. This value should
-     * be configured in application.properties, e.g., quarkus.oidc.client-id.
-     */
-    @ConfigProperty(name = "quarkus.oidc.client-id", defaultValue = "gocommerce-client")
-    private String clientId;
-
-    /**
-     * The name of the claim in the JWT that contains store-specific roles.
-     * Example: "store_roles". This might need to be configured or standardized.
-     */
-    @ConfigProperty(name = "gocommerce.auth.store-roles-claim", defaultValue = "store_roles")
-    private String storeRolesClaimName;
+    public KeycloakRoleVerificationService(SecurityIdentity securityIdentity,
+            JsonWebToken currentJwt,
+            @ConfigProperty(name = "quarkus.oidc.client-id", defaultValue = "gocommerce-client") String clientId,
+            @ConfigProperty(name = "gocommerce.auth.store-roles-claim", defaultValue = "store_roles") String storeRolesClaimName) {
+        this.securityIdentity = securityIdentity;
+        this.currentJwt = currentJwt;
+        this.clientId = clientId;
+        this.storeRolesClaimName = storeRolesClaimName;
+    }
 
     /**
      * Checks if the current user has the specified application role. This
@@ -185,9 +183,9 @@ public class KeycloakRoleVerificationService {
      * Checks if the provided JWT has the specified client role for the given
      * client ID.
      *
-     * @param jwtToken     The JWT to check.
-     * @param clientIdValue     The client ID for which the role is defined.
-     * @param requiredRole The client role to check for.
+     * @param jwtToken      The JWT to check.
+     * @param clientIdValue The client ID for which the role is defined.
+     * @param requiredRole  The client role to check for.
      * @return True if the user has the role, false otherwise.
      */
     @SuppressWarnings("unchecked")
@@ -251,7 +249,7 @@ public class KeycloakRoleVerificationService {
     /**
      * Retrieves all client roles for the provided JWT and client ID.
      *
-     * @param jwtToken The JWT to extract roles from.
+     * @param jwtToken      The JWT to extract roles from.
      * @param clientIdValue The client ID.
      * @return A set of client roles, or an empty set if none are found.
      */

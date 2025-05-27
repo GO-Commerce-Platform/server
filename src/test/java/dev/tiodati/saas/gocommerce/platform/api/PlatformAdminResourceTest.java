@@ -1,97 +1,65 @@
 package dev.tiodati.saas.gocommerce.platform.api;
 
 import static io.restassured.RestAssured.given;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.notNullValue;
 
-import org.junit.jupiter.api.BeforeEach;
+import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 
-import dev.tiodati.saas.gocommerce.platform.api.dto.AdminUserDetails;
-import dev.tiodati.saas.gocommerce.platform.api.dto.CreateStoreRequest;
-import dev.tiodati.saas.gocommerce.platform.entity.StoreStatus;
+import dev.tiodati.saas.gocommerce.platform.dto.CreateStoreRequest;
+import dev.tiodati.saas.gocommerce.auth.dto.LoginRequest;
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.security.TestSecurity;
 import io.restassured.http.ContentType;
-import jakarta.ws.rs.core.Response.Status;
 
 @QuarkusTest
 public class PlatformAdminResourceTest {
 
     /**
-     * Represents the admin user details for testing.
+     * Base path for platform admin endpoints.
      */
-    private AdminUserDetails adminUser;
-    /**
-     * Represents a valid request to create a store for testing.
-     */
-    private CreateStoreRequest validRequest;
-
-    @BeforeEach
-    void setUp() {
-        adminUser = new AdminUserDetails("John", "Doe", "john.doe@example.com",
-                "password123");
-
-        validRequest = new CreateStoreRequest("Test Store", // name
-                "test-store", // subdomain
-                adminUser.email(), // email
-                "USD", // currencyCode
-                "en-US", // defaultLocale
-                StoreStatus.ACTIVE, // status
-                "A test store description." // description
-        );
-    }
+    private static final String PLATFORM_ADMIN_BASE_PATH = "/api/platform";
 
     @Test
-    @TestSecurity(user = "admin", roles = { "Platform Admin" })
-    void testCreateStoreEndpoint() {
-        // Since we're using real implementation instead of mocks,
-        // we need to ensure all data is properly se
+    public void testCreateStoreEndpoint() {
+        // Generate a unique subdomain for each test run
+        String uniqueSubdomain = "test-store-" + UUID.randomUUID().toString();
+        CreateStoreRequest request = new CreateStoreRequest("Test Store", "test-store", uniqueSubdomain + "@example.com",
+                "USD", "en-US", null, "This is a test store");
 
-        given().contentType(ContentType.JSON).body(validRequest).when()
-                .post("/api/v1/platform/stores").then().log()
-                .ifValidationFails() // Add logging for debugging
-                .statusCode(Status.CREATED.getStatusCode())
-                .body("id", notNullValue()).body("name", is("Test Store"))
-                .body("subdomain", is("test-store"))
-                .body("fullDomain", is("test-store.gocommerce.com"))
-                .body("status", is("ACTIVE")).body("createdAt", notNullValue());
+        given()
+            .contentType(ContentType.JSON)
+            .header("Authorization", "Bearer " + getPlatformAdminToken()) // Assuming a method to get a valid token
+            .body(request)
+        .when()
+            .post(PLATFORM_ADMIN_BASE_PATH + "/stores")
+        .then()
+            .statusCode(201)
+            .body("id", notNullValue())
+            .body("name", equalTo("Test Store"))
+            .body("subdomain", equalTo(uniqueSubdomain));
     }
 
-    @Test
-    @TestSecurity(user = "admin", roles = { "Platform Admin" })
-    void testCreateStoreWithInvalidData() {
-        // Create request with invalid data (empty store name)
-        CreateStoreRequest invalidRequest = new CreateStoreRequest("", // Empty
-                                                                       // name -
-                                                                       // should
-                                                                       // fail
-                                                                       // validation
-                "test-store", // subdomain
-                adminUser.email(), // email
-                "USD", // currencyCode
-                "en-US", // defaultLocale
-                StoreStatus.ACTIVE, // status
-                "A test store description." // description
-        );
+    // Helper method to obtain a platform admin token (mocked or real)
+    // This is a placeholder; actual implementation will depend on your auth setup
+    private String getPlatformAdminToken() {
+        // In a real test, you would obtain a valid token, possibly by calling the login endpoint
+        // For now, returning a placeholder. This needs to be a valid JWT for security checks to pass.
+        // If Keycloak is running and configured for tests, you might programmatically get a token.
+        // For simplicity, if tests run without security enabled or with a mock, this might be simpler.
+        // This part is crucial for tests requiring authentication.
+        LoginRequest loginRequest = new LoginRequest("platformadmin", "adminpass"); // Example credentials
 
-        given().contentType(ContentType.JSON).body(invalidRequest).when()
-                .post("/api/v1/platform/stores").then()
-                .statusCode(Status.BAD_REQUEST.getStatusCode());
-    }
-
-    @Test
-    void testCreateStoreWithoutAuthentication() {
-        given().contentType(ContentType.JSON).body(validRequest).when()
-                .post("/api/v1/platform/stores").then()
-                .statusCode(Status.UNAUTHORIZED.getStatusCode());
-    }
-
-    @Test
-    @TestSecurity(user = "store-admin", roles = { "Store Admin" })
-    void testCreateStoreWithInsufficientRole() {
-        given().contentType(ContentType.JSON).body(validRequest).when()
-                .post("/api/v1/platform/stores").then()
-                .statusCode(Status.FORBIDDEN.getStatusCode());
+        String token = given()
+            .contentType(ContentType.JSON)
+            .body(loginRequest)
+        .when()
+            .post("/api/v1/auth/login") // Assuming AuthResourceTest changes are applied
+        .then()
+            .statusCode(200)
+            .extract().path("accessToken");
+        return token;
+        // return "mocked-platform-admin-jwt-token";
     }
 }

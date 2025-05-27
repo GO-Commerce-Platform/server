@@ -15,7 +15,7 @@ import jakarta.ws.rs.core.Response;
 /**
  * Example resource demonstrating different levels of security with role-based access control.
  */
-@Path("/api/secured-example")
+@Path("/api/v1/secured-example")
 @RequestScoped
 public class SecuredResourceExample {
 
