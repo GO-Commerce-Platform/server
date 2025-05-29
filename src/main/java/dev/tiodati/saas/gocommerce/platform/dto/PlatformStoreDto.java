@@ -1,14 +1,16 @@
 package dev.tiodati.saas.gocommerce.platform.dto;
 
-import dev.tiodati.saas.gocommerce.platform.entity.StoreStatus;
-import java.util.UUID;
 import java.time.LocalDateTime; // Assuming createdAt and updatedAt might be needed
+import java.util.UUID;
+
+import dev.tiodati.saas.gocommerce.store.entity.StoreStatus;
 
 /**
  * Data Transfer Object for PlatformStore information. Used for representing
  * store data, typically as a response.
  *
  * @param id            The unique identifier of the store.
+ * @param ownerId       The identifier of the user who owns the store.
  * @param name          The name of the store.
  * @param subdomain     The subdomain of the store.
  * @param email         The contact email for the store.
@@ -20,10 +22,13 @@ import java.time.LocalDateTime; // Assuming createdAt and updatedAt might be nee
  * @param createdAt     Timestamp of creation.
  * @param updatedAt     Timestamp of last update.
  */
-public record PlatformStoreDto(UUID id, String name, String subdomain,
-        String email, String currencyCode, String defaultLocale,
-        StoreStatus status, String description, // Added description based on
-                                                // CreateStoreRequest
+public record PlatformStoreDto(UUID id, String ownerId, String name,
+        String subdomain, String email, String currencyCode,
+        String defaultLocale, StoreStatus status, String description, // Added
+                                                                      // description
+                                                                      // based
+                                                                      // on
+                                                                      // CreateStoreRequest
         String fullDomain, // Added based on StoreResponse
         LocalDateTime createdAt, // Added based on StoreResponse
         LocalDateTime updatedAt // Common field for DTOs representing entities

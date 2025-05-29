@@ -3,4 +3,4 @@
  *
  * @since 1.0
  */
-package dev.tiodati.saas.gocommerce.store.model;
+package dev.tiodati.saas.gocommerce.store.entity;

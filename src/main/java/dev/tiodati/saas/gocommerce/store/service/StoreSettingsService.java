@@ -4,7 +4,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import dev.tiodati.saas.gocommerce.store.model.Store;
+import dev.tiodati.saas.gocommerce.store.entity.Store;
 import dev.tiodati.saas.gocommerce.util.StoreSettingsUtil;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -18,14 +18,20 @@ import jakarta.transaction.Transactional;
 @ApplicationScoped
 public class StoreSettingsService {
 
+    /**
+     * Injected service for store operations.
+     **/
     @Inject
-    StoreService storeService;
-
-    @Inject
-    StoreSettingsUtil settingsUtil;
+    private StoreService storeService;
 
     /**
-     * Get a specific store setting
+     * Utility for handling store settings.
+     **/
+    @Inject
+    private StoreSettingsUtil settingsUtil;
+
+    /**
+     * Get a specific store setting.
      *
      * @param storeId      The store ID
      * @param path         The setting path (e.g., "theme.primaryColor")
@@ -38,11 +44,12 @@ public class StoreSettingsService {
             return defaultValue;
         }
 
-        return settingsUtil.getSetting(store.get().getSettings(), path, defaultValue);
+        return settingsUtil.getSetting(store.get().getSettings(), path,
+                defaultValue);
     }
 
     /**
-     * Update a single store setting
+     * Update a single store setting.
      *
      * @param storeId The store ID
      * @param path    The setting path (e.g., "theme.primaryColor")
@@ -57,7 +64,8 @@ public class StoreSettingsService {
         }
 
         Store store = optStore.get();
-        String updatedSettings = settingsUtil.updateSetting(store.getSettings(), path, value);
+        String updatedSettings = settingsUtil.updateSetting(store.getSettings(),
+                path, value);
         store.setSettings(updatedSettings);
 
         storeService.updateStore(store);
@@ -65,7 +73,7 @@ public class StoreSettingsService {
     }
 
     /**
-     * Update multiple store settings at once
+     * Update multiple store settings at once.
      *
      * @param storeId  The store ID
      * @param settings Map of setting paths to values
@@ -83,7 +91,8 @@ public class StoreSettingsService {
 
         // Update each setting
         for (Map.Entry<String, String> entry : settings.entrySet()) {
-            currentSettings = settingsUtil.updateSetting(currentSettings, entry.getKey(), entry.getValue());
+            currentSettings = settingsUtil.updateSetting(currentSettings,
+                    entry.getKey(), entry.getValue());
         }
 
         store.setSettings(currentSettings);
@@ -92,7 +101,7 @@ public class StoreSettingsService {
     }
 
     /**
-     * Set default store settings for a newly created store
+     * Set default store settings for a newly created store.
      *
      * @param store The store to update
      * @return The updated store with default settings
@@ -102,32 +111,30 @@ public class StoreSettingsService {
 
         // Theme settings
         JsonObjectBuilder theme = Json.createObjectBuilder()
-                .add("primaryColor", "#3498db")
-                .add("secondaryColor", "#2ecc71")
-                .add("logo", "")
-                .add("favicon", "");
+                .add("primaryColor", "#3498db").add("secondaryColor", "#2ecc71")
+                .add("logo", "").add("favicon", "");
 
         // Feature flags
         JsonObjectBuilder features = Json.createObjectBuilder()
-                .add("enableReviews", true)
-                .add("enableWishlist", true)
-                .add("maxProductsAllowed", store.getBillingPlan().equals("BASIC") ? 100 : 1000)
-                .add("enableMultiCurrency", !store.getBillingPlan().equals("BASIC"));
+                .add("enableReviews", true).add("enableWishlist", true)
+                .add("maxProductsAllowed",
+                        store.getBillingPlan().equals("BASIC") ? 100 : 1000)
+                .add("enableMultiCurrency",
+                        !store.getBillingPlan().equals("BASIC"));
 
         // Email settings
         JsonObjectBuilder email = Json.createObjectBuilder()
                 .add("senderName", store.getName())
-                .add("senderEmail", "noreply@" + store.getSubdomain() + ".gocommerce.example");
+                .add("senderEmail", "noreply@" + store.getSubdomain()
+                        + ".gocommerce.example");
 
         // Payment settings
-        JsonObjectBuilder payment = Json.createObjectBuilder()
-                .add("providers", Json.createArrayBuilder().add("stripe"));
+        JsonObjectBuilder payment = Json.createObjectBuilder().add("providers",
+                Json.createArrayBuilder().add("stripe"));
 
         // Combine all settings
-        settings.add("theme", theme)
-                .add("features", features)
-                .add("email", email)
-                .add("payment", payment);
+        settings.add("theme", theme).add("features", features)
+                .add("email", email).add("payment", payment);
 
         store.setSettings(settings.build().toString());
         return store;

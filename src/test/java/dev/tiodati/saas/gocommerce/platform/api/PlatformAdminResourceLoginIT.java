@@ -14,7 +14,7 @@ import io.quarkus.test.junit.QuarkusIntegrationTest;
 import io.restassured.http.ContentType;
 
 @QuarkusIntegrationTest
-public class PlatformAdminResourceTest {
+public class PlatformAdminResourceLoginIT {
 
     /**
      * Base path for platform admin endpoints.

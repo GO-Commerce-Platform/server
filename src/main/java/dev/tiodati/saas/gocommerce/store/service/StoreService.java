@@ -7,9 +7,9 @@ import java.util.UUID;
 
 import dev.tiodati.saas.gocommerce.store.SchemaManager;
 import dev.tiodati.saas.gocommerce.store.StoreContext;
-import dev.tiodati.saas.gocommerce.store.model.Store;
-import dev.tiodati.saas.gocommerce.store.model.StoreAdmin;
-import dev.tiodati.saas.gocommerce.store.model.StoreStatus;
+import dev.tiodati.saas.gocommerce.store.entity.Store;
+import dev.tiodati.saas.gocommerce.store.entity.StoreAdmin;
+import dev.tiodati.saas.gocommerce.store.entity.StoreStatus;
 import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -126,13 +126,16 @@ public class StoreService {
      */
     public List<Store> listAll() {
         return em.createQuery(
-                "SELECT t FROM Store t WHERE t.isDeleted = false ORDER BY t.name",
-                Store.class).getResultList();
+                "SELECT t FROM Store t WHERE t.status NOT IN (:excludedStatus1, :excludedStatus2) ORDER BY t.name",
+                Store.class)
+                .setParameter("excludedStatus1", StoreStatus.DELETED)
+                .setParameter("excludedStatus2", StoreStatus.ARCHIVED)
+                .getResultList();
     }
 
     /**
      * List all active stores.
-     * @return A list of active stores that are not deleted, ordered by name.
+     * @return A list of active stores, ordered by name.
      * @throws PersistenceException if there is an error retrieving the stores.
      * @throws IllegalStateException if no stores are found.
      * @throws IllegalArgumentException if the query fails.
@@ -141,8 +144,7 @@ public class StoreService {
      */
     public List<Store> listActive() {
         return em.createQuery(
-                "SELECT t FROM Store t WHERE t.status = :status AND "
-                + "t.isDeleted = false ORDER BY t.name",
+                "SELECT t FROM Store t WHERE t.status = :status ORDER BY t.name",
                 Store.class).setParameter("status", StoreStatus.ACTIVE)
                 .getResultList();
     }
@@ -276,8 +278,16 @@ public class StoreService {
     public void deleteStore(UUID id) {
         Store store = em.find(Store.class, id);
         if (store != null) {
-            store.setDeleted(true);
+            if (store.getStatus() == StoreStatus.DELETED || store.getStatus() == StoreStatus.DELETING) {
+                Log.warnf("Store %s is already in status %s. No action taken.", id, store.getStatus());
+                return;
+            }
+            store.setStatus(StoreStatus.DELETING); // Or DELETED, depending on desired final state for this action
+            store.setUpdatedAt(java.time.Instant.now());
             em.merge(store);
+            Log.infof("Store %s marked as DELETING.", id);
+        } else {
+            Log.warnf("Store with ID %s not found for deletion.", id);
         }
     }
 
@@ -304,24 +314,6 @@ public class StoreService {
             } else {
                 StoreContext.clear();
             }
-        }
-    }
-
-    /**
-     * Execute a function within a specific store context (void version).
-     *
-     * @param schemaName The store schema to use
-     * @param function   The function to execute
-     */
-    public void executeInStoreContext(String schemaName, Runnable function) {
-        String previousStore = StoreContext.getCurrentStore();
-        try {
-            Log.debug("Executing in store context: " + schemaName);
-            StoreContext.setCurrentStore(schemaName);
-            function.run();
-        } finally {
-            Log.debug("Restoring previous store context: " + previousStore);
-            StoreContext.setCurrentStore(previousStore);
         }
     }
 }

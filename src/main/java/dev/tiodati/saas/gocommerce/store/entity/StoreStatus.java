@@ -1,4 +1,4 @@
-package dev.tiodati.saas.gocommerce.platform.entity;
+package dev.tiodati.saas.gocommerce.store.entity;
 
 /**
  * Represents the various statuses a store can be in.

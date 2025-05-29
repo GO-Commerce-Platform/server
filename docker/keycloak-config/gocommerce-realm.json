@@ -232,10 +232,16 @@
       "serviceAccountClientId": "gocommerce-client",
       "clientRoles": {
         "realm-management": [
+          "manage-realm",
           "manage-users",
+          "manage-clients",
+          "view-realm",
           "view-users",
+          "view-clients",
           "query-users",
-          "query-groups"
+          "query-groups",
+          "query-realms",
+          "query-clients"
         ]
       }
     }

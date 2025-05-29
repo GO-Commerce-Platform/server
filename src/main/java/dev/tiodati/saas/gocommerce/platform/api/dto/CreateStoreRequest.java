@@ -1,6 +1,6 @@
 package dev.tiodati.saas.gocommerce.platform.api.dto;
 
-import dev.tiodati.saas.gocommerce.platform.entity.StoreStatus;
+import dev.tiodati.saas.gocommerce.store.entity.StoreStatus;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -14,6 +14,8 @@ import jakarta.validation.constraints.Size;
  *                      length of 100.
  * @param subdomain     The subdomain for the store. Must not be blank, max
  *                      length 63, and follow domain naming conventions.
+ * @param ownerId       The ID of the user who will own this store. Must not be
+ *                      blank.
  * @param email         The administrative email for the store. Must be a valid
  *                      email format.
  * @param currencyCode  The default currency code for the store (e.g., "USD").
@@ -27,6 +29,9 @@ public record CreateStoreRequest(
         @NotBlank(message = "Store name cannot be blank.") @Size(min = 3, max = 100, message = "Store name must be between 3 and 100 characters.") String name,
 
         @NotBlank(message = "Subdomain cannot be blank.") @Pattern(regexp = "^[a-z0-9-]{3,50}$", message = "Subdomain must be lowercase alphanumeric with hyphens, and be between 3 and 50 characters long.") @Size(min = 3, max = 50, message = "Subdomain must be between 3 and 50 characters.") String subdomain,
+
+        @NotBlank(message = "Owner ID cannot be blank.") // Added ownerId
+        String ownerId,
 
         @NotBlank(message = "Email cannot be blank.") @Email(message = "Email should be valid.") @Size(max = 255, message = "Email cannot exceed 255 characters.") String email,
 

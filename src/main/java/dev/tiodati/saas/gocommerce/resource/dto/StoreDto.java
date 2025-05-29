@@ -2,7 +2,7 @@ package dev.tiodati.saas.gocommerce.resource.dto;
 
 import java.util.UUID;
 
-import dev.tiodati.saas.gocommerce.store.model.StoreStatus;
+import dev.tiodati.saas.gocommerce.store.entity.StoreStatus;
 
 public record StoreDto(
     UUID id,

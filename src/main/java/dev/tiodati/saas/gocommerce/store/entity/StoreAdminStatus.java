@@ -1,4 +1,4 @@
-package dev.tiodati.saas.gocommerce.store.model;
+package dev.tiodati.saas.gocommerce.store.entity;
 
 public enum StoreAdminStatus {
     ACTIVE,
