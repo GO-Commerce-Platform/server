@@ -133,38 +133,8 @@ Typically includes `dto/`, `resource/` (REST controllers), `service/`, `model/` 
 -   Use descriptive commit messages.
 -   Create PRs with clear titles and descriptions, linking to issues.
 
-## 11. Java Verbosity Reduction Guidelines
 
--   **Use Records for DTOs**:
-    -   Implement all request/response DTOs as Java records.
-    -   Use records for any simple data-carrying classes.
-    -   Example: `public record ProductDto(UUID id, String name, String description, BigDecimal price) {}`
--   **Apply Lombok Strategically**:
-    -   Use `@Builder` for complex objects that benefit from the builder pattern.
-    -   Apply `@Data` for mutable data classes (but prefer records for DTOs).
-    -   Use `@Value` for immutable classes that can't be records.
-    -   Prefer `@RequiredArgsConstructor` with final fields over field injection.
-    -   Example: `@RequiredArgsConstructor @Slf4j public class ProductService { private final ProductRepository repository; }`
--   **Leverage Type Inference**:
-    -   Use `var` for local variables when the type is obvious from initialization.
-    -   Avoid `var` when the type is not immediately apparent.
-    -   Example: `var products = productRepository.findByCategory(categoryId);`
--   **Implement Fluent Interfaces**:
-    -   Design builders and configuration classes with fluent interfaces.
-    -   Return `this` from setter methods to enable method chaining.
-    -   Example: `return new ProductBuilder().withName("Product").withPrice(BigDecimal.TEN).build();`
--   **Embrace Functional Programming**:
-    -   Use lambdas and method references with streams for collection operations.
-    -   Implement functional interfaces for behavior parameterization.
-    -   Use `Optional` properly to avoid null checks.
-    -   Example: `products.stream().filter(p -> p.isActive()).map(ProductMapper::toDto).toList();`
--   **Avoid Boilerplate Patterns**:
-    -   Don't create getters/setters manually (use records or Lombok).
-    -   Avoid traditional Builder pattern implementation (use Lombok's `@Builder`).
-    -   Use static factory methods instead of constructors for better naming.
-    -   Example: `Product.fromDto(productDto)` instead of `new Product(productDto)`
-
-## 12. Key File Locations
+## 11. Key File Locations
 
 -   **README.md**: Main project entry point.
 -   **Wiki (`/wiki`)**: Detailed documentation (Project Charter, Roadmap, Technical Design, Data Model, etc.).

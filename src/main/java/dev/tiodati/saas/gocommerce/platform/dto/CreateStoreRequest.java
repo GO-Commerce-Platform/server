@@ -1,6 +1,6 @@
 package dev.tiodati.saas.gocommerce.platform.dto;
 
-import dev.tiodati.saas.gocommerce.platform.entity.StoreStatus;
+import dev.tiodati.saas.gocommerce.store.entity.StoreStatus;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

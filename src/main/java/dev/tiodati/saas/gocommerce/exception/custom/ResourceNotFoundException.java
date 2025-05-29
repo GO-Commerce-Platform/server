@@ -9,7 +9,7 @@ public class ResourceNotFoundException extends RuntimeException {
     /**
      * Constructs a new ResourceNotFoundException with the specified detail
      * message.
-     * 
+     *
      * @param message the detail message.
      */
     public ResourceNotFoundException(String message) {
@@ -19,7 +19,7 @@ public class ResourceNotFoundException extends RuntimeException {
     /**
      * Constructs a new ResourceNotFoundException with the specified detail
      * message and cause.
-     * 
+     *
      * @param message the detail message.
      * @param cause   the cause of the exception.
      */

@@ -1,6 +1,6 @@
 package dev.tiodati.saas.gocommerce.platform.api.dto;
 
-import dev.tiodati.saas.gocommerce.platform.entity.StoreStatus;
+import dev.tiodati.saas.gocommerce.store.entity.StoreStatus;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;
 
@@ -10,6 +10,7 @@ import jakarta.validation.constraints.Size;
  * The 'subdomain' is typically not updatable or requires special handling.
  *
  * @param name          The new name of the store. Max length 100.
+ * @param ownerId       The new owner ID for the store.
  * @param email         The new administrative email for the store. Must be a
  *                      valid email format. Max length 255.
  * @param currencyCode  The new default currency code for the store (e.g.,
@@ -22,6 +23,9 @@ import jakarta.validation.constraints.Size;
  */
 public record UpdateStoreRequest(
         @Size(max = 100, message = "Store name cannot exceed 100 characters.") String name,
+
+        String ownerId, // Added ownerId, validation if needed (e.g., @UUID or
+                        // specific format)
 
         // Subdomain is generally not updatable due to its critical nature for
         // routing and identity.

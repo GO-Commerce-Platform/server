@@ -22,8 +22,11 @@ public class HealthResource {
 
     // private static final Logger LOG = Logger.getLogger(HealthResource.class);
 
+    /**
+     * The entity manager for database operations.
+     */
     @Inject
-    EntityManager em;
+    private EntityManager em;
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
