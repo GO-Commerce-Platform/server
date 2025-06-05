@@ -16,7 +16,7 @@ import jakarta.ws.rs.core.Response;
  * configured via MicroProfile Config, pointing to the Keycloak realm's base URL
  * (e.g., http://keycloak-host/realms/your-realm).
  */
-@RegisterRestClient
+@RegisterRestClient(configKey = "keycloak-logout-client")
 // The base URI for this client will be the auth-server-url (e.g.,
 // http://localhost:9000/realms/gocommerce)
 // The @Path annotation here is relative to that base URI.

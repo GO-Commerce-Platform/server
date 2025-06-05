@@ -74,24 +74,24 @@ class SchemaManagerTest {
                 "Test schema should exist");
 
         // Then - Verify core e-commerce tables exist
-        assertTrue(tableExists(EXPECTED_SCHEMA_NAME, "customers"),
-                "Customers table should exist after migration");
-        assertTrue(tableExists(EXPECTED_SCHEMA_NAME, "categories"),
-                "Categories table should exist after migration");
-        assertTrue(tableExists(EXPECTED_SCHEMA_NAME, "products"),
-                "Products table should exist after migration");
-        assertTrue(tableExists(EXPECTED_SCHEMA_NAME, "orders"),
-                "Orders table should exist after migration");
-        assertTrue(tableExists(EXPECTED_SCHEMA_NAME, "order_items"),
-                "Order items table should exist after migration");
-        assertTrue(tableExists(EXPECTED_SCHEMA_NAME, "shopping_carts"),
-                "Shopping carts table should exist after migration");
-        assertTrue(tableExists(EXPECTED_SCHEMA_NAME, "cart_items"),
-                "Cart items table should exist after migration");
-        assertTrue(tableExists(EXPECTED_SCHEMA_NAME, "product_images"),
-                "Product images table should exist after migration");
-        assertTrue(tableExists(EXPECTED_SCHEMA_NAME, "product_reviews"),
-                "Product reviews table should exist after migration");
+        assertTrue(tableExists(EXPECTED_SCHEMA_NAME, "customer"),
+                "Customer table should exist after migration");
+        assertTrue(tableExists(EXPECTED_SCHEMA_NAME, "category"),
+                "Category table should exist after migration");
+        assertTrue(tableExists(EXPECTED_SCHEMA_NAME, "product"),
+                "Product table should exist after migration");
+        assertTrue(tableExists(EXPECTED_SCHEMA_NAME, "order_header"),
+                "Order header table should exist after migration");
+        assertTrue(tableExists(EXPECTED_SCHEMA_NAME, "order_item"),
+                "Order item table should exist after migration");
+        assertTrue(tableExists(EXPECTED_SCHEMA_NAME, "shopping_cart"),
+                "Shopping cart table should exist after migration");
+        assertTrue(tableExists(EXPECTED_SCHEMA_NAME, "cart_item"),
+                "Cart item table should exist after migration");
+        assertTrue(tableExists(EXPECTED_SCHEMA_NAME, "product_image"),
+                "Product image table should exist after migration");
+        assertTrue(tableExists(EXPECTED_SCHEMA_NAME, "product_review"),
+                "Product review table should exist after migration");
     }
 
     @Test
@@ -150,8 +150,8 @@ class SchemaManagerTest {
         // Then - Verify migration table and core tables exist
         assertTrue(tableExists(migrationTestSchema, "flyway_schema_history"),
                 "Flyway table should exist after migration");
-        assertTrue(tableExists(migrationTestSchema, "customers"),
-                "Customers table should exist after migration");
+        assertTrue(tableExists(migrationTestSchema, "customer"),
+                "Customer table should exist after migration");
 
         // Cleanup
         dropSchema(migrationTestSchema);

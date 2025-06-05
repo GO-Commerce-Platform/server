@@ -12,8 +12,19 @@ services:
       - "${DB_PORT}:3306"
     volumes:
       - ./storage/mariadb_data:/var/lib/mysql
+      - ./docker/mariadb-init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      test:
+        [
+          "CMD",
+          "mariadb-admin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "root",
+          "-p${DB_ROOT_PASSWORD}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -26,7 +37,14 @@ services:
     volumes:
       - ./storage/keycloak/providers:/opt/keycloak/providers
       - ./docker/keycloak-config:/opt/keycloak/data/import
-    command: ["start-dev", "--http-port=9000", "--hostname-strict=false", "--http-relative-path=/", "--import-realm"]
+    command:
+      [
+        "start-dev",
+        "--http-port=9000",
+        "--hostname-strict=false",
+        "--http-relative-path=/",
+        "--import-realm",
+      ]
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://keycloak-db:5432/${KEYCLOAK_DB_SCHEMA:-keycloak}

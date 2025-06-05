@@ -17,7 +17,7 @@ import jakarta.ws.rs.core.MediaType;
  * to the Keycloak realm's base URL (e.g.,
  * http://keycloak-host/realms/your-realm).
  */
-@RegisterRestClient
+@RegisterRestClient(configKey = "keycloak-token-client")
 // The base URI for this client will be derived from
 // quarkus.oidc.auth-server-url
 // or explicitly set via mp-rest/url property for this client interface.
