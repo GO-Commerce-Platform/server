@@ -27,7 +27,7 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response; // Added import
 
 @QuarkusTest
-@TestInstance(TestInstance.Lifecycle.PER_CLASS) // Changed back to PER_CLASS
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class KeycloakAdminServiceIT {
 
     /**

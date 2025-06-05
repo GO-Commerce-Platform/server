@@ -20,6 +20,7 @@ import io.quarkus.logging.Log;
 import io.quarkus.security.Authenticated;
 import io.quarkus.security.UnauthorizedException;
 import jakarta.annotation.security.PermitAll;
+import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
@@ -37,10 +38,11 @@ import jakarta.ws.rs.core.SecurityContext;
  * REST resource for authentication operations like login, logout, and token
  * refresh. It interacts with the {@link AuthService} to perform these actions.
  */
-@Path("/auth")
+@Path("/api/v1/auth")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Authentication", description = "Endpoints for user authentication and session management.")
+@ApplicationScoped
 public class AuthResource {
 
     /**

@@ -5,12 +5,12 @@ import dev.tiodati.saas.gocommerce.auth.dto.RefreshTokenRequest;
 import dev.tiodati.saas.gocommerce.auth.dto.TokenResponse;
 
 /**
- * Service interface for authentication operations
+ * Service interface for authentication operations.
  */
 public interface AuthService {
 
     /**
-     * Authenticate a user and generate access and refresh tokens
+     * Authenticate a user and generate access and refresh tokens.
      *
      * @param loginRequest Contains username and password
      * @return TokenResponse with access and refresh tokens
@@ -19,7 +19,7 @@ public interface AuthService {
     TokenResponse login(LoginRequest loginRequest);
 
     /**
-     * Generate new tokens using a refresh token
+     * Generate new tokens using a refresh token.
      *
      * @param refreshTokenRequest Contains the refresh token
      * @return TokenResponse with new access and refresh tokens
@@ -28,7 +28,7 @@ public interface AuthService {
     TokenResponse refreshToken(RefreshTokenRequest refreshTokenRequest);
 
     /**
-     * Invalidate a user's refresh token
+     * Invalidate a user's refresh token.
      *
      * @param refreshToken The token to invalidate
      * @return true if successfully invalidated
@@ -36,7 +36,7 @@ public interface AuthService {
     boolean logout(String refreshToken);
 
     /**
-     * Validate an access token
+     * Validate an access token.
      *
      * @param token The token to validate
      * @return true if token is valid

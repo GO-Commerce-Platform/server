@@ -30,7 +30,7 @@ public record CreateStoreRequest(
 
         @NotBlank(message = "Subdomain cannot be blank.") @Pattern(regexp = "^[a-z0-9-]{3,50}$", message = "Subdomain must be lowercase alphanumeric with hyphens, and be between 3 and 50 characters long.") @Size(min = 3, max = 50, message = "Subdomain must be between 3 and 50 characters.") String subdomain,
 
-        @NotBlank(message = "Owner ID cannot be blank.") // Added ownerId
+        @NotBlank(message = "Owner ID cannot be blank.")
         String ownerId,
 
         @NotBlank(message = "Email cannot be blank.") @Email(message = "Email should be valid.") @Size(max = 255, message = "Email cannot exceed 255 characters.") String email,

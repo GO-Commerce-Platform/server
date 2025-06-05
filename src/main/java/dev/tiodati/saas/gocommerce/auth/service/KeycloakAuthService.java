@@ -99,9 +99,27 @@ public class KeycloakAuthService implements AuthService {
             Log.infof("Attempting login for user: %s", loginRequest.username());
             TokenResponse tokenResponse = keycloakTokenClient.grantToken(form);
 
+            // Debug logging to understand what's happening with the token response
+            Log.infof("Received TokenResponse: tokenResponse=%s", tokenResponse);
+            if (tokenResponse != null) {
+                Log.infof(
+                        "TokenResponse details - accessToken=%s, refreshToken=%s, tokenType=%s, expiresIn=%d, roles=%s",
+                        tokenResponse.accessToken() != null ? "present" : "null",
+                        tokenResponse.refreshToken() != null ? "present" : "null",
+                        tokenResponse.tokenType(),
+                        tokenResponse.expiresIn(),
+                        tokenResponse.roles());
+            } else {
+                Log.errorf("TokenResponse is null!");
+            }
+
             Log.infof("User %s logged in successfully.",
                     loginRequest.username());
-            return tokenResponse; // Simplified, roles might be in JWT directly
+
+            // The TokenResponse from Keycloak doesn't include roles, but we can add them
+            // by parsing the JWT access token. For now, we'll return the response as-is
+            // since roles are embedded in the JWT itself.
+            return tokenResponse;
         } catch (WebApplicationException e) {
             Response response = e.getResponse();
             String errorDetails = response != null
