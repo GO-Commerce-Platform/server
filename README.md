@@ -55,6 +55,12 @@ The complete documentation for this project is available in the [Wiki](https://g
 8. [Test Plan](https://github.com/aquele-dinho/GO-Commerce/wiki/07-Test-Plan)
 9. [MVP Planning](https://github.com/aquele-dinho/GO-Commerce/wiki/08-MVP-Planning)
 
+### Technical Architecture Documentation
+
+For detailed technical implementation guides, see also:
+
+-   [Multi-Schema Architecture](./wiki/Multi-Schema-Architecture.md) - Complete guide to the schema-per-store implementation
+
 ## Getting Started
 
 1. Clone the repository
@@ -105,6 +111,43 @@ The complete documentation for this project is available in the [Wiki](https://g
     ./docker/run-tests.sh all    # Run all tests
     ./docker/run-tests.sh integration  # Run integration tests
     ```
+
+## Multi-Schema Architecture
+
+GO-Commerce implements a **schema-per-store** multi-tenancy approach for complete data isolation between stores:
+
+### Key Features
+
+-   **Dynamic Schema Creation**: New store schemas are created programmatically using `SchemaManager`
+-   **Runtime Migration Targeting**: Flyway migrations target specific schemas at runtime
+-   **Independent Migration History**: Each store maintains its own `flyway_schema_history` table
+-   **Zero Interference**: Store migrations are completely separated from main application migrations
+
+### Usage Example
+
+```java
+@Inject
+SchemaManager schemaManager;
+
+// Create a new store schema with migrations
+String storeSchema = "store_myshop";
+schemaManager.createSchema(storeSchema);
+
+// Run additional migrations on existing schema
+schemaManager.migrateSchema(storeSchema);
+```
+
+### Configuration
+
+Store migration settings are configured via `application.properties`:
+
+```properties
+# Store migration configuration
+gocommerce.flyway.store-migrations.locations=db/migration/stores
+gocommerce.flyway.store-migrations.table=flyway_schema_history
+gocommerce.flyway.store-migrations.baseline-version=1.0.0
+gocommerce.flyway.store-migrations.validate-on-migrate=true
+```
 
 ## Troubleshooting
 
