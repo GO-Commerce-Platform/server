@@ -104,6 +104,14 @@ services:
       - QUARKUS_OIDC_AUTH_SERVER_URL=http://keycloak:${KEYCLOAK_PORT:-9000}/realms/gocommerce
       - QUARKUS_OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-gocommerce-client}
       - QUARKUS_OIDC_CREDENTIALS_SECRET=${OIDC_CLIENT_SECRET:-NwASnqRj8AnokmBaDIVy9WTijHYrWHAe}
+      # Database configuration for multi-schema operations (single user approach)
+      - DB_SCHEMA_ADMIN_USERNAME=${DB_USERNAME:-gocommerceuser}
+      - DB_SCHEMA_ADMIN_PASSWORD=${DB_PASSWORD:-gocommercepass}
+      # Keycloak Admin Client configuration for store management
+      - KEYCLOAK_REALM=${KEYCLOAK_REALM:-gocommerce}
+      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-gocommerce-client}
+      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET:-NwASnqRj8AnokmBaDIVy9WTijHYrWHAe}
+      - KEYCLOAK_PORT=${KEYCLOAK_PORT:-9000}
     restart: unless-stopped
     networks:
       - gocommerce-network
