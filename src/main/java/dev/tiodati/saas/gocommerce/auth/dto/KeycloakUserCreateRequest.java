@@ -1,78 +1,41 @@
 package dev.tiodati.saas.gocommerce.auth.dto;
 
-// This is a simplified DTO. You might want to expand it based on Keycloak's UserRepresentation.
-public class KeycloakUserCreateRequest {
+/**
+ * Request DTO for creating a Keycloak user.
+ * This is a simplified DTO based on Keycloak's UserRepresentation.
+ *
+ * @param username      The username
+ * @param email         The user's email address
+ * @param firstName     The user's first name
+ * @param lastName      The user's last name
+ * @param password      The user's password (handle securely)
+ * @param emailVerified Whether the email is verified
+ */
+public record KeycloakUserCreateRequest(
+        String username,
+        String email,
+        String firstName,
+        String lastName,
+        String password,
+        boolean emailVerified) {
     /**
-     * The username.
+     * Factory method for creating a new user with unverified email.
      */
-    private String username;
-    /**
-     * The email.
-     */
-    private String email;
-    /**
-     * The first name.
-     */
-    private String firstName;
-    /**
-     * The last name.
-     */
-    private String lastName;
-    /**
-     * The password.
-     */
-    private String password; // Handle securely
-    /**
-     * Whether the email is verified.
-     */
-    private boolean emailVerified = false; // Default, can be set to true if verified externally
-
-    // Getters and Setters
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getFirstName() {
-        return firstName;
-    }
-
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
-    }
-
-    public String getLastName() {
-        return lastName;
-    }
-
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public boolean isEmailVerified() {
-        return emailVerified;
-    }
-
-    public void setEmailVerified(boolean emailVerified) {
-        this.emailVerified = emailVerified;
+    public static KeycloakUserCreateRequest newUser(
+            String username,
+            String email,
+            String firstName,
+            String lastName,
+            String password) {
+        return new KeycloakUserCreateRequest(
+                username,
+                email,
+                firstName,
+                lastName,
+                password,
+                false // emailVerified defaults to false
+        );
     }
 }
+
+// Copilot: This file may have been generated or refactored by GitHub Copilot.

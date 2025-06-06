@@ -60,19 +60,19 @@ public class KeycloakAdminService {
     public String createClient(
             KeycloakClientCreateRequest clientCreateRequest) {
         ClientRepresentation clientRep = new ClientRepresentation();
-        clientRep.setClientId(clientCreateRequest.getClientId());
-        clientRep.setName(clientCreateRequest.getName());
-        clientRep.setDescription(clientCreateRequest.getDescription());
-        clientRep.setSecret(clientCreateRequest.getSecret());
+        clientRep.setClientId(clientCreateRequest.clientId());
+        clientRep.setName(clientCreateRequest.name());
+        clientRep.setDescription(clientCreateRequest.description());
+        clientRep.setSecret(clientCreateRequest.secret());
         clientRep.setStandardFlowEnabled(
-                clientCreateRequest.isStandardFlowEnabled());
+                clientCreateRequest.standardFlowEnabled());
         clientRep.setDirectAccessGrantsEnabled(
-                clientCreateRequest.isDirectAccessGrantsEnabled());
+                clientCreateRequest.directAccessGrantsEnabled());
         clientRep.setServiceAccountsEnabled(
-                clientCreateRequest.isServiceAccountsEnabled());
-        clientRep.setPublicClient(clientCreateRequest.isPublicClient());
-        clientRep.setRedirectUris(clientCreateRequest.getRedirectUris());
-        clientRep.setWebOrigins(clientCreateRequest.getWebOrigins());
+                clientCreateRequest.serviceAccountsEnabled());
+        clientRep.setPublicClient(clientCreateRequest.publicClient());
+        clientRep.setRedirectUris(clientCreateRequest.redirectUris());
+        clientRep.setWebOrigins(clientCreateRequest.webOrigins());
         clientRep.setFullScopeAllowed(true); // Ensure full scope is allowed
         clientRep.setEnabled(true);
 
@@ -125,18 +125,18 @@ public class KeycloakAdminService {
      */
     public String createUser(KeycloakUserCreateRequest userCreateRequest) {
         UserRepresentation userRep = new UserRepresentation();
-        userRep.setUsername(userCreateRequest.getUsername());
-        userRep.setEmail(userCreateRequest.getEmail());
-        userRep.setFirstName(userCreateRequest.getFirstName());
-        userRep.setLastName(userCreateRequest.getLastName());
+        userRep.setUsername(userCreateRequest.username());
+        userRep.setEmail(userCreateRequest.email());
+        userRep.setFirstName(userCreateRequest.firstName());
+        userRep.setLastName(userCreateRequest.lastName());
         userRep.setEnabled(true);
-        userRep.setEmailVerified(userCreateRequest.isEmailVerified());
+        userRep.setEmailVerified(userCreateRequest.emailVerified());
 
-        if (userCreateRequest.getPassword() != null
-                && !userCreateRequest.getPassword().isBlank()) {
+        if (userCreateRequest.password() != null
+                && !userCreateRequest.password().isBlank()) {
             CredentialRepresentation credential = new CredentialRepresentation();
             credential.setType(CredentialRepresentation.PASSWORD);
-            credential.setValue(userCreateRequest.getPassword());
+            credential.setValue(userCreateRequest.password());
             credential.setTemporary(false);
             userRep.setCredentials(Collections.singletonList(credential));
         }
