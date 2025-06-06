@@ -119,13 +119,18 @@ public class StoreCreationServiceImpl implements StoreCreationService {
         Log.infof("Creating database schema for store: %s", storeKey);
 
         try {
+            // Generate schema name with consistent format (store_ prefix + underscore
+            // normalization)
+            String schemaName = "store_" + storeKey.toLowerCase().replace("-", "_");
+
             // Create the schema
-            schemaManager.createSchema(storeKey);
+            schemaManager.createSchema(schemaName);
 
             // Run Flyway migrations for the new schema
-            schemaManager.migrateSchema(storeKey);
+            schemaManager.migrateSchema(schemaName);
 
-            Log.infof("Database schema created and migrated successfully for store: %s", storeKey);
+            Log.infof("Database schema created and migrated successfully for store: %s (schema: %s)", storeKey,
+                    schemaName);
 
         } catch (Exception e) {
             Log.errorf(e, "Failed to create database schema for store: %s", storeKey);

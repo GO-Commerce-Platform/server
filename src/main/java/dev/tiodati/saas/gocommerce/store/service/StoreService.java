@@ -50,10 +50,11 @@ public class StoreService {
 
     /**
      * Get a store by its ID.
+     * 
      * @return An Optional containing the store if found, or empty if not.
      * @param id The ID of the store to retrieve.
      * @throws IllegalArgumentException if the ID is null.
-     * @throws PersistenceException if there is an error retrieving the store.
+     * @throws PersistenceException     if there is an error retrieving the store.
      **/
     public Optional<Store> findById(UUID id) {
         Store store = em.find(Store.class, id);
@@ -75,11 +76,12 @@ public class StoreService {
 
     /**
      * Get a store by its unique key.
+     * 
      * @param storeKey The unique key of the store
      * @return An Optional containing the store if found, or empty if not.
      * @throws IllegalArgumentException if the storeKey is null or empty.
-     * @throws PersistenceException if there is an error retrieving the store.
-     * @throws IllegalStateException if the store is not found.
+     * @throws PersistenceException     if there is an error retrieving the store.
+     * @throws IllegalStateException    if the store is not found.
      */
     public Optional<Store> findByStoreKey(String storeKey) {
         try {
@@ -96,11 +98,12 @@ public class StoreService {
 
     /**
      * Get a store by its subdomain.
+     * 
      * @param subdomain The subdomain of the store
      * @return An Optional containing the store if found, or empty if not.
      * @throws IllegalArgumentException if the subdomain is null or empty.
-     * @throws PersistenceException if there is an error retrieving the store.
-     * @throws IllegalStateException if the store is not found.
+     * @throws PersistenceException     if there is an error retrieving the store.
+     * @throws IllegalStateException    if the store is not found.
      */
     public Optional<Store> findBySubdomain(String subdomain) {
         try {
@@ -117,12 +120,13 @@ public class StoreService {
 
     /**
      * List all stores.
+     * 
      * @return A list of all stores that are not deleted, ordered by name.
-     * @throws PersistenceException if there is an error retrieving the stores.
-     * @throws IllegalStateException if no stores are found.
+     * @throws PersistenceException     if there is an error retrieving the stores.
+     * @throws IllegalStateException    if no stores are found.
      * @throws IllegalArgumentException if the query fails.
-     * @throws NullPointerException if the EntityManager is not initialized.
-     * @throws ClassCastException if the result cannot be cast to List<Store>.
+     * @throws NullPointerException     if the EntityManager is not initialized.
+     * @throws ClassCastException       if the result cannot be cast to List<Store>.
      */
     public List<Store> listAll() {
         return em.createQuery(
@@ -135,12 +139,13 @@ public class StoreService {
 
     /**
      * List all active stores.
+     * 
      * @return A list of active stores, ordered by name.
-     * @throws PersistenceException if there is an error retrieving the stores.
-     * @throws IllegalStateException if no stores are found.
+     * @throws PersistenceException     if there is an error retrieving the stores.
+     * @throws IllegalStateException    if no stores are found.
      * @throws IllegalArgumentException if the query fails.
-     * @throws NullPointerException if the EntityManager is not initialized.
-     * @throws ClassCastException if the result cannot be cast to List<Store>.
+     * @throws NullPointerException     if the EntityManager is not initialized.
+     * @throws ClassCastException       if the result cannot be cast to List<Store>.
      */
     public List<Store> listActive() {
         return em.createQuery(
@@ -151,16 +156,18 @@ public class StoreService {
 
     /**
      * Create a new store with default schema and admin user.
+     * 
      * @param store The store to create
      * @param admin The admin user for the store
      * @return The created store with generated ID and schema name
      * @throws IllegalArgumentException if the store already has an ID or
      *                                  if the store key or subdomain is invalid.
-     * @throws PersistenceException if there is an error creating the store.
-     * @throws SQLException if there is an error creating the schema.
-     * @throws IllegalStateException if the store cannot be persisted.
-     * @throws NullPointerException if the EntityManager or SchemaManager is not initialized.
-     * @throws ClassCastException if the store cannot be cast to Store.
+     * @throws PersistenceException     if there is an error creating the store.
+     * @throws SQLException             if there is an error creating the schema.
+     * @throws IllegalStateException    if the store cannot be persisted.
+     * @throws NullPointerException     if the EntityManager or SchemaManager is not
+     *                                  initialized.
+     * @throws ClassCastException       if the store cannot be cast to Store.
      */
     public Store createStore(Store store, StoreAdmin admin) {
         if (store.getId() != null) {
@@ -172,7 +179,7 @@ public class StoreService {
 
         // Generate schema name if not provided
         if (store.getSchemaName() == null || store.getSchemaName().isEmpty()) {
-            store.setSchemaName("store_" + store.getStoreKey().toLowerCase());
+            store.setSchemaName("store_" + store.getStoreKey().toLowerCase().replace("-", "_"));
         }
 
         try {
@@ -209,16 +216,19 @@ public class StoreService {
 
     /**
      * Update an existing store.
+     * 
      * @param store The store to update
      * @return The updated store
-     * @throws IllegalArgumentException if the store ID is null or if the store
-     *                                  does not exist.
-     * @throws PersistenceException if there is an error updating the store.
-     * @throws IllegalStateException if the store cannot be persisted.
-     * @throws NullPointerException if the EntityManager is not initialized.
-     * @throws ClassCastException if the store cannot be cast to Store.
+     * @throws IllegalArgumentException      if the store ID is null or if the store
+     *                                       does not exist.
+     * @throws PersistenceException          if there is an error updating the
+     *                                       store.
+     * @throws IllegalStateException         if the store cannot be persisted.
+     * @throws NullPointerException          if the EntityManager is not
+     *                                       initialized.
+     * @throws ClassCastException            if the store cannot be cast to Store.
      * @throws UnsupportedOperationException if the store key or schema name is
-     *                                      attempted to be changed after creation.
+     *                                       attempted to be changed after creation.
      */
     public Store updateStore(Store store) {
         if (store.getId() == null) {
@@ -241,15 +251,18 @@ public class StoreService {
 
     /**
      * Change store status.
+     * 
      * @param storeId The ID of the store to update
-     * @param status   The new status to set for the store
+     * @param status  The new status to set for the store
      * @return The updated store with new status
-     * @throws IllegalArgumentException if the store ID is null or if the store
-     *                                  does not exist.
-     * @throws PersistenceException if there is an error updating the store status.
-     * @throws IllegalStateException if the store cannot be persisted.
-     * @throws NullPointerException if the EntityManager is not initialized.
-     * @throws ClassCastException if the store cannot be cast to Store.
+     * @throws IllegalArgumentException      if the store ID is null or if the store
+     *                                       does not exist.
+     * @throws PersistenceException          if there is an error updating the store
+     *                                       status.
+     * @throws IllegalStateException         if the store cannot be persisted.
+     * @throws NullPointerException          if the EntityManager is not
+     *                                       initialized.
+     * @throws ClassCastException            if the store cannot be cast to Store.
      * @throws UnsupportedOperationException if the store status is not valid.
      */
     public Store updateStoreStatus(UUID storeId, StoreStatus status) {
@@ -264,17 +277,20 @@ public class StoreService {
     }
 
     /**
-    * Soft delete a store.
-    * Marks the store as deleted without removing it from the database.
-    *
-    * @param id The ID of the store to delete
-    * @throws IllegalArgumentException if the ID is null or if the store does not exist.
-    * @throws PersistenceException if there is an error deleting the store.
-    * @throws IllegalStateException if the store cannot be persisted.
-    * @throws NullPointerException if the EntityManager is not initialized.
-    * @throws ClassCastException if the store cannot be cast to Store.
-    * @throws UnsupportedOperationException if the store is already deleted.
-    */
+     * Soft delete a store.
+     * Marks the store as deleted without removing it from the database.
+     *
+     * @param id The ID of the store to delete
+     * @throws IllegalArgumentException      if the ID is null or if the store does
+     *                                       not exist.
+     * @throws PersistenceException          if there is an error deleting the
+     *                                       store.
+     * @throws IllegalStateException         if the store cannot be persisted.
+     * @throws NullPointerException          if the EntityManager is not
+     *                                       initialized.
+     * @throws ClassCastException            if the store cannot be cast to Store.
+     * @throws UnsupportedOperationException if the store is already deleted.
+     */
     public void deleteStore(UUID id) {
         Store store = em.find(Store.class, id);
         if (store != null) {
