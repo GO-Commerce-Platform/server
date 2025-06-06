@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue; // Added import
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.AfterAll;
@@ -193,15 +194,19 @@ public class KeycloakAdminServiceIT {
     private void createTestClient() {
         Log.info("Creating test client during setup");
 
-        KeycloakClientCreateRequest clientRequest = new KeycloakClientCreateRequest();
-        clientRequest.setClientId(testClientIdentifier);
-        clientRequest.setName("Test Client " + testClientIdentifier);
-        clientRequest
-                .setDescription("A client created for integration testing.");
-        clientRequest.setSecret("test-secret"); // For testing purposes
-        clientRequest.setStandardFlowEnabled(true);
-        clientRequest.setRedirectUris(List.of("http://localhost/test"));
-        clientRequest.setWebOrigins(List.of("http://localhost"));
+        KeycloakClientCreateRequest clientRequest = new KeycloakClientCreateRequest(
+                testClientIdentifier,
+                "Test Client " + testClientIdentifier,
+                "A client created for integration testing.",
+                "test-secret", // For testing purposes
+                true, // standardFlowEnabled
+                true, // directAccessGrantsEnabled
+                false, // serviceAccountsEnabled
+                false, // publicClient
+                List.of("http://localhost/test"),
+                List.of("http://localhost"),
+                Map.of() // empty attributes
+        );
 
         try {
             testClientInternalId = keycloakAdminService
@@ -240,13 +245,13 @@ public class KeycloakAdminServiceIT {
     private void createTestUser() {
         Log.info("Creating test user during setup");
 
-        KeycloakUserCreateRequest userRequest = new KeycloakUserCreateRequest();
-        userRequest.setUsername(testUserName);
-        userRequest.setEmail(testUserName + "@example.com");
-        userRequest.setFirstName("Test");
-        userRequest.setLastName("User");
-        userRequest.setPassword("testpassword123");
-        userRequest.setEmailVerified(true);
+        KeycloakUserCreateRequest userRequest = new KeycloakUserCreateRequest(
+                testUserName,
+                testUserName + "@example.com",
+                "Test",
+                "User",
+                "testpassword123",
+                true);
 
         try {
             testUserInternalId = keycloakAdminService.createUser(userRequest);
