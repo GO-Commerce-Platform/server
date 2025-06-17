@@ -20,7 +20,7 @@ GO-Commerce is a multi-store e-commerce SaaS platform built with Quarkus and eve
 - **Messaging**: Apache Kafka for event-driven architecture
 - **Containerization**: Docker & Docker Compose
 - **Build Tool**: Maven
-- **Testing**: JUnit, Mockito, RestAssured
+- **Testing**: JUnit, RestAssured, QuarkusTest
 
 ## Architecture
 
@@ -191,12 +191,12 @@ GO-Commerce is a multi-store e-commerce SaaS platform built with Quarkus and eve
 
 ### Java Verbosity Reduction Guidelines
 
-- **Use Records for DTOs**: 
+- **Use Records for DTOs**:
   - Implement all request/response DTOs as Java records
   - Use records for any simple data-carrying classes
   - Example: `public record ProductDto(UUID id, String name, String description, BigDecimal price) {}`
 
-- **Apply Lombok Strategically**: 
+- **Apply Lombok Strategically**:
   - Use `@Builder` for complex objects that benefit from builder pattern
   - Apply `@Data` for mutable data classes (but prefer records for DTOs)
   - Use `@Value` for immutable classes that can't be records
