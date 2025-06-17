@@ -1,0 +1,27 @@
+CHECKSTYLE VIOLATIONS SUMMARY
+==========================
+
+Total violations: 106
+
+VIOLATIONS BY TYPE
+-----------------
+Missing final newline: 0
+Line too long: 0
+Trailing whitespace: 0
+Javadoc issues: 90
+Missing package-info.java: 11
+Naming convention issues: 0
+Other issues: 5
+
+FILES WITH MOST VIOLATIONS
+-----------------------
+     12 [WARN] /workspaces/GO-Commerce/./src/main/java/dev/tiodati/saas/gocommerce/product/dto/ProductDto.java
+     10 [WARN] /workspaces/GO-Commerce/./src/main/java/dev/tiodati/saas/gocommerce/product/dto/CreateProductDto.java
+     10 [WARN] /workspaces/GO-Commerce/./src/main/java/dev/tiodati/saas/gocommerce/cart/dto/ShoppingCartDto.java
+      8 [WARN] /workspaces/GO-Commerce/./src/main/java/dev/tiodati/saas/gocommerce/auth/interceptor/StoreRoleInterceptor.java
+      7 [WARN] /workspaces/GO-Commerce/./src/main/java/dev/tiodati/saas/gocommerce/util/StoreSettingsUtil.java
+      7 [WARN] /workspaces/GO-Commerce/./src/main/java/dev/tiodati/saas/gocommerce/product/service/ProductService.java
+      6 [WARN] /workspaces/GO-Commerce/./src/main/java/dev/tiodati/saas/gocommerce/cart/resource/CartResource.java
+      5 [WARN] /workspaces/GO-Commerce/./src/main/java/dev/tiodati/saas/gocommerce/util/PasswordHashingUtil.java
+      4 [WARN] /workspaces/GO-Commerce/./src/main/java/dev/tiodati/saas/gocommerce/store/RequestPathStoreResolver.java
+      4 [WARN] /workspaces/GO-Commerce/./src/main/java/dev/tiodati/saas/gocommerce/cart/dto/CartSummaryDto.java

@@ -4,6 +4,8 @@ import dev.tiodati.saas.gocommerce.customer.entity.Customer;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -59,11 +61,12 @@ public class ShoppingCart {
     private String sessionId;
 
     /**
-     * Whether this cart is currently active.
+     * Current status of the shopping cart.
      */
-    @Column(name = "is_active", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
     @Builder.Default
-    private Boolean isActive = true;
+    private CartStatus status = CartStatus.ACTIVE;
 
     /**
      * When this cart expires (for cleanup purposes).
