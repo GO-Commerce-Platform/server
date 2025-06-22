@@ -2,6 +2,7 @@ package dev.tiodati.saas.gocommerce.cart.repository;
 
 import dev.tiodati.saas.gocommerce.cart.entity.CartStatus;
 import dev.tiodati.saas.gocommerce.cart.entity.ShoppingCart;
+import dev.tiodati.saas.gocommerce.customer.entity.Customer;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import io.quarkus.panache.common.Page;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -26,7 +27,7 @@ public class ShoppingCartRepository implements PanacheRepositoryBase<ShoppingCar
      * @return optional shopping cart
      */
     public Optional<ShoppingCart> findActiveByCustomerId(UUID customerId) {
-        return find("customerId = ?1 and status = ?2", customerId, CartStatus.ACTIVE)
+        return find("customer.id = ?1 and status = ?2", customerId, CartStatus.ACTIVE)
                 .firstResultOptional();
     }
 
@@ -51,7 +52,7 @@ public class ShoppingCartRepository implements PanacheRepositoryBase<ShoppingCar
      * @return list of shopping carts
      */
     public List<ShoppingCart> findByCustomerId(UUID customerId, Page page) {
-        return find("customerId = ?1", customerId)
+        return find("customer.id = ?1", customerId)
                 .page(page)
                 .list();
     }
@@ -130,14 +131,14 @@ public class ShoppingCartRepository implements PanacheRepositoryBase<ShoppingCar
      * Transfer guest cart to customer.
      * Associates a guest cart with a customer account.
      *
-     * @param sessionId  the session ID of the guest cart
-     * @param customerId the customer ID to associate with
+     * @param sessionId the session ID of the guest cart
+     * @param customer  the customer entity to associate with
      * @return number of affected rows
      */
-    public int transferGuestCartToCustomer(String sessionId, UUID customerId) {
-        return update("customerId = ?1, sessionId = null, updatedAt = CURRENT_TIMESTAMP "
+    public int transferGuestCartToCustomer(String sessionId, Customer customer) {
+        return update("customer = ?1, sessionId = null, updatedAt = CURRENT_TIMESTAMP "
                 + "where sessionId = ?2 and status = ?3",
-                customerId, sessionId, CartStatus.ACTIVE);
+                customer, sessionId, CartStatus.ACTIVE);
     }
 }
 

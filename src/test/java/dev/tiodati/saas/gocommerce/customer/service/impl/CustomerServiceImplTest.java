@@ -78,7 +78,6 @@ class CustomerServiceImplTest {
     class CreateCustomerTests {
 
         @Test
-        @Transactional
         @DisplayName("Should create customer successfully")
         void shouldCreateCustomerSuccessfully() {
             // When - Real service call
@@ -95,7 +94,6 @@ class CustomerServiceImplTest {
         }
 
         @Test
-        @Transactional
         @DisplayName("Should normalize email to lowercase when creating customer")
         void shouldNormalizeEmailToLowercase() {
             // Given - DTO with uppercase email
@@ -113,7 +111,6 @@ class CustomerServiceImplTest {
         }
 
         @Test
-        @Transactional
         @DisplayName("Should set default values for optional fields")
         void shouldSetDefaultValuesForOptionalFields() {
             // Given - Minimal DTO
@@ -137,7 +134,6 @@ class CustomerServiceImplTest {
     class ListCustomersTests {
 
         @Test
-        @Transactional
         @DisplayName("Should list customers with pagination")
         void shouldListCustomersWithPagination() {
             // Given - Create real test data
@@ -153,7 +149,6 @@ class CustomerServiceImplTest {
         }
 
         @Test
-        @Transactional
         @DisplayName("Should list customers by status")
         void shouldListCustomersByStatus() {
             // Given - Create real test data
@@ -169,7 +164,6 @@ class CustomerServiceImplTest {
         }
 
         @Test
-        @Transactional
         @DisplayName("Should return empty list when no customers found")
         void shouldReturnEmptyListWhenNoCustomersFound() {
             // When - Real service call without creating any customers
@@ -186,7 +180,6 @@ class CustomerServiceImplTest {
     class FindCustomerTests {
 
         @Test
-        @Transactional
         @DisplayName("Should find customer by ID")
         void shouldFindCustomerById() {
             // Given - Create real customer
@@ -202,7 +195,6 @@ class CustomerServiceImplTest {
         }
 
         @Test
-        @Transactional
         @DisplayName("Should return empty when customer not found by ID")
         void shouldReturnEmptyWhenCustomerNotFoundById() {
             // Given - Non-existent customer ID
@@ -216,7 +208,6 @@ class CustomerServiceImplTest {
         }
 
         @Test
-        @Transactional
         @DisplayName("Should find customer by email")
         void shouldFindCustomerByEmail() {
             // Given - Create real customer
@@ -231,7 +222,6 @@ class CustomerServiceImplTest {
         }
 
         @Test
-        @Transactional
         @DisplayName("Should return empty when customer not found by email")
         void shouldReturnEmptyWhenCustomerNotFoundByEmail() {
             // Given - Non-existent email
@@ -250,7 +240,6 @@ class CustomerServiceImplTest {
     class UpdateCustomerTests {
 
         @Test
-        @Transactional
         @DisplayName("Should update customer successfully")
         void shouldUpdateCustomerSuccessfully() {
             // Given - Create real customer
@@ -289,7 +278,6 @@ class CustomerServiceImplTest {
         }
 
         @Test
-        @Transactional
         @DisplayName("Should return empty when updating non-existent customer")
         void shouldReturnEmptyWhenUpdatingNonExistentCustomer() {
             // Given - DTO for non-existent customer
@@ -312,7 +300,6 @@ class CustomerServiceImplTest {
     class UpdateCustomerStatusTests {
 
         @Test
-        @Transactional
         @DisplayName("Should update customer status successfully")
         void shouldUpdateCustomerStatusSuccessfully() {
             // Given - Create real customer
@@ -328,7 +315,6 @@ class CustomerServiceImplTest {
         }
 
         @Test
-        @Transactional
         @DisplayName("Should return empty when updating status of non-existent customer")
         void shouldReturnEmptyWhenUpdatingStatusOfNonExistentCustomer() {
             // Given - Non-existent customer ID
@@ -348,7 +334,6 @@ class CustomerServiceImplTest {
     class SearchCustomersTests {
 
         @Test
-        @Transactional
         @DisplayName("Should search customers successfully")
         void shouldSearchCustomersSuccessfully() {
             // Given - Create real customer
@@ -365,7 +350,6 @@ class CustomerServiceImplTest {
         }
 
         @Test
-        @Transactional
         @DisplayName("Should return empty list when no customers match search")
         void shouldReturnEmptyListWhenNoCustomersMatchSearch() {
             // Given - Create real customer
@@ -386,7 +370,6 @@ class CustomerServiceImplTest {
     class CountCustomersTests {
 
         @Test
-        @Transactional
         @DisplayName("Should count customers by status")
         void shouldCountCustomersByStatus() {
             // Given - Create real customers
@@ -407,7 +390,6 @@ class CustomerServiceImplTest {
         }
 
         @Test
-        @Transactional
         @DisplayName("Should return zero when no customers found for status")
         void shouldReturnZeroWhenNoCustomersFoundForStatus() {
             // Given - No customers created

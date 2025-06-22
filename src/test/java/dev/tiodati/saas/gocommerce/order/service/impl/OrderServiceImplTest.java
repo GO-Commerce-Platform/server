@@ -81,7 +81,6 @@ class OrderServiceImplTest {
     }
 
     @AfterEach
-    @Transactional
     void tearDown() {
         // Clean up test data to maintain test isolation
         orderRepository.deleteAll();
@@ -92,7 +91,6 @@ class OrderServiceImplTest {
     class CreateOrderTests {
 
         @Test
-        @Transactional
         @DisplayName("Should create order successfully")
         void shouldCreateOrderSuccessfully() {
             // When - Real service call
@@ -109,7 +107,6 @@ class OrderServiceImplTest {
         }
 
         @Test
-        @Transactional
         @DisplayName("Should calculate totals correctly")
         void shouldCalculateTotalsCorrectly() {
             // When - Real service call
@@ -130,7 +127,6 @@ class OrderServiceImplTest {
     class ListOrdersTests {
 
         @Test
-        @Transactional
         @DisplayName("Should list orders with pagination")
         void shouldListOrdersWithPagination() {
             // Given - Create real test data
@@ -146,7 +142,6 @@ class OrderServiceImplTest {
         }
 
         @Test
-        @Transactional
         @DisplayName("Should filter orders by status")
         void shouldFilterOrdersByStatus() {
             // Given - Create real test data
@@ -163,7 +158,6 @@ class OrderServiceImplTest {
         }
 
         @Test
-        @Transactional
         @DisplayName("Should return empty list when no orders found")
         void shouldReturnEmptyListWhenNoOrdersFound() {
             // When - Real service call without creating any orders
@@ -180,7 +174,6 @@ class OrderServiceImplTest {
     class FindOrderTests {
 
         @Test
-        @Transactional
         @DisplayName("Should find order by ID")
         void shouldFindOrderById() {
             // Given - Create real order
@@ -196,7 +189,6 @@ class OrderServiceImplTest {
         }
 
         @Test
-        @Transactional
         @DisplayName("Should return empty when order not found")
         void shouldReturnEmptyWhenOrderNotFound() {
             // Given - Non-existent order ID
@@ -210,7 +202,6 @@ class OrderServiceImplTest {
         }
 
         @Test
-        @Transactional
         @DisplayName("Should find order by order number")
         void shouldFindOrderByOrderNumber() {
             // Given - Create real order
@@ -231,7 +222,6 @@ class OrderServiceImplTest {
     class UpdateOrderStatusTests {
 
         @Test
-        @Transactional
         @DisplayName("Should update order status successfully")
         void shouldUpdateOrderStatusSuccessfully() {
             // Given - Create real order
@@ -246,7 +236,6 @@ class OrderServiceImplTest {
         }
 
         @Test
-        @Transactional
         @DisplayName("Should return empty when updating non-existent order")
         void shouldReturnEmptyWhenUpdatingNonExistentOrder() {
             // Given - Non-existent order ID
@@ -265,7 +254,6 @@ class OrderServiceImplTest {
     class CalculateOrderTotalTests {
 
         @Test
-        @Transactional
         @DisplayName("Should calculate order totals correctly")
         void shouldCalculateOrderTotalsCorrectly() {
             // Given - Create multiple order items
@@ -321,7 +309,6 @@ class OrderServiceImplTest {
     class CountOrdersTests {
 
         @Test
-        @Transactional
         @DisplayName("Should count orders by status")
         void shouldCountOrdersByStatus() {
             // Given - Create real test data
@@ -335,7 +322,6 @@ class OrderServiceImplTest {
         }
 
         @Test
-        @Transactional
         @DisplayName("Should return zero when no orders with status")
         void shouldReturnZeroWhenNoOrdersWithStatus() {
             // When - Real service call without creating any orders
@@ -351,7 +337,6 @@ class OrderServiceImplTest {
     class CancelOrderTests {
 
         @Test
-        @Transactional
         @DisplayName("Should cancel order successfully")
         void shouldCancelOrderSuccessfully() {
             // Given - Create real order that hasn't been shipped
@@ -368,7 +353,6 @@ class OrderServiceImplTest {
         }
 
         @Test
-        @Transactional
         @DisplayName("Should throw exception when cancelling shipped order")
         void shouldThrowExceptionWhenCancellingShippedOrder() {
             // Given - Create real order and mark it as shipped
@@ -387,7 +371,6 @@ class OrderServiceImplTest {
         }
 
         @Test
-        @Transactional
         @DisplayName("Should return empty when cancelling non-existent order")
         void shouldReturnEmptyWhenCancellingNonExistentOrder() {
             // Given - Non-existent order ID

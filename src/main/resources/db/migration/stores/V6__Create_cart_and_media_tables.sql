@@ -8,11 +8,14 @@ CREATE TABLE shopping_cart (
     -- Cart metadata
     currency_code VARCHAR(3) NOT NULL DEFAULT 'USD',
     subtotal DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    total_amount DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
 
     -- Timestamps
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     expires_at TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP + INTERVAL 30 DAY),
+    version BIGINT NOT NULL DEFAULT 0,
 
     FOREIGN KEY (customer_id) REFERENCES customer(id) ON DELETE CASCADE,
     INDEX idx_cart_customer (customer_id),
@@ -28,11 +31,11 @@ CREATE TABLE cart_item (
     -- Item details
     quantity INT NOT NULL DEFAULT 1,
     unit_price DECIMAL(10, 2) NOT NULL,
-    total_price DECIMAL(10, 2) NOT NULL,
 
     -- Timestamps
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    added_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    version BIGINT NOT NULL DEFAULT 0,
 
     FOREIGN KEY (cart_id) REFERENCES shopping_cart(id) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES product(id) ON DELETE CASCADE,

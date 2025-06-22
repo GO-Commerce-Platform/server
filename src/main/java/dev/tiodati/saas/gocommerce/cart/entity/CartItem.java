@@ -24,10 +24,10 @@ import java.util.UUID;
 
 /**
  * Entity representing an individual item within a shopping cart.
- * Maps to the 'cart_items' table.
+ * Maps to the 'cart_item' table.
  */
 @Entity
-@Table(name = "cart_items")
+@Table(name = "cart_item")
 @Data
 @Builder
 @NoArgsConstructor
