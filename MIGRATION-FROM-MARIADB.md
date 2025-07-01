@@ -9,37 +9,42 @@ GO-Commerce has migrated from MariaDB to PostgreSQL as the primary database syst
 ### Why PostgreSQL?
 
 1. **Superior Multi-Tenancy Support**
-   - Better schema isolation and management
-   - More robust schema-per-tenant implementation
-   - Advanced SQL features for multi-tenant applications
+
+    - Better schema isolation and management
+    - More robust schema-per-tenant implementation
+    - Advanced SQL features for multi-tenant applications
 
 2. **Enhanced SQL Standards Compliance**
-   - Better ENUM type support
-   - More consistent SQL behavior
-   - Advanced JSON/JSONB support for flexible data structures
+
+    - Better ENUM type support
+    - More consistent SQL behavior
+    - Advanced JSON/JSONB support for flexible data structures
 
 3. **Performance and Scalability**
-   - Superior query optimization for complex multi-tenant queries
-   - Better handling of large datasets across multiple schemas
-   - More efficient schema switching and tenant isolation
+
+    - Superior query optimization for complex multi-tenant queries
+    - Better handling of large datasets across multiple schemas
+    - More efficient schema switching and tenant isolation
 
 4. **Development Experience**
-   - More predictable behavior across different environments
-   - Better tooling and ecosystem support
-   - Improved debugging and monitoring capabilities
+    - More predictable behavior across different environments
+    - Better tooling and ecosystem support
+    - Improved debugging and monitoring capabilities
 
 ## Architecture Changes
 
 ### Database Structure
 
 **Before (MariaDB):**
-- Single MariaDB instance for application data
-- Separate PostgreSQL instance for Keycloak
+
+-   Single MariaDB instance for application data
+-   Separate PostgreSQL instance for Keycloak
 
 **After (PostgreSQL):**
-- PostgreSQL instance for application data (main database)
-- Separate PostgreSQL instance for Keycloak (unchanged)
-- Both instances use PostgreSQL for consistency
+
+-   PostgreSQL instance for application data (main database)
+-   Separate PostgreSQL instance for Keycloak (unchanged)
+-   Both instances use PostgreSQL for consistency
 
 ### Multi-Tenant Schema Management
 
@@ -59,6 +64,7 @@ SET search_path TO gocommerce_mystore;
 ### Configuration Changes
 
 **Database Driver:**
+
 ```xml
 <!-- pom.xml -->
 <dependency>
@@ -68,6 +74,7 @@ SET search_path TO gocommerce_mystore;
 ```
 
 **Connection Configuration:**
+
 ```properties
 # application.properties
 quarkus.datasource.db-kind=postgresql
@@ -75,6 +82,7 @@ quarkus.datasource.jdbc.url=jdbc:postgresql://localhost:5433/gocommerce
 ```
 
 **Flyway Configuration:**
+
 ```xml
 <dependency>
     <groupId>org.flywaydb</groupId>
@@ -85,13 +93,14 @@ quarkus.datasource.jdbc.url=jdbc:postgresql://localhost:5433/gocommerce
 ### Docker Compose Changes
 
 **New PostgreSQL Service:**
+
 ```yaml
 postgres:
-  image: postgres:16
-  environment:
-    POSTGRES_DB: gocommerce
-    POSTGRES_USER: gocommerceuser
-    POSTGRES_PASSWORD: gocommercepass
+    image: postgres:16
+    environment:
+        POSTGRES_DB: gocommerce
+        POSTGRES_USER: gocommerceuser
+        POSTGRES_PASSWORD: gocommercepass
 ```
 
 ### Schema Manager Updates
@@ -102,7 +111,7 @@ The `SchemaManager` class now uses PostgreSQL-specific commands:
 // PostgreSQL schema creation
 stmt.execute("CREATE SCHEMA IF NOT EXISTS " + schemaName);
 
-// PostgreSQL schema deletion  
+// PostgreSQL schema deletion
 stmt.execute("DROP SCHEMA IF EXISTS " + schemaName + " CASCADE");
 ```
 
@@ -120,6 +129,7 @@ stmt.execute("DROP SCHEMA IF EXISTS " + schemaName + " CASCADE");
 Some SQL syntax changes were required:
 
 **ENUM Types:**
+
 ```sql
 -- PostgreSQL (new)
 CREATE TYPE customer_status_type AS ENUM ('ACTIVE', 'INACTIVE', 'SUSPENDED');
@@ -129,6 +139,7 @@ CREATE TYPE customer_status_type AS ENUM ('ACTIVE', 'INACTIVE', 'SUSPENDED');
 ```
 
 **Schema Operations:**
+
 ```sql
 -- PostgreSQL (new)
 CREATE SCHEMA IF NOT EXISTS store_name;
@@ -149,15 +160,15 @@ USE store_name;
 
 ### Production Considerations
 
-- **Database Separation**: Main app and Keycloak use separate PostgreSQL instances
-- **Backup Strategy**: Unified backup approach for both PostgreSQL instances
-- **Monitoring**: Standardized monitoring for PostgreSQL ecosystem
+-   **Database Separation**: Main app and Keycloak use separate PostgreSQL instances
+-   **Backup Strategy**: Unified backup approach for both PostgreSQL instances
+-   **Monitoring**: Standardized monitoring for PostgreSQL ecosystem
 
 ## Timeline
 
-- **Migration Completed**: June 2025
-- **Documentation Updated**: July 2025
-- **Production Deployment**: Planned for August 2025
+-   **Migration Completed**: June 2025
+-   **Documentation Updated**: July 2025
+-   **Production Deployment**: Planned for August 2025
 
 ## Future Considerations
 
@@ -168,4 +179,4 @@ USE store_name;
 
 ---
 
-*This migration represents a significant improvement in GO-Commerce's data architecture, providing better multi-tenancy support and positioning the platform for future growth and scalability.*
+_This migration represents a significant improvement in GO-Commerce's data architecture, providing better multi-tenancy support and positioning the platform for future growth and scalability._
