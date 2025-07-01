@@ -15,6 +15,8 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -36,7 +38,7 @@ public class Store extends PanacheEntityBase {
      **/
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id", columnDefinition = "BINARY(16)")
+    @Column(name = "id")
     private UUID id;
 
     /**
@@ -103,6 +105,7 @@ public class Store extends PanacheEntityBase {
      * Status of the store.
      **/
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false)
     @Builder.Default
     private StoreStatus status = StoreStatus.PENDING; // Default changed to
@@ -141,7 +144,7 @@ public class Store extends PanacheEntityBase {
      * JSON string containing various settings for the store. This can be used
      * to store custom configurations.
      **/
-    @Column(columnDefinition = "json")
+    @JdbcTypeCode(SqlTypes.JSON)
     private String settings; // Corresponds to 'configuration' from
                              // PlatformStores
 

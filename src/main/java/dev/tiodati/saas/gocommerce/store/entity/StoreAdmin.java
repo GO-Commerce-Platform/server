@@ -36,7 +36,7 @@ public class StoreAdmin extends PanacheEntityBase {
      */
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id", columnDefinition = "BINARY(16)")
+    @Column(name = "id")
     private UUID id;
 
     /**
@@ -62,12 +62,6 @@ public class StoreAdmin extends PanacheEntityBase {
     @Column(nullable = false, unique = true)
     private String email;
 
-    /**
-     * Password hash for the store admin. This is used to authenticate the
-     * store admin when logging in. It is required and should be securely hashed.
-     */
-    @Column(name = "password_hash", nullable = false)
-    private String passwordHash;
 
     /**
      * First name of the store admin. This is used for personalization and

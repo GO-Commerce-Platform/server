@@ -76,7 +76,7 @@ public class ProductResource {
      */
     @GET
     @Operation(summary = "List products", description = "Retrieves a list of products for a store")
-    @RolesAllowed({ "admin", "store-admin", "user", "product-manager" })
+    @RolesAllowed({ "PLATFORM_ADMIN", "STORE_ADMIN", "CUSTOMER", "PRODUCT_MANAGER" })
     @APIResponses({
             @APIResponse(responseCode = "200", description = "List of products retrieved successfully", content = @Content(schema = @Schema(implementation = ProductDto.class)))
     })
@@ -100,7 +100,7 @@ public class ProductResource {
     @GET
     @Path("/{ productId }")
     @Operation(summary = "Get product by ID", description = "Retrieves a specific product by ID")
-    @RolesAllowed({ "admin", "store-admin", "user", "product-manager" })
+    @RolesAllowed({ "PLATFORM_ADMIN", "STORE_ADMIN", "CUSTOMER", "PRODUCT_MANAGER" })
     @APIResponses({
             @APIResponse(responseCode = "200", description = "Product retrieved successfully", content = @Content(schema = @Schema(implementation = ProductDto.class))),
             @APIResponse(responseCode = "404", description = "Product not found")
@@ -123,7 +123,7 @@ public class ProductResource {
      */
     @POST
     @Operation(summary = "Create product", description = "Creates a new product for a store")
-    @RolesAllowed({ "admin", "store-admin", "product-manager" })
+    @RolesAllowed({ "PLATFORM_ADMIN", "STORE_ADMIN", "PRODUCT_MANAGER" })
     @RequiresStoreRole({ Roles.PRODUCT_MANAGER, Roles.STORE_ADMIN }) // Specific roles required
     @APIResponses({
             @APIResponse(responseCode = "201", description = "Product created successfully"),
@@ -155,7 +155,7 @@ public class ProductResource {
     @PUT
     @Path("/{ productId }")
     @Operation(summary = "Update product", description = "Updates an existing product")
-    @RolesAllowed({ "admin", "store-admin", "product-manager" })
+    @RolesAllowed({ "PLATFORM_ADMIN", "STORE_ADMIN", "PRODUCT_MANAGER" })
     @RequiresStoreRole({ Roles.PRODUCT_MANAGER, Roles.STORE_ADMIN }) // Specific roles required
     @APIResponses({
             @APIResponse(responseCode = "200", description = "Product updated successfully"),
@@ -191,7 +191,7 @@ public class ProductResource {
     @DELETE
     @Path("/{ productId }")
     @Operation(summary = "Delete product", description = "Deletes a product (soft delete)")
-    @RolesAllowed({ "admin", "store-admin", "product-manager" })
+    @RolesAllowed({ "PLATFORM_ADMIN", "STORE_ADMIN", "PRODUCT_MANAGER" })
     @RequiresStoreRole({ Roles.PRODUCT_MANAGER, Roles.STORE_ADMIN }) // Specific roles required
     @APIResponses({
             @APIResponse(responseCode = "204", description = "Product deleted successfully"),
@@ -223,7 +223,7 @@ public class ProductResource {
     @PUT
     @Path("/inventory")
     @Operation(summary = "Update inventory", description = "Bulk update product inventory levels")
-    @RolesAllowed({ "admin", "store-admin", "product-manager" })
+    @RolesAllowed({ "PLATFORM_ADMIN", "STORE_ADMIN", "PRODUCT_MANAGER" })
     @RequiresStoreRole({ Roles.PRODUCT_MANAGER, Roles.STORE_ADMIN }) // Specific roles required
     @APIResponses({
             @APIResponse(responseCode = "200", description = "Inventory updated successfully"),

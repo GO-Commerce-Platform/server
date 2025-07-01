@@ -26,9 +26,10 @@ class ProductEntityTest {
     @Test
     void testProductCreation() {
         // Given/When
+        var uniqueId = UUID.randomUUID().toString().substring(0, 8);
         var product = Product.builder()
                 .id(UUID.randomUUID())
-                .sku("TEST-SKU-001")
+                .sku("TEST-SKU-" + uniqueId)
                 .name("Test Product")
                 .description("A test product")
                 .price(BigDecimal.valueOf(29.99))
@@ -44,7 +45,7 @@ class ProductEntityTest {
 
         // Then
         assertNotNull(product);
-        assertEquals("TEST-SKU-001", product.getSku());
+        assertEquals("TEST-SKU-" + uniqueId, product.getSku());
         assertEquals("Test Product", product.getName());
         assertEquals("A test product", product.getDescription());
         assertEquals(BigDecimal.valueOf(29.99), product.getPrice());

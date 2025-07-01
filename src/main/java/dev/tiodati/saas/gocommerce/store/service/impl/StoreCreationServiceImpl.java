@@ -1,5 +1,8 @@
 package dev.tiodati.saas.gocommerce.store.service.impl;
 
+import java.time.Instant;
+import java.util.List;
+
 import dev.tiodati.saas.gocommerce.auth.dto.KeycloakClientCreateRequest;
 import dev.tiodati.saas.gocommerce.auth.dto.KeycloakUserCreateRequest;
 import dev.tiodati.saas.gocommerce.auth.service.KeycloakAdminService;
@@ -14,11 +17,7 @@ import dev.tiodati.saas.gocommerce.store.service.StoreService;
 import dev.tiodati.saas.gocommerce.store.service.StoreSettingsService;
 import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-
-import java.time.Instant;
-import java.util.List;
 
 /**
  * Implementation of StoreCreationService that orchestrates the complete store
@@ -52,37 +51,40 @@ public class StoreCreationServiceImpl implements StoreCreationService {
     private final StoreSettingsService storeSettingsService;
 
     @Override
-    @Transactional
-    public Store createStore(CreateStoreDto createStoreDto) throws DuplicateResourceException {
-        Log.infof("Starting store creation process for store: %s", createStoreDto.storeKey());
+        public Store createStore(CreateStoreDto createStoreDto) throws DuplicateResourceException {
+            Log.infof("Starting store creation process for store: %s", createStoreDto.storeKey());
 
-        try {
-            // Step 1: Validate input and check for duplicates
-            validateStoreCreationRequest(createStoreDto);
+            try {
+                // Step 1: Validate input and check for duplicates
+                validateStoreCreationRequest(createStoreDto);
 
-            // Step 2: Create database schema
-            createDatabaseSchema(createStoreDto.storeKey());
+                // Step 2: Create database schema
+                createDatabaseSchema(createStoreDto.storeKey());
 
-            // Step 3: Create Keycloak client
-            var keycloakClientId = createKeycloakClient(createStoreDto);
+                // Step 3: Create Keycloak client
+                var keycloakClientId = createKeycloakClient(createStoreDto);
 
-            // Step 4: Create admin user in Keycloak
-            createKeycloakAdminUser(createStoreDto, keycloakClientId);
+                // Step 4: Create admin user in Keycloak
+                createKeycloakAdminUser(createStoreDto, keycloakClientId);
 
-            // Step 5: Create and persist the store
-            var store = createAndPersistStore(createStoreDto);
+                // Step 5: Create and persist the store
+                var store = createAndPersistStore(createStoreDto);
 
-            // Step 6: Apply default store settings
-            applyDefaultStoreSettings(store);
+                // Step 6: Apply default store settings
+                applyDefaultStoreSettings(store);
 
-            Log.infof("Store creation completed successfully for store: %s", createStoreDto.storeKey());
-            return store;
+                Log.infof("Store creation completed successfully for store: %s", createStoreDto.storeKey());
+                return store;
 
-        } catch (Exception e) {
-            Log.errorf(e, "Store creation failed for store: %s", createStoreDto.storeKey());
-            throw new RuntimeException("Store creation failed: " + e.getMessage(), e);
+            } catch (IllegalArgumentException | DuplicateResourceException e) {
+                // Let validation and duplicate exceptions bubble up directly
+                Log.errorf(e, "Store creation failed for store: %s", createStoreDto.storeKey());
+                throw e;
+            } catch (Exception e) {
+                Log.errorf(e, "Store creation failed for store: %s", createStoreDto.storeKey());
+                throw new RuntimeException("Store creation failed: " + e.getMessage(), e);
+            }
         }
-    }
 
     private void validateStoreCreationRequest(CreateStoreDto createStoreDto) {
         Log.debugf("Validating store creation request for store: %s", createStoreDto.storeKey());
@@ -126,8 +128,6 @@ public class StoreCreationServiceImpl implements StoreCreationService {
             // Create the schema
             schemaManager.createSchema(schemaName);
 
-            // Run Flyway migrations for the new schema
-            schemaManager.migrateSchema(schemaName);
 
             Log.infof("Database schema created and migrated successfully for store: %s (schema: %s)", storeKey,
                     schemaName);
@@ -176,10 +176,7 @@ public class StoreCreationServiceImpl implements StoreCreationService {
             Log.infof("Admin user created with ID: %s for store: %s", userId, createStoreDto.storeKey());
 
             // Assign realm roles (store admin)
-            keycloakAdminService.assignRealmRolesToUser(userId, List.of("store-admin"));
-
-            // Assign client roles if needed
-            keycloakAdminService.assignClientRolesToUser(userId, keycloakClientId, List.of("admin"));
+            keycloakAdminService.assignRealmRolesToUser(userId, List.of("STORE_ADMIN"));
 
             Log.infof("Admin user setup completed for store: %s", createStoreDto.storeKey());
 
@@ -201,6 +198,13 @@ public class StoreCreationServiceImpl implements StoreCreationService {
             store.setStatus(StoreStatus.PENDING);
             store.setBillingPlan(createStoreDto.billingPlan() != null ? createStoreDto.billingPlan() : "BASIC");
             store.setSettings(createStoreDto.settings());
+            // Set required fields with defaults since CreateStoreDto doesn't have them
+            store.setEmail(createStoreDto.adminEmail()); // Use admin email as store email
+            store.setCurrencyCode("USD"); // Default currency
+            store.setDefaultLocale("en-US"); // Default locale
+            store.setDescription("Store created via automated process"); // Default description
+            store.setDomainSuffix("gocommerce.com"); // Default domain suffix
+            store.setSchemaName("store_" + createStoreDto.storeKey().toLowerCase().replace("-", "_")); // Schema name matching the one created
             store.setCreatedAt(Instant.now());
             store.setUpdatedAt(Instant.now());
 

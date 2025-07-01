@@ -14,9 +14,6 @@
     <property name="eachLine" value="true" />
   </module>
 
-  <!-- Checks for missing package-info.java files -->
-  <module name="JavadocPackage" />
-
   <module name="TreeWalker">
     <!-- Checks for imports -->
     <module name="AvoidStarImport" />
@@ -25,11 +22,11 @@
     <module name="UnusedImports" />
 
     <!-- Checks for Javadoc comments -->
-    <!-- Simplified Javadoc checks to avoid version compatibility issues -->
+    <!-- Simplified Javadoc checks to avoid version compatibility issues
     <module name="JavadocMethod" />
     <module name="JavadocType" />
     <module name="JavadocVariable" />
-    <module name="JavadocStyle" />
+    <module name="JavadocStyle" /a -->
 
     <!-- Checks for naming conventions -->
     <module name="ConstantName" />

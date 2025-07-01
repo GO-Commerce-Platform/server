@@ -239,10 +239,10 @@ public class KeycloakAuthService implements AuthService {
     }
 
     /**
-     * Validates an access token. This is a placeholder. True validation often
-     * happens at the resource server via OIDC introspection or JWT signature
-     * validation, which Quarkus handles. This method could be used for custom
-     * checks if needed.
+     * Validates an access token by parsing it as a JWT and checking its structure.
+     * This performs basic validation by attempting to decode the JWT and checking
+     * for required claims. For production use, this should include signature
+     * verification and expiration checks.
      *
      * @param accessToken The access token to validate.
      * @return {@code true} if the token is considered valid, {@code false}
@@ -253,11 +253,53 @@ public class KeycloakAuthService implements AuthService {
         if (accessToken == null || accessToken.isBlank()) {
             return false;
         }
-        // Basic check: Quarkus SecurityIdentity would be non-anonymous if token
-        // is valid
-        // For more detailed validation, one might inspect the JWT directly
-        // or use roleVerificationService if it implies validation.
-        return !roleVerificationService.isAnonymous();
+        
+        try {
+            // Basic JWT structure validation - check if it has 3 parts separated by dots
+            String[] parts = accessToken.split("\\.");
+            if (parts.length != 3) {
+                Log.debug("Invalid JWT format: expected 3 parts, got " + parts.length);
+                return false;
+            }
+            
+            // For a more complete validation, we would:
+            // 1. Verify the signature using the public key from Keycloak
+            // 2. Check expiration (exp claim)
+            // 3. Check issuer (iss claim)
+            // 4. Check audience (aud claim)
+            
+            // For now, we perform basic structural validation
+            // The JWT header and payload should be valid base64-encoded JSON
+            java.util.Base64.Decoder decoder = java.util.Base64.getUrlDecoder();
+            
+            // Decode header
+            try {
+                decoder.decode(parts[0]);
+            } catch (IllegalArgumentException e) {
+                Log.debug("Invalid JWT header encoding");
+                return false;
+            }
+            
+            // Decode payload
+            try {
+                String payload = new String(decoder.decode(parts[1]));
+                // Check if payload contains basic JWT claims
+                if (!payload.contains("\"sub\"") || !payload.contains("\"iss\"")) {
+                    Log.debug("JWT payload missing required claims");
+                    return false;
+                }
+            } catch (IllegalArgumentException e) {
+                Log.debug("Invalid JWT payload encoding");
+                return false;
+            }
+            
+            Log.debug("Token passed basic validation checks");
+            return true;
+            
+        } catch (Exception e) {
+            Log.debugf("Token validation failed: %s", e.getMessage());
+            return false;
+        }
     }
 
     /**

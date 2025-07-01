@@ -2,13 +2,13 @@
 -- This table stores product categories for organizing products
 
 CREATE TABLE category (
-    id BINARY(16) NOT NULL PRIMARY KEY,
+    id UUID NOT NULL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     slug VARCHAR(255) NOT NULL UNIQUE,
     description TEXT,
 
     -- Hierarchy support for nested categories
-    parent_id BINARY(16),
+    parent_id UUID,
     sort_order INT NOT NULL DEFAULT 0,
 
     -- SEO and metadata
@@ -22,28 +22,33 @@ CREATE TABLE category (
 
     -- Audit fields
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     version INT NOT NULL DEFAULT 0,
 
-    FOREIGN KEY (parent_id) REFERENCES category(id) ON DELETE SET NULL,
-    INDEX idx_category_slug (slug),
-    INDEX idx_category_parent (parent_id),
-    INDEX idx_category_active (is_active),
-    INDEX idx_category_sort (sort_order)
+    FOREIGN KEY (parent_id) REFERENCES category(id) ON DELETE SET NULL
 );
+
+-- Create indexes for category table
+CREATE INDEX idx_category_slug ON category (slug);
+CREATE INDEX idx_category_parent ON category (parent_id);
+CREATE INDEX idx_category_active ON category (is_active);
+CREATE INDEX idx_category_sort ON category (sort_order);
+
+-- Create ENUM type for product status
+CREATE TYPE product_status_type AS ENUM ('DRAFT', 'ACTIVE', 'ARCHIVED');
 
 -- Create product table for store schema
 -- This table stores product information for each individual store
 
 CREATE TABLE product (
-    id BINARY(16) NOT NULL PRIMARY KEY,
+    id UUID NOT NULL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     slug VARCHAR(255) NOT NULL UNIQUE,
     description TEXT,
     short_description VARCHAR(500),
 
     -- Category relationship
-    category_id BINARY(16),
+    category_id UUID,
 
     -- Pricing
     price DECIMAL(10, 2) NOT NULL,
@@ -69,24 +74,26 @@ CREATE TABLE product (
     meta_keywords VARCHAR(500),
 
     -- Product status and visibility
-    status ENUM('DRAFT', 'ACTIVE', 'ARCHIVED') NOT NULL DEFAULT 'DRAFT',
+    status product_status_type NOT NULL DEFAULT 'DRAFT',
     is_featured BOOLEAN NOT NULL DEFAULT FALSE,
     requires_shipping BOOLEAN NOT NULL DEFAULT TRUE,
     is_digital BOOLEAN NOT NULL DEFAULT FALSE,
 
     -- Audit fields
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     version INT NOT NULL DEFAULT 0,
 
-    FOREIGN KEY (category_id) REFERENCES category(id) ON DELETE SET NULL,
-    INDEX idx_product_slug (slug),
-    INDEX idx_product_category (category_id),
-    INDEX idx_product_status (status),
-    INDEX idx_product_sku (sku),
-    INDEX idx_product_featured (is_featured),
-    INDEX idx_product_price (price),
-    INDEX idx_product_created_at (created_at)
+    FOREIGN KEY (category_id) REFERENCES category(id) ON DELETE SET NULL
 );
+
+-- Create indexes for product table
+CREATE INDEX idx_product_slug ON product (slug);
+CREATE INDEX idx_product_category ON product (category_id);
+CREATE INDEX idx_product_status ON product (status);
+CREATE INDEX idx_product_sku ON product (sku);
+CREATE INDEX idx_product_featured ON product (is_featured);
+CREATE INDEX idx_product_price ON product (price);
+CREATE INDEX idx_product_created_at ON product (created_at);
 
 -- Copilot: This file may have been generated or refactored by GitHub Copilot.

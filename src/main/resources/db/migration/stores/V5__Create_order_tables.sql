@@ -20,9 +20,9 @@ INSERT INTO order_status (id, name, description, sort_order) VALUES
 ('REFUNDED', 'Refunded', 'Order has been refunded', 70);
 
 CREATE TABLE order_header (
-    id BINARY(16) NOT NULL PRIMARY KEY,
+    id UUID NOT NULL PRIMARY KEY,
     order_number VARCHAR(50) NOT NULL UNIQUE,
-    customer_id BINARY(16) NOT NULL,
+    customer_id UUID NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
 
     -- Order totals
@@ -66,22 +66,24 @@ CREATE TABLE order_header (
 
     -- Audit fields
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     version INT NOT NULL DEFAULT 0,
 
     FOREIGN KEY (customer_id) REFERENCES customer(id),
-    FOREIGN KEY (status) REFERENCES order_status(id),
-    INDEX idx_order_customer (customer_id),
-    INDEX idx_order_status (status),
-    INDEX idx_order_number (order_number),
-    INDEX idx_order_date (order_date),
-    INDEX idx_order_total (total_amount)
+    FOREIGN KEY (status) REFERENCES order_status(id)
 );
 
+-- Create indexes for order_header table
+CREATE INDEX idx_order_customer ON order_header (customer_id);
+CREATE INDEX idx_order_status ON order_header (status);
+CREATE INDEX idx_order_number ON order_header (order_number);
+CREATE INDEX idx_order_date ON order_header (order_date);
+CREATE INDEX idx_order_total ON order_header (total_amount);
+
 CREATE TABLE order_item (
-    id BINARY(16) NOT NULL PRIMARY KEY,
-    order_id BINARY(16) NOT NULL,
-    product_id BINARY(16) NOT NULL,
+    id UUID NOT NULL PRIMARY KEY,
+    order_id UUID NOT NULL,
+    product_id UUID NOT NULL,
 
     -- Product details at time of order (for historical accuracy)
     product_name VARCHAR(255) NOT NULL,
@@ -98,14 +100,16 @@ CREATE TABLE order_item (
 
     -- Audit fields
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     version INT NOT NULL DEFAULT 0,
 
     FOREIGN KEY (order_id) REFERENCES order_header(id) ON DELETE CASCADE,
-    FOREIGN KEY (product_id) REFERENCES product(id),
-    INDEX idx_order_item_order (order_id),
-    INDEX idx_order_item_product (product_id),
-    INDEX idx_order_item_sku (product_sku)
+    FOREIGN KEY (product_id) REFERENCES product(id)
 );
+
+-- Create indexes for order_item table
+CREATE INDEX idx_order_item_order ON order_item (order_id);
+CREATE INDEX idx_order_item_product ON order_item (product_id);
+CREATE INDEX idx_order_item_sku ON order_item (product_sku);
 
 -- Copilot: This file may have been generated or refactored by GitHub Copilot.

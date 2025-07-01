@@ -9,6 +9,7 @@ import dev.tiodati.saas.gocommerce.customer.dto.CustomerDto;
 import dev.tiodati.saas.gocommerce.customer.entity.Customer;
 import dev.tiodati.saas.gocommerce.customer.entity.CustomerStatus;
 import dev.tiodati.saas.gocommerce.customer.repository.CustomerRepository;
+import dev.tiodati.saas.gocommerce.store.service.StoreSchemaService;
 import io.quarkus.logging.Log;
 import io.quarkus.panache.common.Page;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -27,6 +28,11 @@ public class CustomerServiceImpl implements CustomerService {
      * Repository for customer data access operations.
      */
     private final CustomerRepository customerRepository;
+    
+    /**
+     * Service for resolving store schemas.
+     */
+    private final StoreSchemaService storeSchemaService;
 
     @Override
     public List<CustomerDto> listCustomers(UUID storeId, int page, int size, CustomerStatus status) {
@@ -155,7 +161,12 @@ public class CustomerServiceImpl implements CustomerService {
     public long countCustomersByStatus(UUID storeId, CustomerStatus status) {
         Log.infof("Counting customers by status %s for store %s", status, storeId);
 
-        return customerRepository.countByStatus(status);
+        if (status != null) {
+            return customerRepository.countByStatus(status);
+        } else {
+            // Count all customers when no status is specified
+            return customerRepository.count();
+        }
     }
 
     /**
@@ -187,5 +198,3 @@ public class CustomerServiceImpl implements CustomerService {
                 customer.getUpdatedAt());
     }
 }
-
-// Copilot: This file may have been generated or refactored by GitHub Copilot.

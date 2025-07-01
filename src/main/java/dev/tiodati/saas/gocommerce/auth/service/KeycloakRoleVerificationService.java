@@ -71,8 +71,8 @@ public class KeycloakRoleVerificationService {
 
     /**
      * Checks if the current user has the specified application role. This
-     * method assumes that application roles (defined in the {@link Roles} enum)
-     * are primarily managed as client roles in Keycloak.
+     * method checks both realm roles and client roles to accommodate different
+     * role configurations in Keycloak.
      *
      * @param role The {@link Roles} enum value to check for. Must not be null.
      * @return {@code true} if the user has the specified role, {@code false}
@@ -83,13 +83,29 @@ public class KeycloakRoleVerificationService {
             Log.debug("Role to check cannot be null.");
             return false;
         }
-        // This is a simplification. Depending on how roles are defined (realm
-        // vs client),
-        // this logic might need to be more sophisticated, potentially checking
-        // both
-        // or having the Roles enum provide the type of role.
-        // For now, assuming application-specific roles are client roles.
-        return hasClientRole(role.name());
+        
+        String roleName = role.name();
+        
+        // In test context or when JWT is null/has null subject, fall back to SecurityIdentity
+        if (this.currentJwt == null || this.currentJwt.getSubject() == null) {
+            Log.debugf("JWT is null or has null subject, checking SecurityIdentity for role: %s", roleName);
+            if (this.securityIdentity != null && this.securityIdentity.hasRole(roleName)) {
+                Log.debugf("Found role '%s' in SecurityIdentity", roleName);
+                return true;
+            }
+            Log.debugf("Role '%s' not found in SecurityIdentity", roleName);
+            return false;
+        }
+        
+        // Check both realm roles and client roles to handle different
+        // Keycloak configurations. Some roles like PLATFORM_ADMIN might be
+        // defined as realm roles, while others might be client roles.
+        boolean hasRealmRole = hasRealmRole(roleName);
+        boolean hasClientRole = hasClientRole(roleName);
+        
+        Log.debugf("Checking role '%s': hasRealmRole=%s, hasClientRole=%s", roleName, hasRealmRole, hasClientRole);
+        
+        return hasRealmRole || hasClientRole;
     }
 
     /**
@@ -159,14 +175,31 @@ public class KeycloakRoleVerificationService {
     @SuppressWarnings("unchecked")
     public boolean hasRealmRole(JsonWebToken jwtToken, String requiredRole) {
         if (jwtToken == null || requiredRole == null) {
+            Log.debugf("hasRealmRole: jwtToken is %s, requiredRole is %s", 
+                jwtToken != null ? "present" : "null", requiredRole);
             return false;
         }
+
+        // Check standard 'groups' claim first (used in @TestSecurity)
+        if (jwtToken.getGroups() != null && jwtToken.getGroups().contains(requiredRole)) {
+            Log.debugf("Found role '%s' in 'groups' claim.", requiredRole);
+            return true;
+        }
+
+        // Fallback to Keycloak-specific 'realm_access' claim
         Optional<Map<String, Object>> realmAccess = jwtToken
                 .claim(REALM_ACCESS_CLAIM);
-        return realmAccess
-                .map(access -> ((List<String>) access.getOrDefault(ROLES_CLAIM,
-                        Collections.emptyList())).contains(requiredRole))
-                .orElse(false);
+        
+        if (realmAccess.isPresent()) {
+            List<String> roles = (List<String>) realmAccess.get().getOrDefault(ROLES_CLAIM, Collections.emptyList());
+            Log.debugf("Realm roles found: %s", roles);
+            boolean hasRole = roles.contains(requiredRole);
+            Log.debugf("Checking realm role '%s': %s", requiredRole, hasRole);
+            return hasRole;
+        } else {
+            Log.debug("No realm_access claim found in JWT");
+            return false;
+        }
     }
 
     /**
@@ -199,13 +232,26 @@ public class KeycloakRoleVerificationService {
         }
         Optional<Map<String, Object>> resourceAccess = jwtToken
                 .claim(RESOURCE_ACCESS_CLAIM);
-        return resourceAccess
-                .flatMap(access -> Optional.ofNullable(
-                        (Map<String, Object>) access.get(clientIdValue)))
-                .map(clientAccess -> ((List<String>) clientAccess
-                        .getOrDefault(ROLES_CLAIM, Collections.emptyList()))
-                                .contains(requiredRole))
-                .orElse(false);
+        
+        if (resourceAccess.isPresent()) {
+            Map<String, Object> access = resourceAccess.get();
+            Log.debugf("Resource access claim found: %s", access.keySet());
+            
+            Map<String, Object> clientAccess = (Map<String, Object>) access.get(clientIdValue);
+            if (clientAccess != null) {
+                List<String> roles = (List<String>) clientAccess.getOrDefault(ROLES_CLAIM, Collections.emptyList());
+                Log.debugf("Client roles for '%s': %s", clientIdValue, roles);
+                boolean hasRole = roles.contains(requiredRole);
+                Log.debugf("Checking client role '%s' for client '%s': %s", requiredRole, clientIdValue, hasRole);
+                return hasRole;
+            } else {
+                Log.debugf("No client access found for client '%s'", clientIdValue);
+                return false;
+            }
+        } else {
+            Log.debug("No resource_access claim found in JWT");
+            return false;
+        }
     }
 
     /**

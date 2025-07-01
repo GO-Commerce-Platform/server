@@ -69,7 +69,7 @@ public class CustomerResource {
      */
     @GET
     @Operation(summary = "List customers", description = "Retrieves a paginated list of customers for a store")
-    @RolesAllowed({ "admin", "store-admin", "customer-service" })
+    @RolesAllowed({ "PLATFORM_ADMIN", "STORE_ADMIN", "CUSTOMER_SERVICE" })
     @RequiresStoreRole({ Roles.CUSTOMER_SERVICE, Roles.STORE_ADMIN })
     @APIResponses({
             @APIResponse(responseCode = "200", description = "List of customers retrieved successfully", content = @Content(schema = @Schema(implementation = CustomerDto.class))),
@@ -96,7 +96,7 @@ public class CustomerResource {
     @GET
     @Path("/{customerId}")
     @Operation(summary = "Get customer by ID", description = "Retrieves a specific customer by ID")
-    @RolesAllowed({ "admin", "store-admin", "customer-service", "customer" })
+    @RolesAllowed({ "PLATFORM_ADMIN", "STORE_ADMIN", "CUSTOMER_SERVICE", "CUSTOMER" })
     @RequiresStoreRole({ Roles.CUSTOMER_SERVICE, Roles.STORE_ADMIN, Roles.CUSTOMER })
     @APIResponses({
             @APIResponse(responseCode = "200", description = "Customer retrieved successfully", content = @Content(schema = @Schema(implementation = CustomerDto.class))),
@@ -123,8 +123,7 @@ public class CustomerResource {
      */
     @POST
     @Operation(summary = "Register new customer", description = "Creates a new customer account")
-    @RolesAllowed({ "admin", "store-admin", "customer-service", "user" }) // Allow self-registration with 'user' role
-    @RequiresStoreRole({ Roles.CUSTOMER_SERVICE, Roles.STORE_ADMIN }) // Admin registration requires specific roles
+    @RolesAllowed({ "PLATFORM_ADMIN", "STORE_ADMIN", "CUSTOMER_SERVICE", "CUSTOMER" }) // Allow self-registration with 'CUSTOMER' role
     @APIResponses({
             @APIResponse(responseCode = "201", description = "Customer created successfully", content = @Content(schema = @Schema(implementation = CustomerDto.class))),
             @APIResponse(responseCode = "400", description = "Invalid input or email already exists"),
@@ -167,7 +166,7 @@ public class CustomerResource {
     @PUT
     @Path("/{customerId}")
     @Operation(summary = "Update customer profile", description = "Updates an existing customer's profile information")
-    @RolesAllowed({ "admin", "store-admin", "customer-service", "customer" })
+    @RolesAllowed({ "PLATFORM_ADMIN", "STORE_ADMIN", "CUSTOMER_SERVICE", "CUSTOMER" })
     @RequiresStoreRole({ Roles.CUSTOMER_SERVICE, Roles.STORE_ADMIN, Roles.CUSTOMER })
     @APIResponses({
             @APIResponse(responseCode = "200", description = "Customer updated successfully", content = @Content(schema = @Schema(implementation = CustomerDto.class))),
@@ -211,7 +210,7 @@ public class CustomerResource {
     @PUT
     @Path("/{customerId}/status")
     @Operation(summary = "Update customer status", description = "Updates a customer's account status")
-    @RolesAllowed({ "admin", "store-admin", "customer-service" })
+    @RolesAllowed({ "PLATFORM_ADMIN", "STORE_ADMIN", "CUSTOMER_SERVICE" })
     @RequiresStoreRole({ Roles.CUSTOMER_SERVICE, Roles.STORE_ADMIN })
     @APIResponses({
             @APIResponse(responseCode = "200", description = "Customer status updated successfully", content = @Content(schema = @Schema(implementation = CustomerDto.class))),
@@ -255,7 +254,7 @@ public class CustomerResource {
     @GET
     @Path("/search")
     @Operation(summary = "Search customers", description = "Search customers by name or email")
-    @RolesAllowed({ "admin", "store-admin", "customer-service" })
+    @RolesAllowed({ "PLATFORM_ADMIN", "STORE_ADMIN", "CUSTOMER_SERVICE" })
     @RequiresStoreRole({ Roles.CUSTOMER_SERVICE, Roles.STORE_ADMIN })
     @APIResponses({
             @APIResponse(responseCode = "200", description = "Search results retrieved successfully", content = @Content(schema = @Schema(implementation = CustomerDto.class))),
@@ -297,7 +296,7 @@ public class CustomerResource {
     @GET
     @Path("/count")
     @Operation(summary = "Get customer count", description = "Get count of customers by status")
-    @RolesAllowed({ "admin", "store-admin", "customer-service" })
+    @RolesAllowed({ "PLATFORM_ADMIN", "STORE_ADMIN", "CUSTOMER_SERVICE" })
     @RequiresStoreRole({ Roles.CUSTOMER_SERVICE, Roles.STORE_ADMIN })
     @APIResponses({
             @APIResponse(responseCode = "200", description = "Customer count retrieved successfully"),
@@ -329,7 +328,7 @@ public class CustomerResource {
     @GET
     @Path("/by-email")
     @Operation(summary = "Find customer by email", description = "Retrieves a customer by email address")
-    @RolesAllowed({ "admin", "store-admin", "customer-service" })
+    @RolesAllowed({ "PLATFORM_ADMIN", "STORE_ADMIN", "CUSTOMER_SERVICE" })
     @RequiresStoreRole({ Roles.CUSTOMER_SERVICE, Roles.STORE_ADMIN })
     @APIResponses({
             @APIResponse(responseCode = "200", description = "Customer retrieved successfully", content = @Content(schema = @Schema(implementation = CustomerDto.class))),

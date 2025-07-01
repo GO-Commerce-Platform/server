@@ -10,6 +10,8 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import jakarta.transaction.Transactional;
+import jakarta.transaction.UserTransaction;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,9 +22,14 @@ import org.junit.jupiter.api.Test;
 import dev.tiodati.saas.gocommerce.order.dto.CreateOrderDto;
 import dev.tiodati.saas.gocommerce.order.repository.OrderRepository;
 import dev.tiodati.saas.gocommerce.order.service.OrderService;
+import dev.tiodati.saas.gocommerce.customer.entity.Customer;
+import dev.tiodati.saas.gocommerce.customer.entity.CustomerStatus;
+import dev.tiodati.saas.gocommerce.customer.repository.CustomerRepository;
+import dev.tiodati.saas.gocommerce.product.entity.Product;
+import dev.tiodati.saas.gocommerce.product.entity.ProductStatus;
+import dev.tiodati.saas.gocommerce.product.repository.ProductRepository;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 
 /**
  * Integration tests for OrderService implementation.
@@ -33,26 +40,103 @@ import jakarta.transaction.Transactional;
 @DisplayName("OrderServiceImpl Tests")
 class OrderServiceImplTest {
 
+    /**
+     * The OrderService instance to be tested.
+     * Injected by Quarkus for integration testing.
+     */
     @Inject
     private OrderService orderService;
 
+    /**
+     * The OrderRepository instance used for database operations.
+     * Injected by Quarkus for integration testing.
+     */
     @Inject
     private OrderRepository orderRepository;
+    
+    /**
+     * The CustomerRepository instance used for customer operations.
+     * Injected by Quarkus for integration testing.
+     */
+    @Inject
+    private CustomerRepository customerRepository;
+    
+    /**
+     * The ProductRepository instance used for product operations.
+     * Injected by Quarkus for integration testing.
+     */
+    @Inject
+    private ProductRepository productRepository;
+    
+    /**
+     * UserTransaction for programmatic transaction management.
+     * Injected by Quarkus for integration testing.
+     */
+    @Inject
+    private UserTransaction userTransaction;
 
+    /**
+     * Unique identifiers for the store and customer used in tests.
+     * Generated at setup to ensure test isolation.
+     */
     private UUID storeId;
+
+    /**
+     * Unique identifier for the customer used in order creation.
+     * Generated at setup to ensure test isolation.
+     */
     private UUID customerId;
+    
+    /**
+     * Unique identifier for the test product used in order creation.
+     * Generated at setup to ensure test isolation.
+     */
+    private UUID productId;
+
+    /**
+     * DTO containing order details used for creating orders in tests.
+     * Contains customer information, shipping address, and order items.
+     * Generated at setup to ensure test isolation.
+     */
     private CreateOrderDto createOrderDto;
 
     @BeforeEach
+    @Transactional
     void setUp() {
         // Generate unique test data for isolation
         var uniqueSuffix = UUID.randomUUID().toString().substring(0, 8);
         storeId = UUID.randomUUID();
-        customerId = UUID.randomUUID();
+        
+        // Create a test customer first to satisfy foreign key constraint
+        // Don't set ID manually - let Hibernate generate it
+        var customer = Customer.builder()
+                .email("test-" + uniqueSuffix + "@example.com")
+                .firstName("John")
+                .lastName("Doe")
+                .status(CustomerStatus.ACTIVE)
+                .build();
+        customerRepository.persist(customer);
+        
+        // Use the generated customer ID
+        customerId = customer.getId();
+        
+        // Create a test product to satisfy foreign key constraint
+        var product = Product.builder()
+                .name("Test Product - " + uniqueSuffix)
+                .slug("test-product-" + uniqueSuffix)
+                .price(new BigDecimal("49.99"))
+                .sku("TEST-" + uniqueSuffix)
+                .status(ProductStatus.ACTIVE)
+                .inventoryQuantity(100)
+                .build();
+        productRepository.persist(product);
+        
+        // Use the generated product ID
+        productId = product.getId();
 
-        // Create test order items
+        // Create test order items using the real product ID
         var orderItem = new CreateOrderDto.CreateOrderItemDto(
-                UUID.randomUUID(),
+                productId,
                 2,
                 new BigDecimal("49.99"));
 
@@ -81,9 +165,11 @@ class OrderServiceImplTest {
     }
 
     @AfterEach
+    @Transactional
     void tearDown() {
         // Clean up test data to maintain test isolation
         orderRepository.deleteAll();
+        customerRepository.deleteAll();
     }
 
     @Nested
@@ -256,13 +342,13 @@ class OrderServiceImplTest {
         @Test
         @DisplayName("Should calculate order totals correctly")
         void shouldCalculateOrderTotalsCorrectly() {
-            // Given - Create multiple order items
+            // Given - Create multiple order items using the test product
             var orderItem1 = new CreateOrderDto.CreateOrderItemDto(
-                    UUID.randomUUID(),
+                    productId,
                     1,
                     new BigDecimal("25.00"));
             var orderItem2 = new CreateOrderDto.CreateOrderItemDto(
-                    UUID.randomUUID(),
+                    productId,
                     3,
                     new BigDecimal("15.50"));
 
@@ -354,14 +440,21 @@ class OrderServiceImplTest {
 
         @Test
         @DisplayName("Should throw exception when cancelling shipped order")
-        void shouldThrowExceptionWhenCancellingShippedOrder() {
+        void shouldThrowExceptionWhenCancellingShippedOrder() throws Exception {
             // Given - Create real order and mark it as shipped
             var order = orderService.createOrder(storeId, createOrderDto);
 
-            // Update the order to set shipped date directly in repository
-            var orderEntity = orderRepository.findByIdOptional(order.id()).orElseThrow();
-            orderEntity.setShippedDate(Instant.now());
-            orderRepository.persist(orderEntity);
+            // Update the order to set shipped date in a transaction
+            userTransaction.begin();
+            try {
+                var orderEntity = orderRepository.findByIdOptional(order.id()).orElseThrow();
+                orderEntity.setShippedDate(Instant.now());
+                orderRepository.persist(orderEntity);
+                userTransaction.commit();
+            } catch (Exception e) {
+                userTransaction.rollback();
+                throw e;
+            }
 
             var reason = "Customer requested cancellation";
 

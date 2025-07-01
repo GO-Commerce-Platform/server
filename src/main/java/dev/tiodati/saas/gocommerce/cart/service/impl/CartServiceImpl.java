@@ -278,9 +278,10 @@ public class CartServiceImpl implements CartService {
 
     @Override
     public boolean isCartActive(UUID cartId) {
-        return cartRepository.findByIdOptional(cartId)
-                .map(cart -> cart.getStatus() == CartStatus.ACTIVE)
-                .orElse(false);
+        // Query directly from database to avoid stale entities from bulk updates
+        return cartRepository.find("id = ?1 and status = ?2", cartId, CartStatus.ACTIVE)
+                .firstResultOptional()
+                .isPresent();
     }
 
     @Override

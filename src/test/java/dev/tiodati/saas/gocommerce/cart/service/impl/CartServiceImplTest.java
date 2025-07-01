@@ -7,22 +7,33 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.UUID;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import dev.tiodati.saas.gocommerce.cart.dto.CreateCartItemDto;
 import dev.tiodati.saas.gocommerce.cart.dto.UpdateCartItemDto;
+import dev.tiodati.saas.gocommerce.cart.repository.ShoppingCartRepository;
 import dev.tiodati.saas.gocommerce.cart.service.CartService;
+import dev.tiodati.saas.gocommerce.customer.dto.CreateCustomerDto;
+import dev.tiodati.saas.gocommerce.customer.entity.Customer;
+import dev.tiodati.saas.gocommerce.customer.repository.CustomerRepository;
+import dev.tiodati.saas.gocommerce.customer.service.CustomerService;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+
+import dev.tiodati.saas.gocommerce.testinfra.MultiTenantTest;
 
 /**
  * Integration tests for CartService implementation.
  * Tests the complete cart workflow including cart and item management.
  */
 @QuarkusTest
+@MultiTenantTest
 class CartServiceImplTest {
 
     /**
@@ -31,11 +42,91 @@ class CartServiceImplTest {
     @Inject
     private CartService cartService;
 
+    /**
+     * Injected CustomerService for creating test customers.
+     */
+    @Inject
+    private CustomerService customerService;
+
+    /**
+     * Injected CustomerRepository for cleanup.
+     */
+    @Inject
+    private CustomerRepository customerRepository;
+
+    /**
+     * Injected ShoppingCartRepository for cleanup.
+     */
+    @Inject
+    private ShoppingCartRepository cartRepository;
+
+    private UUID storeId;
+    private UUID customerId;
+    private UUID customerId2;
+    private CreateCustomerDto createCustomerDto;
+    
+    // This field will be injected by MultiTenantTestExtension if needed
+    private String testSchemaName;
+
+    @BeforeEach
+    void setUp() {
+        // Generate unique test data for isolation
+        var uniqueSuffix = UUID.randomUUID().toString().substring(0, 8);
+        storeId = UUID.randomUUID();
+
+        createCustomerDto = new CreateCustomerDto(
+                "test-" + uniqueSuffix + "@example.com",
+                "John",
+                "Doe",
+                "+1234567890",
+                LocalDate.of(1990, 1, 1),
+                Customer.Gender.MALE,
+                "123 Main St",
+                "Apt 4B",
+                "New York",
+                "NY",
+                "10001",
+                "US",
+                false,
+                "en");
+
+        // Create test customers
+        var customer = customerService.createCustomer(storeId, createCustomerDto);
+        customerId = customer.id();
+
+        // Create a second customer for tests that need multiple customers
+        var createCustomerDto2 = new CreateCustomerDto(
+                "test2-" + uniqueSuffix + "@example.com",
+                "Jane",
+                "Smith",
+                "+1234567891",
+                LocalDate.of(1992, 5, 15),
+                Customer.Gender.FEMALE,
+                "456 Oak Ave",
+                "Unit 2A",
+                "Boston",
+                "MA",
+                "02101",
+                "US",
+                false,
+                "en");
+        var customer2 = customerService.createCustomer(storeId, createCustomerDto2);
+        customerId2 = customer2.id();
+    }
+
+    @AfterEach
+    @Transactional
+    void tearDown() {
+        // Clean up test data to maintain test isolation
+        cartRepository.deleteAll();
+        customerRepository.deleteAll();
+    }
+
     @Test
     @Transactional
     void testGetOrCreateCartForNewCustomer() {
-        // Given
-        var customerId = UUID.randomUUID();
+        // Given - Use the pre-created customer
+        // customerId is already set up in @BeforeEach
 
         // When
         var cartDto = cartService.getOrCreateCart(customerId);
@@ -54,8 +145,7 @@ class CartServiceImplTest {
     @Test
     @Transactional
     void testGetOrCreateCartForExistingCustomer() {
-        // Given
-        var customerId = UUID.randomUUID();
+        // Given - Use the pre-created customer
         var firstCart = cartService.getOrCreateCart(customerId);
 
         // When
@@ -87,8 +177,7 @@ class CartServiceImplTest {
     @Test
     @Transactional
     void testGetCartById() {
-        // Given
-        var customerId = UUID.randomUUID();
+        // Given - Use the pre-created customer
         var createdCart = cartService.getOrCreateCart(customerId);
 
         // When
@@ -129,8 +218,7 @@ class CartServiceImplTest {
     @Test
     @Transactional
     void testUpdateCartItemThrowsExceptionForNonExistentItem() {
-        // Given
-        var customerId = UUID.randomUUID();
+        // Given - Use the pre-created customer
         var cart = cartService.getOrCreateCart(customerId);
         var nonExistentItemId = UUID.randomUUID();
         var updateItemDto = new UpdateCartItemDto(5);
@@ -144,8 +232,7 @@ class CartServiceImplTest {
     @Test
     @Transactional
     void testRemoveItemFromCartThrowsExceptionForNonExistentItem() {
-        // Given
-        var customerId = UUID.randomUUID();
+        // Given - Use the pre-created customer
         var cart = cartService.getOrCreateCart(customerId);
         var nonExistentItemId = UUID.randomUUID();
 
@@ -158,8 +245,7 @@ class CartServiceImplTest {
     @Test
     @Transactional
     void testClearCart() {
-        // Given
-        var customerId = UUID.randomUUID();
+        // Given - Use the pre-created customer
         var cart = cartService.getOrCreateCart(customerId);
 
         // When
@@ -174,43 +260,41 @@ class CartServiceImplTest {
     }
 
     @Test
-    @Transactional
     void testDeactivateCart() {
-        // Given
-        var customerId = UUID.randomUUID();
+        // Given - Use the pre-created customer
         var cart = cartService.getOrCreateCart(customerId);
+        var cartId = cart.id();
 
         // When
-        cartService.deactivateCart(cart.id());
+        cartService.deactivateCart(cartId);
 
         // Then
-        assertFalse(cartService.isCartActive(cart.id()));
+        assertFalse(cartService.isCartActive(cartId));
 
         // Deactivated cart should not be returned by getCartById
-        var retrievedCart = cartService.getCartById(cart.id());
+        var retrievedCart = cartService.getCartById(cartId);
         assertFalse(retrievedCart.isPresent());
     }
 
     @Test
-    @Transactional
     void testIsCartActive() {
-        // Given
-        var customerId = UUID.randomUUID();
+        // Given - Use the pre-created customer
         var cart = cartService.getOrCreateCart(customerId);
+        var cartId = cart.id();
 
         // When/Then
-        assertTrue(cartService.isCartActive(cart.id()));
+        assertTrue(cartService.isCartActive(cartId));
 
         // After deactivation
-        cartService.deactivateCart(cart.id());
-        assertFalse(cartService.isCartActive(cart.id()));
+        cartService.deactivateCart(cartId);
+        assertFalse(cartService.isCartActive(cartId));
     }
 
     @Test
     @Transactional
     void testGetCartItemCount() {
-        // Given
-        var customerId = UUID.randomUUID();
+        // Given - Use the pre-created customer
+        // customerId is already set up in @BeforeEach
 
         // When (no cart exists)
         var initialCount = cartService.getCartItemCount(customerId);
@@ -229,8 +313,7 @@ class CartServiceImplTest {
     @Test
     @Transactional
     void testCalculateCartTotals() {
-        // Given
-        var customerId = UUID.randomUUID();
+        // Given - Use the pre-created customer
         var cart = cartService.getOrCreateCart(customerId);
 
         // When
@@ -249,10 +332,11 @@ class CartServiceImplTest {
     void testTransferGuestCartToCustomerWithNoGuestCart() {
         // Given
         var sessionId = "nonexistent-session";
-        var customerId = UUID.randomUUID();
+        // Use the pre-created customer
+        var testCustomerId = customerId;
 
         // When
-        var result = cartService.transferGuestCartToCustomer(sessionId, customerId);
+        var result = cartService.transferGuestCartToCustomer(sessionId, testCustomerId);
 
         // Then
         assertFalse(result.isPresent());
@@ -263,17 +347,18 @@ class CartServiceImplTest {
     void testTransferGuestCartToCustomerWithNoExistingCustomerCart() {
         // Given
         var sessionId = "test-session-" + UUID.randomUUID().toString();
-        var customerId = UUID.randomUUID();
+        // Use the second pre-created customer to avoid conflicts
+        var testCustomerId = customerId2;
 
         // Create guest cart
         var guestCart = cartService.getOrCreateGuestCart(sessionId);
 
         // When
-        var result = cartService.transferGuestCartToCustomer(sessionId, customerId);
+        var result = cartService.transferGuestCartToCustomer(sessionId, testCustomerId);
 
         // Then
         assertTrue(result.isPresent());
-        assertEquals(customerId, result.get().customerId());
+        assertEquals(testCustomerId, result.get().customerId());
         assertEquals(guestCart.id(), result.get().id());
     }
 }

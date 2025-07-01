@@ -59,7 +59,7 @@ public class ProductReview extends PanacheEntityBase {
      */
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id", columnDefinition = "BINARY(16)")
+    @Column(name = "id")
     private UUID id;
 
     /**
@@ -73,7 +73,7 @@ public class ProductReview extends PanacheEntityBase {
      * Customer ID who wrote the review.
      * Note: Using UUID for customer reference to avoid circular dependency.
      */
-    @Column(name = "customer_id", nullable = false, columnDefinition = "BINARY(16)")
+    @Column(name = "customer_id", nullable = false)
     private UUID customerId;
 
     /**

@@ -39,7 +39,7 @@ public class CartItem {
      */
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    @Column(name = "id", nullable = false, columnDefinition = "BINARY(16)")
+    @Column(name = "id")
     private UUID id;
 
     /**

@@ -60,10 +60,7 @@ public class StoreRoleInterceptor {
 
         // Check if user has admin role (admins bypass store checks)
         boolean isAdmin = permissionValidator.hasRole(Roles.PLATFORM_ADMIN);
-        if (isAdmin) {
-            return context.proceed();
-        }
-
+        
         try {
             // Get store ID from the path parameter
             UUID storeId = extractStoreId();
@@ -71,39 +68,42 @@ public class StoreRoleInterceptor {
                 throw new ForbiddenException("Store ID is required for this operation");
             }
 
-            // If we have a storeId, validate access
+            // If we have a storeId, handle authorization and context setting
             if (storeId != null) {
-                // Use the permission validator which is test-aware
-                boolean hasStoreAccess = permissionValidator.hasStoreAccess(storeId);
-                if (!hasStoreAccess) {
-                    Log.warn("User attempted to access unauthorized store " + storeId);
-                    throw new ForbiddenException("Access denied to store resources");
-                }
+                // For non-admin users, validate access and required roles
+                if (!isAdmin) {
+                    // Use the permission validator which is test-aware
+                    boolean hasStoreAccess = permissionValidator.hasStoreAccess(storeId);
+                    if (!hasStoreAccess) {
+                        Log.warn("User attempted to access unauthorized store " + storeId);
+                        throw new ForbiddenException("Access denied to store resources");
+                    }
 
-                // Check required roles
-                if (annotation.value().length > 0) {
-                    boolean hasRequiredRole = false;
-                    for (Roles requiredRole : annotation.value()) {
-                        if (permissionValidator.hasStoreRole(storeId, requiredRole)) {
-                            hasRequiredRole = true;
-                            break;
+                    // Check required roles
+                    if (annotation.value().length > 0) {
+                        boolean hasRequiredRole = false;
+                        for (Roles requiredRole : annotation.value()) {
+                            if (permissionValidator.hasStoreRole(storeId, requiredRole)) {
+                                hasRequiredRole = true;
+                                break;
+                            }
+                        }
+
+                        if (!hasRequiredRole) {
+                            Log.warn("User lacks required store role. Required: " +
+                                    Arrays.toString(annotation.value()));
+                            throw new ForbiddenException("Insufficient store permissions");
                         }
                     }
-
-                    if (!hasRequiredRole) {
-                        Log.warn("User lacks required store role. Required: " +
-                                Arrays.toString(annotation.value()));
-                        throw new ForbiddenException("Insufficient store permissions");
-                    }
                 }
 
-                // Set store contex
+                // Set store context for both admins and regular users
                 String previousStore = StoreContext.getCurrentStore();
                 try {
                     StoreContext.setCurrentStore(storeService.getStoreSchemaName(storeId));
                     return context.proceed();
                 } finally {
-                    // Restore previous store contex
+                    // Restore previous store context
                     if (previousStore != null) {
                         StoreContext.setCurrentStore(previousStore);
                     } else {

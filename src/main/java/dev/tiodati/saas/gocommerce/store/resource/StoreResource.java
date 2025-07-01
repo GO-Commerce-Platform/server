@@ -21,7 +21,6 @@ import dev.tiodati.saas.gocommerce.store.entity.Store;
 import dev.tiodati.saas.gocommerce.store.entity.StoreAdmin;
 import dev.tiodati.saas.gocommerce.store.entity.StoreStatus;
 import dev.tiodati.saas.gocommerce.store.service.StoreService;
-import dev.tiodati.saas.gocommerce.util.PasswordHashingUtil;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -52,15 +51,10 @@ public class StoreResource {
      */
     private final StoreService storeService;
 
-    /**
-     * Utility for password hashing.
-     */
-    private final PasswordHashingUtil passwordHashingUtil;
 
     @Inject
-    public StoreResource(StoreService storeService, PasswordHashingUtil passwordHashingUtil) {
+    public StoreResource(StoreService storeService) {
         this.storeService = storeService;
-        this.passwordHashingUtil = passwordHashingUtil;
     }
 
     @GET
@@ -119,7 +113,7 @@ public class StoreResource {
             StoreAdmin admin = new StoreAdmin();
             admin.setUsername(createStoreDto.adminUsername());
             admin.setEmail(createStoreDto.adminEmail());
-            admin.setPasswordHash(passwordHashingUtil.hashPassword(createStoreDto.adminPassword()));
+            // Password authentication is handled by Keycloak, not stored locally
 
             Store createdStore = storeService.createStore(store, admin);
             return Response.created(URI.create("/api/admin/stores/" + createdStore.getId()))

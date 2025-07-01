@@ -12,6 +12,7 @@ import io.quarkus.logging.Log;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 
 /**
  * Manages database schema operations for multi-tenancy, including schema
@@ -38,6 +39,18 @@ public class SchemaManager {
     /** Whether to validate migrations on migrate for store schemas. */
     @ConfigProperty(name = "gocommerce.flyway.store-migrations.validate-on-migrate", defaultValue = "true")
     private boolean storeValidateOnMigrate;
+    
+    /** The database URL for creating separate datasource connections. */
+    @ConfigProperty(name = "quarkus.datasource.jdbc.url")
+    private String datasourceUrl;
+    
+    /** The database username. */
+    @ConfigProperty(name = "quarkus.datasource.username")
+    private String datasourceUsername;
+    
+    /** The database password. */
+    @ConfigProperty(name = "quarkus.datasource.password")
+    private String datasourcePassword;
 
     /**
      * Constructor for dependency injection.
@@ -65,12 +78,13 @@ public class SchemaManager {
             stmt.execute("CREATE SCHEMA IF NOT EXISTS " + schemaName);
             Log.info("Schema created successfully: " + schemaName);
 
-            // Run migrations on new schema
-            migrateSchema(schemaName);
         } catch (SQLException e) {
             Log.error("Failed to create schema: " + schemaName, e);
             throw e;
         }
+        
+        // Run migrations on new schema outside of transaction
+        migrateSchema(schemaName);
     }
 
     /**
@@ -97,15 +111,16 @@ public class SchemaManager {
      * @param schemaName The schema name to migrate
      */
     protected void runFlywayMigration(String schemaName) {
+        // Use URL-based datasource configuration for Flyway to avoid JTA transaction conflicts
         FluentConfiguration flywayConfig = Flyway.configure()
-                .dataSource(dataSource).schemas(schemaName)
-                .locations(storeMigrationsLocation).table(storeMigrationsTable)
-                .baselineVersion(storeBaselineVersion).baselineOnMigrate(true)
-                .validateOnMigrate(storeValidateOnMigrate).cleanDisabled(true); // Safety:
-                                                                                // prevent
-                                                                                // accidental
-                                                                                // clean
-                                                                                // operations
+                .dataSource(datasourceUrl, datasourceUsername, datasourcePassword)
+                .schemas(schemaName)
+                .locations(storeMigrationsLocation)
+                .table(storeMigrationsTable)
+                .baselineVersion(storeBaselineVersion)
+                .baselineOnMigrate(true)
+                .validateOnMigrate(storeValidateOnMigrate)
+                .cleanDisabled(true); // Safety: prevent accidental clean operations
 
         Flyway flyway = flywayConfig.load();
         flyway.migrate();

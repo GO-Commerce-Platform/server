@@ -98,6 +98,7 @@ public class CustomerRepository implements PanacheRepositoryBase<Customer, UUID>
      * @param status     the new status
      * @return number of updated records
      */
+    @jakarta.transaction.Transactional
     public int updateStatus(UUID customerId, CustomerStatus status) {
         return update("status = ?1 WHERE id = ?2", status, customerId);
     }

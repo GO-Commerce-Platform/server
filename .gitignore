@@ -43,6 +43,7 @@ nb-configuration.xml
 /.quarkus/cli/plugins/
 
 /storage
+/docker/storage
 /wrapper
 *.log
 *.log

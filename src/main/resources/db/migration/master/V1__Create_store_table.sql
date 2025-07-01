@@ -1,5 +1,8 @@
+-- Create ENUM type for store status
+CREATE TYPE store_status_type AS ENUM ('PENDING', 'ACTIVE', 'INACTIVE', 'SUSPENDED', 'CLOSED', 'ARCHIVED', 'DELETING', 'DELETED');
+
 CREATE TABLE store (
-    id BINARY(16) NOT NULL,
+    id UUID NOT NULL,
     store_key VARCHAR(255) NOT NULL UNIQUE,
     name VARCHAR(255) NOT NULL,
     subdomain VARCHAR(255) NOT NULL UNIQUE,
@@ -8,15 +11,15 @@ CREATE TABLE store (
     email VARCHAR(255) NOT NULL,
     currency_code VARCHAR(3) NOT NULL,
     default_locale VARCHAR(10) NOT NULL,
-    status ENUM('PENDING', 'ACTIVE', 'INACTIVE', 'SUSPENDED', 'CLOSED', 'ARCHIVED', 'DELETING', 'DELETED') NOT NULL DEFAULT 'PENDING',
+    status store_status_type NOT NULL DEFAULT 'PENDING',
     schema_name VARCHAR(255) NOT NULL UNIQUE,
     billing_plan VARCHAR(255) NOT NULL DEFAULT 'BASIC',
     owner_id VARCHAR(255),
     keycloak_realm_id VARCHAR(255),
-    settings JSON,
+    settings JSONB,
     version BIGINT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
 );
 

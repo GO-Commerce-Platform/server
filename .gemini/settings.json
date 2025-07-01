@@ -1,0 +1,12 @@
+{
+  "mcp": {
+    "servers": {
+      "github": {
+        "type": "http",
+        "url": "https://api.githubcopilot.com/mcp/"
+      }
+    }
+  },
+  "theme": "Atom One",
+  "selectedAuthType": "oauth-personal"
+}
