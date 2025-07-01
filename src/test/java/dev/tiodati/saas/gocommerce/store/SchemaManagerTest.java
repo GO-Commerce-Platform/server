@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Integration test for SchemaManager that validates multi-schema Flyway
- * functionality against the real MariaDB database stack.
+ * functionality against the PostgreSQL database stack.
  */
 @QuarkusTest
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -82,8 +82,8 @@ class SchemaManagerTest {
                 "Product table should exist after migration");
         assertTrue(tableExists(EXPECTED_SCHEMA_NAME, "order_header"),
                 "Order header table should exist after migration");
-        assertTrue(tableExists(EXPECTED_SCHEMA_NAME, "order_item"),
-                "Order item table should exist after migration");
+        assertTrue(tableExists(EXPECTED_SCHEMA_NAME, "order_items"),
+                "Order items table should exist after migration");
         assertTrue(tableExists(EXPECTED_SCHEMA_NAME, "shopping_cart"),
                 "Shopping cart table should exist after migration");
         assertTrue(tableExists(EXPECTED_SCHEMA_NAME, "cart_item"),
@@ -104,9 +104,9 @@ class SchemaManagerTest {
         // When - Query migration history
         int migrationCount = getMigrationCount(EXPECTED_SCHEMA_NAME);
 
-        // Then - Should have 4 migrations (V1 through V4)
-        assertEquals(4, migrationCount,
-                "Should have 4 migration records in Flyway history table");
+        // Then - Should have 5 migrations (V3, V4, V5, V6, V8)
+        assertEquals(5, migrationCount,
+                "Should have 5 migration records in Flyway history table");
     }
 
     @Test
@@ -137,8 +137,7 @@ class SchemaManagerTest {
         // Create the schema manually without migrations
         try (Connection connection = dataSource.getConnection();
                 Statement statement = connection.createStatement()) {
-            statement.executeUpdate("CREATE SCHEMA IF NOT EXISTS `"
-                    + migrationTestSchema + "`");
+            statement.executeUpdate("CREATE SCHEMA IF NOT EXISTS \"" + migrationTestSchema + "\"");
         }
 
         assertTrue(schemaExists(migrationTestSchema),
@@ -205,8 +204,8 @@ class SchemaManagerTest {
         try (Connection connection = dataSource.getConnection();
                 Statement statement = connection.createStatement();
                 ResultSet resultSet = statement
-                        .executeQuery("SELECT COUNT(*) FROM `" + schemaName
-                                + "`.flyway_schema_history WHERE success = 1")) {
+                        .executeQuery("SELECT COUNT(*) FROM \"" + schemaName
+                                + "\".flyway_schema_history WHERE success = 1")) {
             return resultSet.next() ? resultSet.getInt(1) : 0;
         }
     }
@@ -221,11 +220,7 @@ class SchemaManagerTest {
         try (Connection connection = dataSource.getConnection();
                 Statement statement = connection.createStatement()) {
             statement.executeUpdate(
-                    "DROP SCHEMA IF EXISTS `" + schemaName + "`");
+                    "DROP SCHEMA IF EXISTS \"" + schemaName + "\"");
         }
     }
 }
-
-// Copilot: This file may have been generated or refactored by GitHub Copilot.
-
-// Copilot: This file may have been generated or refactored by GitHub Copilot.

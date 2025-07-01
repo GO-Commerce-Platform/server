@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Apply all store migrations to existing schemas
-# This is a temporary fix for missing migrations on existing store schemas
+# This script applies store migrations to existing PostgreSQL schemas
 
 SCHEMAS=(
     "gocommerce_success-store-a9d38778"
@@ -21,8 +21,8 @@ for schema in "${SCHEMAS[@]}"; do
 
     for migration in "${MIGRATIONS[@]}"; do
         echo "  Running migration: $migration"
-        docker exec -i go-commerce-mariadb-1 mariadb -u gocommerceuser -pgocommercepass -D "$schema" \
-            < "src/main/resources/db/migration/stores/$migration"
+        docker exec -i gocommerce-postgres-1 psql -U gocommerceuser -d gocommerce -c "SET search_path TO $schema;" \
+            -f /dev/stdin < "src/main/resources/db/migration/stores/$migration"
 
         if [ $? -eq 0 ]; then
             echo "    ✓ Success"
