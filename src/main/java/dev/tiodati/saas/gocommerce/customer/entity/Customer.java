@@ -34,7 +34,7 @@ import lombok.NoArgsConstructor;
  * @since 1.0
  */
 @Entity
-@Table(name = "customer")
+@Table(name = "customer", schema = "gocommerce")
 @Data
 @EqualsAndHashCode(callSuper = false)
 @Builder

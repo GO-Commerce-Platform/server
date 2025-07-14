@@ -1,18 +1,18 @@
-package dev.tiodati.saas.gocommerce.store;
+package dev.tiodati.saas.gocommerce.platform;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
+
 import javax.sql.DataSource;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.configuration.FluentConfiguration;
-import io.quarkus.logging.Log;
 
+import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 
 /**
  * Manages database schema operations for multi-tenancy, including schema
@@ -39,15 +39,15 @@ public class SchemaManager {
     /** Whether to validate migrations on migrate for store schemas. */
     @ConfigProperty(name = "gocommerce.flyway.store-migrations.validate-on-migrate", defaultValue = "true")
     private boolean storeValidateOnMigrate;
-    
+
     /** The database URL for creating separate datasource connections. */
     @ConfigProperty(name = "quarkus.datasource.jdbc.url")
     private String datasourceUrl;
-    
+
     /** The database username. */
     @ConfigProperty(name = "quarkus.datasource.username")
     private String datasourceUsername;
-    
+
     /** The database password. */
     @ConfigProperty(name = "quarkus.datasource.password")
     private String datasourcePassword;
@@ -82,7 +82,7 @@ public class SchemaManager {
             Log.error("Failed to create schema: " + schemaName, e);
             throw e;
         }
-        
+
         // Run migrations on new schema outside of transaction
         migrateSchema(schemaName);
     }

@@ -9,11 +9,10 @@ import dev.tiodati.saas.gocommerce.customer.dto.CustomerDto;
 import dev.tiodati.saas.gocommerce.customer.entity.Customer;
 import dev.tiodati.saas.gocommerce.customer.entity.CustomerStatus;
 import dev.tiodati.saas.gocommerce.customer.repository.CustomerRepository;
-import dev.tiodati.saas.gocommerce.store.service.StoreSchemaService;
+import dev.tiodati.saas.gocommerce.shared.interceptor.TenantAware;
 import io.quarkus.logging.Log;
 import io.quarkus.panache.common.Page;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -28,13 +27,9 @@ public class CustomerServiceImpl implements CustomerService {
      * Repository for customer data access operations.
      */
     private final CustomerRepository customerRepository;
-    
-    /**
-     * Service for resolving store schemas.
-     */
-    private final StoreSchemaService storeSchemaService;
 
     @Override
+    @TenantAware
     public List<CustomerDto> listCustomers(UUID storeId, int page, int size, CustomerStatus status) {
         Log.infof("Listing customers for store %s (page=%d, size=%d, status=%s)",
                 storeId, page, size, status);
@@ -54,23 +49,23 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
+    @TenantAware
     public Optional<CustomerDto> findCustomer(UUID storeId, UUID customerId) {
         Log.infof("Finding customer %s for store %s", customerId, storeId);
-
         return customerRepository.findByIdOptional(customerId)
                 .map(this::mapToDto);
     }
 
     @Override
+    @TenantAware
     public Optional<CustomerDto> findCustomerByEmail(UUID storeId, String email) {
         Log.infof("Finding customer by email %s for store %s", email, storeId);
-
         return customerRepository.findByEmail(email)
                 .map(this::mapToDto);
     }
 
     @Override
-    @Transactional
+    @TenantAware
     public CustomerDto createCustomer(UUID storeId, CreateCustomerDto customerDto) {
         Log.infof("Creating customer for store %s: %s", storeId, customerDto.email());
 
@@ -100,51 +95,50 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
-    @Transactional
+    @TenantAware
     public Optional<CustomerDto> updateCustomer(UUID storeId, CustomerDto customerDto) {
         Log.infof("Updating customer %s for store %s", customerDto.id(), storeId);
 
         return customerRepository.findByIdOptional(customerDto.id())
-                .map(customer -> {
-                    customer.setFirstName(customerDto.firstName());
-                    customer.setLastName(customerDto.lastName());
-                    customer.setPhone(customerDto.phone());
-                    customer.setDateOfBirth(customerDto.dateOfBirth());
-                    customer.setGender(customerDto.gender());
-                    customer.setAddressLine1(customerDto.addressLine1());
-                    customer.setAddressLine2(customerDto.addressLine2());
-                    customer.setCity(customerDto.city());
-                    customer.setStateProvince(customerDto.stateProvince());
-                    customer.setPostalCode(customerDto.postalCode());
-                    customer.setCountry(customerDto.country());
+            .map(customer -> {
+                customer.setFirstName(customerDto.firstName());
+                customer.setLastName(customerDto.lastName());
+                customer.setPhone(customerDto.phone());
+                customer.setDateOfBirth(customerDto.dateOfBirth());
+                customer.setGender(customerDto.gender());
+                customer.setAddressLine1(customerDto.addressLine1());
+                customer.setAddressLine2(customerDto.addressLine2());
+                customer.setCity(customerDto.city());
+                customer.setStateProvince(customerDto.stateProvince());
+                customer.setPostalCode(customerDto.postalCode());
+                customer.setCountry(customerDto.country());
 
-                    if (customerDto.marketingEmailsOptIn() != null) {
-                        customer.setMarketingEmailsOptIn(customerDto.marketingEmailsOptIn());
-                    }
+                if (customerDto.marketingEmailsOptIn() != null) {
+                    customer.setMarketingEmailsOptIn(customerDto.marketingEmailsOptIn());
+                }
 
-                    if (customerDto.preferredLanguage() != null) {
-                        customer.setPreferredLanguage(customerDto.preferredLanguage());
-                    }
+                if (customerDto.preferredLanguage() != null) {
+                    customer.setPreferredLanguage(customerDto.preferredLanguage());
+                }
 
-                    customerRepository.persist(customer);
-                    return mapToDto(customer);
-                });
+                return mapToDto(customer);
+            });
     }
 
     @Override
-    @Transactional
+    @TenantAware
     public Optional<CustomerDto> updateCustomerStatus(UUID storeId, UUID customerId, CustomerStatus status) {
         Log.infof("Updating customer %s status to %s for store %s", customerId, status, storeId);
 
         return customerRepository.findByIdOptional(customerId)
-                .map(customer -> {
-                    customer.setStatus(status);
-                    customerRepository.persist(customer);
-                    return mapToDto(customer);
-                });
+            .map(customer -> {
+                customer.setStatus(status);
+                return mapToDto(customer);
+            });
     }
 
     @Override
+    @TenantAware
     public List<CustomerDto> searchCustomers(UUID storeId, String searchTerm, int page, int size) {
         Log.infof("Searching customers for store %s with term: %s (page=%d, size=%d)",
                 storeId, searchTerm, page, size);
@@ -158,15 +152,10 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
+    @TenantAware
     public long countCustomersByStatus(UUID storeId, CustomerStatus status) {
         Log.infof("Counting customers by status %s for store %s", status, storeId);
-
-        if (status != null) {
-            return customerRepository.countByStatus(status);
-        } else {
-            // Count all customers when no status is specified
-            return customerRepository.count();
-        }
+        return status != null ? customerRepository.countByStatus(status) : customerRepository.count();
     }
 
     /**

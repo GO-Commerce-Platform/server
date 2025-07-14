@@ -2,28 +2,27 @@ package dev.tiodati.saas.gocommerce.testinfra;
 
 import java.util.UUID;
 
+import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.TestInstancePostProcessor;
 
-import dev.tiodati.saas.gocommerce.testinfra.TestTenantResolver;
 import io.quarkus.arc.Arc;
-import io.quarkus.hibernate.orm.runtime.tenant.TenantResolver;
 import io.quarkus.logging.Log;
 
 /**
  * JUnit 5 extension that automatically sets up multi-tenant database schemas for tests.
  * This extension ensures that store-specific schemas are created and configured before tests run.
  */
-public class MultiTenantTestExtension implements BeforeAllCallback, BeforeEachCallback, TestInstancePostProcessor {
+public class MultiTenantTestExtension implements BeforeAllCallback, BeforeEachCallback, AfterEachCallback, TestInstancePostProcessor {
 
     private static final String TEST_SCHEMA_KEY = "test.schema.name";
     private static TestDatabaseManager testDatabaseManager;
 
     @Override
     public void beforeAll(ExtensionContext context) throws Exception {
-        Log.infof("Multi-tenant test environment initialized for test class: %s", 
+        Log.infof("Multi-tenant test environment initialized for test class: %s",
                   context.getTestClass().map(Class::getSimpleName).orElse("Unknown"));
     }
 
@@ -36,17 +35,29 @@ public class MultiTenantTestExtension implements BeforeAllCallback, BeforeEachCa
 
         // Get or create a test schema for this test
         String testSchemaName = getTestSchemaName(context);
-        
+
         // Ensure the test schema exists
         if (testDatabaseManager != null) {
             testDatabaseManager.ensureTestStoreSchema(testSchemaName);
         }
-        
+
         // Set the tenant context for this test
         setTenantContext(testSchemaName);
-        
-        Log.debugf("Test schema set up for test: %s -> %s", 
+
+        Log.debugf("Test schema set up for test: %s -> %s",
                    context.getDisplayName(), testSchemaName);
+    }
+
+    @Override
+    public void afterEach(ExtensionContext context) throws Exception {
+        String schemaName = getTestSchemaName(context);
+        if (testDatabaseManager != null) {
+            testDatabaseManager.dropTestStoreSchema(schemaName);
+        }
+        // Clear the stored schema name from the context
+        context.getStore(ExtensionContext.Namespace.GLOBAL).remove(TEST_SCHEMA_KEY);
+        Log.debugf("Test schema torn down for test: %s -> %s",
+                   context.getDisplayName(), schemaName);
     }
 
     @Override
@@ -82,9 +93,8 @@ public class MultiTenantTestExtension implements BeforeAllCallback, BeforeEachCa
                                   .orElse("unknown");
 
         // Create a unique but deterministic schema name
-        String schemaName = String.format("test_%s_%s_%s", 
+        String schemaName = String.format("test_%s_%s",
                                          className.toLowerCase(),
-                                         methodName.toLowerCase(),
                                          UUID.randomUUID().toString().substring(0, 8))
                                   .replaceAll("[^a-zA-Z0-9_]", "_");
 

@@ -1,21 +1,23 @@
-package dev.tiodati.saas.gocommerce.store;
+package dev.tiodati.saas.gocommerce.platform;
 
-import io.quarkus.test.junit.QuarkusTest;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import jakarta.inject.Inject;
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import javax.sql.DataSource;
+
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
+
+import io.quarkus.test.junit.QuarkusTest;
+import jakarta.inject.Inject;
 
 /**
  * Integration test for SchemaManager that validates multi-schema Flyway
@@ -164,12 +166,13 @@ class SchemaManagerTest {
      * @throws SQLException if database query fails
      */
     private boolean schemaExists(String schemaName) throws SQLException {
+        final String sql = "SELECT 1 FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?";
         try (Connection connection = dataSource.getConnection();
-                Statement statement = connection.createStatement();
-                ResultSet resultSet = statement.executeQuery(
-                        "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '"
-                                + schemaName + "'")) {
-            return resultSet.next();
+             java.sql.PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, schemaName);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
         }
     }
 
@@ -183,13 +186,14 @@ class SchemaManagerTest {
      */
     private boolean tableExists(String schemaName, String tableName)
             throws SQLException {
+        final String sql = "SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?";
         try (Connection connection = dataSource.getConnection();
-                Statement statement = connection.createStatement();
-                ResultSet resultSet = statement.executeQuery(
-                        "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = '"
-                                + schemaName + "' AND TABLE_NAME = '"
-                                + tableName + "'")) {
-            return resultSet.next();
+             java.sql.PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, schemaName);
+            ps.setString(2, tableName);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
         }
     }
 
@@ -201,12 +205,14 @@ class SchemaManagerTest {
      * @throws SQLException if database query fails
      */
     private int getMigrationCount(String schemaName) throws SQLException {
+        // Schema name cannot be parameterized, so it's validated by context.
+        final String sql = "SELECT COUNT(*) FROM " + schemaName + ".flyway_schema_history WHERE success = ?";
         try (Connection connection = dataSource.getConnection();
-                Statement statement = connection.createStatement();
-                ResultSet resultSet = statement
-                        .executeQuery("SELECT COUNT(*) FROM \"" + schemaName
-                                + "\".flyway_schema_history WHERE success = 1")) {
-            return resultSet.next() ? resultSet.getInt(1) : 0;
+                java.sql.PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setBoolean(1, true);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
         }
     }
 
@@ -217,10 +223,8 @@ class SchemaManagerTest {
      * @throws SQLException if schema deletion fails
      */
     private void dropSchema(String schemaName) throws SQLException {
-        try (Connection connection = dataSource.getConnection();
-                Statement statement = connection.createStatement()) {
-            statement.executeUpdate(
-                    "DROP SCHEMA IF EXISTS \"" + schemaName + "\"");
-        }
+        // Use the main SchemaManager to ensure consistent cleanup logic
+        // (e.g., using CASCADE)
+        schemaManager.dropSchema(schemaName);
     }
 }

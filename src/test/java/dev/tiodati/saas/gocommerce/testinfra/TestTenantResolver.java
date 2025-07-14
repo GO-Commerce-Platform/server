@@ -22,8 +22,16 @@ public class TestTenantResolver implements TenantResolver {
     @Inject
     RoutingContext routingContext;
 
+    @Inject
+    TestTenantContext testTenantContext;
+
     @Override
     public String resolveTenantId() {
+        // Prioritize TestTenantContext for non-HTTP contexts
+        if (testTenantContext != null && testTenantContext.getCurrentTenant() != null) {
+            return testTenantContext.getCurrentTenant();
+        }
+
         if (routingContext != null) {
             String tenantId = routingContext.request().getHeader(TENANT_HEADER);
             if (tenantId != null && !tenantId.trim().isEmpty()) {
