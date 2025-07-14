@@ -62,6 +62,8 @@ public class PermissionValidator {
         }
 
         Log.debugf("Checking role: %s for user: %s", role, this.jwt.getSubject());
+        Log.debugf("User groups: %s", this.jwt.getGroups());
+        Log.debugf("User groups: %s", this.jwt.getGroups());
         
         // Debug: Log JWT claims for troubleshooting
         Log.debugf("JWT Claims: %s", this.jwt.getClaimNames());
@@ -126,12 +128,10 @@ public class PermissionValidator {
      * @return {@code true} if the user has access, {@code false} otherwise.
      */
     public boolean hasStoreAccess(UUID storeId) {
-        // Platform admins have access to all stores
         if (hasRole(Roles.PLATFORM_ADMIN)) {
             return true;
         }
 
-        // Extract store ID from JWT claims for store-specific users
         String userStoreId = getUserStoreId();
         if (userStoreId != null) {
             return userStoreId.equals(storeId.toString());
