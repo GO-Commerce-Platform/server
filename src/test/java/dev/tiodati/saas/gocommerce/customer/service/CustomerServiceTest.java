@@ -1,23 +1,20 @@
 package dev.tiodati.saas.gocommerce.customer.service;
 
-import dev.tiodati.saas.gocommerce.customer.dto.CreateCustomerDto;
-import dev.tiodati.saas.gocommerce.customer.dto.CustomerDto;
-import dev.tiodati.saas.gocommerce.customer.entity.Customer;
-import dev.tiodati.saas.gocommerce.customer.repository.CustomerRepository;
-import dev.tiodati.saas.gocommerce.customer.service.CustomerServiceImpl;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Optional;
-import java.util.UUID;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import dev.tiodati.saas.gocommerce.customer.dto.CreateCustomerDto;
+import dev.tiodati.saas.gocommerce.customer.dto.CustomerDto;
+import dev.tiodati.saas.gocommerce.customer.entity.Customer;
+import dev.tiodati.saas.gocommerce.customer.repository.CustomerRepository;
 
 @ExtendWith(MockitoExtension.class)
 class CustomerServiceTest {
