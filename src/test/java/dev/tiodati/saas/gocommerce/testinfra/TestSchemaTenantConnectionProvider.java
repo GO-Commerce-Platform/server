@@ -14,6 +14,7 @@ import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Alternative;
 import jakarta.inject.Inject;
+import jakarta.annotation.PostConstruct;
 
 /**
  * Test-specific multi-tenant connection provider for schema-based tenancy.
@@ -31,11 +32,18 @@ public class TestSchemaTenantConnectionProvider implements MultiTenantConnection
 
     @Inject
     private TestTenantContext testTenantContext;
+    
+    @PostConstruct
+    public void init() {
+        Log.infof("🎉 TEST MTCP: TestSchemaTenantConnectionProvider initialized! Multi-tenancy should be working.");
+    }
 
     @Override
     public Connection getAnyConnection() throws SQLException {
-        Log.debugf("TEST MTCP: getAnyConnection called");
-        return dataSource.getConnection();
+        Log.infof("📞 TEST MTCP: getAnyConnection called");
+        Connection conn = dataSource.getConnection();
+        Log.infof("📞 TEST MTCP: getAnyConnection returning: %s", conn.getClass().getSimpleName());
+        return conn;
     }
 
     @Override
@@ -45,6 +53,8 @@ public class TestSchemaTenantConnectionProvider implements MultiTenantConnection
 
     @Override
     public Connection getConnection(String tenantIdentifier) throws SQLException {
+        Log.infof("🔥 TEST MTCP: *** getConnection() CALLED *** with tenant: %s", tenantIdentifier);
+        
         // Use TestTenantContext to get the actual tenant if available
         String actualTenantId = tenantIdentifier;
         if (testTenantContext != null && testTenantContext.getCurrentTenant() != null) {
@@ -54,34 +64,50 @@ public class TestSchemaTenantConnectionProvider implements MultiTenantConnection
             Log.infof("TEST MTCP: Using requested tenant: %s (TestTenantContext not available or empty)", tenantIdentifier);
         }
         
-        Log.infof("TEST MTCP: getConnection called with tenant: %s (actual: %s)", tenantIdentifier, actualTenantId);
         Connection connection = getAnyConnection();
+        Log.infof("🔗 TEST MTCP: Got connection: %s", connection.getClass().getSimpleName());
+        
         try {
             // Switch to the tenant's schema
             if (actualTenantId != null && !actualTenantId.trim().isEmpty()) {
-                Log.infof("TEST: Switching database schema to: %s", actualTenantId);
+                Log.infof("🔄 TEST: Switching database schema to: %s", actualTenantId);
                 try (Statement statement = connection.createStatement()) {
                     // Use quoted identifier to handle special characters in schema names
                     String sql = String.format("SET search_path TO \"%s\", public", actualTenantId);
+                    Log.infof("📝 TEST: Executing SQL: %s", sql);
                     statement.execute(sql);
-                    Log.infof("TEST: Successfully switched to schema: %s", actualTenantId);
+                    Log.infof("✅ TEST: Successfully executed schema switch command");
                     
                     // Verify the schema switch worked
                     try (var rs = statement.executeQuery("SELECT current_schema()")) {
                         if (rs.next()) {
                             String currentSchema = rs.getString(1);
-                            Log.infof("TEST: Current database schema is: %s", currentSchema);
+                            Log.infof("🎯 TEST: Current database schema verified: %s", currentSchema);
+                            
+                            if (!actualTenantId.equals(currentSchema)) {
+                                Log.errorf("❌ TEST: Schema mismatch! Expected: %s, Actual: %s", actualTenantId, currentSchema);
+                            }
+                        }
+                    }
+                    
+                    // Additional verification - check search_path
+                    try (var rs = statement.executeQuery("SHOW search_path")) {
+                        if (rs.next()) {
+                            String searchPath = rs.getString(1);
+                            Log.infof("🔍 TEST: Current search_path: %s", searchPath);
                         }
                     }
                 }
             } else {
-                Log.warnf("TEST: No tenant identifier provided or empty, using default schema");
+                Log.warnf("⚠️ TEST: No tenant identifier provided or empty, using default schema");
             }
         } catch (SQLException e) {
-            Log.errorf(e, "TEST: Failed to switch to schema: %s", actualTenantId);
+            Log.errorf(e, "💥 TEST: Failed to switch to schema: %s", actualTenantId);
             releaseConnection(tenantIdentifier, connection);
             throw e;
         }
+        
+        Log.infof("🚀 TEST MTCP: Returning connection configured for schema: %s", actualTenantId);
         return connection;
     }
 

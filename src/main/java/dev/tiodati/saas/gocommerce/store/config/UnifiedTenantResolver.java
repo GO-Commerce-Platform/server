@@ -33,7 +33,8 @@ public class UnifiedTenantResolver implements TenantResolver {
 
     @PostConstruct
     public void init() {
-        Log.infof("UNIFIED RESOLVER: UnifiedTenantResolver initialized! Default schema: %s", defaultTenantSchema);
+        Log.infof("🚀 UNIFIED RESOLVER: UnifiedTenantResolver initialized! Default schema: %s", defaultTenantSchema);
+        Log.infof("📋 UNIFIED: Routing context instance available: %s", routingContextInstance != null ? "YES" : "NO");
     }
 
     @Override
@@ -43,31 +44,41 @@ public class UnifiedTenantResolver implements TenantResolver {
 
     @Override
     public String resolveTenantId() {
-        Log.infof("UNIFIED RESOLVER: resolveTenantId() called");
+        Log.infof("🏢 UNIFIED RESOLVER: *** RESOLVING TENANT *** resolveTenantId() called");
         
         // Strategy 1: Check for TestTenantContext (test environment)
+        Log.infof("🇺 UNIFIED: Attempting to resolve from TestTenantContext...");
         String testTenant = resolveFromTestContext();
         if (testTenant != null && !testTenant.trim().isEmpty()) {
-            Log.infof("UNIFIED: Resolved tenant from test context: %s", testTenant);
+            Log.infof("✅ UNIFIED: Resolved tenant from test context: %s", testTenant);
             return testTenant;
+        } else {
+            Log.infof("📋 UNIFIED: No tenant found in TestTenantContext");
         }
 
         // Strategy 2: Check HTTP header (test environment with REST calls)
+        Log.infof("🌐 UNIFIED: Attempting to resolve from HTTP headers...");
         String headerTenant = resolveFromHttpHeader();
         if (headerTenant != null && !headerTenant.trim().isEmpty()) {
-            Log.infof("UNIFIED: Resolved tenant from HTTP header: %s", headerTenant);
+            Log.infof("✅ UNIFIED: Resolved tenant from HTTP header: %s", headerTenant);
             return headerTenant;
+        } else {
+            Log.infof("📋 UNIFIED: No tenant found in HTTP headers");
         }
 
         // Strategy 3: Check StoreContext (production environment)
+        Log.infof("🏪 UNIFIED: Attempting to resolve from StoreContext...");
         String storeContextTenant = resolveFromStoreContext();
         if (storeContextTenant != null && !storeContextTenant.trim().isEmpty()) {
-            Log.infof("UNIFIED: Resolved tenant from StoreContext: %s", storeContextTenant);
+            Log.infof("✅ UNIFIED: Resolved tenant from StoreContext: %s", storeContextTenant);
             return storeContextTenant;
+        } else {
+            Log.infof("📋 UNIFIED: No tenant found in StoreContext");
         }
 
         // Fallback: Use default tenant
-        Log.infof("UNIFIED: No tenant context found, using default: %s", defaultTenantSchema);
+        Log.infof("🔄 UNIFIED: No tenant context found, using default: %s", defaultTenantSchema);
+        Log.infof("🎯 UNIFIED: *** FINAL RESULT *** returning tenant: %s", defaultTenantSchema);
         return getDefaultTenantId();
     }
 
@@ -76,23 +87,31 @@ public class UnifiedTenantResolver implements TenantResolver {
      */
     private String resolveFromTestContext() {
         try {
+            Log.infof("🇺 UNIFIED: Checking Arc container...");
             if (Arc.container() != null) {
+                Log.infof("🇺 UNIFIED: Arc container found, looking for TestTenantContext...");
                 var testTenantContextInstance = Arc.container().select(
                     Class.forName("dev.tiodati.saas.gocommerce.testinfra.TestTenantContext")
                 );
                 if (testTenantContextInstance.isResolvable()) {
+                    Log.infof("🇺 UNIFIED: TestTenantContext found and resolvable!");
                     Object testTenantContext = testTenantContextInstance.get();
                     // Use reflection to call getCurrentTenant()
                     var method = testTenantContext.getClass().getMethod("getCurrentTenant");
                     String tenant = (String) method.invoke(testTenantContext);
+                    Log.infof("🇺 UNIFIED: TestTenantContext returned: '%s'", tenant);
                     if (tenant != null && !tenant.trim().isEmpty()) {
                         return tenant;
                     }
+                } else {
+                    Log.infof("🇺 UNIFIED: TestTenantContext found but not resolvable");
                 }
+            } else {
+                Log.infof("🇺 UNIFIED: Arc container is null");
             }
         } catch (Exception e) {
             // TestTenantContext not available (likely production environment)
-            Log.debugf("UNIFIED: TestTenantContext not available: %s", e.getMessage());
+            Log.infof("⚠️ UNIFIED: TestTenantContext not available: %s", e.getMessage());
         }
         return null;
     }
