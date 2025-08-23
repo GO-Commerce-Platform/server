@@ -16,6 +16,8 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -34,7 +36,7 @@ import lombok.NoArgsConstructor;
  * @since 1.0
  */
 @Entity
-@Table(name = "customer", schema = "gocommerce")
+@Table(name = "customer")
 @Data
 @EqualsAndHashCode(callSuper = false)
 @Builder
@@ -98,6 +100,7 @@ public class Customer extends PanacheEntityBase {
      * Customer's gender.
      */
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "gender")
     private Gender gender;
 
@@ -141,6 +144,7 @@ public class Customer extends PanacheEntityBase {
      * Current status of the customer account.
      */
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "status", nullable = false)
     @Builder.Default
     private CustomerStatus status = CustomerStatus.ACTIVE;

@@ -1,59 +1,63 @@
-package dev.tiodati.saas.gocommerce.test;
-
-import io.agroal.api.AgroalDataSource;
-import io.quarkus.arc.Unremovable;
-import io.quarkus.hibernate.orm.PersistenceUnitExtension;
-import io.quarkus.hibernate.orm.runtime.tenant.TenantConnectionResolver;
-import io.quarkus.logging.Log;
-import jakarta.annotation.Priority;
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.inject.Alternative;
-import jakarta.inject.Inject;
-import org.hibernate.engine.jdbc.connections.spi.ConnectionProvider;
+package dev.tiodati.saas.gocommerce.store.config;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+import org.hibernate.engine.jdbc.connections.spi.ConnectionProvider;
+
+import io.agroal.api.AgroalDataSource;
+import io.quarkus.hibernate.orm.PersistenceUnitExtension;
+import io.quarkus.hibernate.orm.runtime.tenant.TenantConnectionResolver;
+import io.quarkus.logging.Log;
+import jakarta.annotation.PostConstruct;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+
 /**
- * PostgreSQL-specific tenant connection resolver for tests that properly sets
- * the search_path for schema-based multi-tenancy.
+ * Quarkus-native tenant connection resolver for SCHEMA multi-tenancy.
+ * 
+ * This implements the Quarkus TenantConnectionResolver abstraction (not raw Hibernate)
+ * and properly switches PostgreSQL schemas using SET search_path.
+ * 
+ * Based on Quarkus documentation research:
+ * - For SCHEMA strategy, we need TenantConnectionResolver with @PersistenceUnitExtension
+ * - This is the correct Quarkus approach (not raw MultiTenantConnectionProvider)
  */
 @ApplicationScoped
-@Alternative
-@Priority(1) // Highest priority to override production resolver
-@Unremovable
 @PersistenceUnitExtension
-public class PostgreSQLTestTenantConnectionResolver implements TenantConnectionResolver {
+public class SchemaTenantConnectionResolver implements TenantConnectionResolver {
+
+    @PostConstruct
+    public void init() {
+        Log.infof("🎯 SCHEMA RESOLVER: SchemaTenantConnectionResolver initialized!");
+    }
 
     @Inject
-    AgroalDataSource dataSource;
+    private AgroalDataSource dataSource;
 
     @Override
     public ConnectionProvider resolve(String tenantId) {
-        // Get the actual tenant from system property set by test extension
-        String actualTenantId = System.getProperty("test.current.tenant", tenantId);
-        Log.debugf("Resolving connection for tenant: %s (actual: %s)", tenantId, actualTenantId);
+        Log.infof("🔄 SCHEMA RESOLVER: *** RESOLVING CONNECTION *** for tenant: %s", tenantId);
         
         return new ConnectionProvider() {
             @Override
             public Connection getConnection() throws SQLException {
+                Log.infof("🔌 SCHEMA RESOLVER: *** GETTING CONNECTION *** for tenant: %s", tenantId);
                 Connection connection = dataSource.getConnection();
                 
-                // Set the search_path to the tenant schema for PostgreSQL
+                // Switch to the tenant's schema using SET search_path
                 try (Statement statement = connection.createStatement()) {
-                    // For public/platform operations, use gocommerce schema as that's where the store table lives
-                    // For tenant operations, use the tenant schema with gocommerce as fallback
-                    String searchPath;
-                    if (actualTenantId == null || "public".equals(actualTenantId)) {
-                        searchPath = "SET search_path TO gocommerce, public";
+                    if (tenantId != null && !tenantId.trim().isEmpty() && !"public".equals(tenantId)) {
+                        String searchPath = String.format("SET search_path TO \"%s\", public", tenantId);
+                        Log.infof("🔀 SCHEMA RESOLVER: Executing: %s", searchPath);
+                        statement.execute(searchPath);
+                        Log.infof("✅ SCHEMA RESOLVER: Successfully switched to schema: %s", tenantId);
                     } else {
-                        searchPath = String.format("SET search_path TO \"%s\", gocommerce, public", actualTenantId);
+                        Log.infof("📋 SCHEMA RESOLVER: Using default schema (tenantId: %s)", tenantId);
                     }
-                    statement.execute(searchPath);
-                    Log.debugf("Set search_path for tenant %s: %s", actualTenantId, searchPath);
                 } catch (SQLException e) {
-                    Log.errorf("Failed to set search_path for tenant %s: %s", actualTenantId, e.getMessage());
+                    Log.errorf(e, "❌ SCHEMA RESOLVER: Failed to switch to schema: %s", tenantId);
                     // Close the connection if we couldn't set the search_path
                     try {
                         connection.close();
