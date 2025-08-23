@@ -10,10 +10,9 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
-@ApplicationScoped
-@Unremovable
-@PersistenceUnitExtension // Ensure this annotation is present for the default
-                          // PU
+// @ApplicationScoped - DISABLED: Now using UnifiedTenantResolver
+// @Unremovable
+// @PersistenceUnitExtension
 public class StoreSchemaResolver implements TenantResolver {
 
     /**

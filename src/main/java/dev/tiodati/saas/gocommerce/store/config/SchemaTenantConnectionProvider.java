@@ -7,6 +7,7 @@ import org.hibernate.engine.jdbc.connections.spi.MultiTenantConnectionProvider;
 import org.hibernate.service.UnknownUnwrapTypeException;
 
 import io.agroal.api.AgroalDataSource;
+import io.quarkus.arc.Unremovable;
 import io.quarkus.logging.Log;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -17,6 +18,7 @@ import jakarta.inject.Inject;
  * This provider switches the database schema based on the tenant ID.
  */
 @ApplicationScoped
+@Unremovable
 public class SchemaTenantConnectionProvider implements MultiTenantConnectionProvider<String> {
 
     @PostConstruct

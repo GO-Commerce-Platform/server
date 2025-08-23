@@ -2,6 +2,7 @@ package dev.tiodati.saas.gocommerce.testinfra;
 
 import io.quarkus.arc.Arc;
 import jakarta.enterprise.inject.Instance;
+import io.quarkus.hibernate.orm.PersistenceUnitExtension;
 import io.quarkus.hibernate.orm.runtime.tenant.TenantResolver;
 import io.quarkus.logging.Log;
 import io.vertx.ext.web.RoutingContext;
@@ -13,10 +14,11 @@ import jakarta.inject.Inject;
 /**
  * Test-specific tenant resolver that reads the tenant ID from the 'X-Tenant-ID' HTTP header.
  * This allows tests to control the tenant context for each REST call in a reliable way.
+ * DISABLED: Now using UnifiedTenantResolver which handles both production and test cases.
  */
-@Alternative
-@Priority(1)
-@ApplicationScoped
+// @Alternative - DISABLED: Now using UnifiedTenantResolver
+// @Priority(1)
+// @ApplicationScoped
 public class TestTenantResolver implements TenantResolver {
 
     public static final String TENANT_HEADER = "X-Tenant-ID";

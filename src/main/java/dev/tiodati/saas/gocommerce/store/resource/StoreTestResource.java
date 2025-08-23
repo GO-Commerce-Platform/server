@@ -3,7 +3,7 @@ package dev.tiodati.saas.gocommerce.store.resource;
 import java.util.HashMap;
 import java.util.Map;
 
-import dev.tiodati.saas.gocommerce.store.config.StoreSchemaResolver;
+import dev.tiodati.saas.gocommerce.store.config.UnifiedTenantResolver;
 import io.quarkus.hibernate.orm.PersistenceUnitExtension; // Import the qualifier
 import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -22,16 +22,13 @@ import jakarta.ws.rs.core.Response;
 public class StoreTestResource {
 
     /**
-     * Resolver for store schemas, which is used to determine the current tenant
-     * ID and the default tenant ID. This resolver is specifically qualified
-     * with {@link PersistenceUnitExtension} to ensure it uses the correct
+     * Unified resolver for store schemas that works in both production and test environments.
+     * It is qualified with {@link PersistenceUnitExtension} to ensure it uses the correct
      * persistence unit.
      */
     @Inject
-    @PersistenceUnitExtension // Add this qualifier
-    private StoreSchemaResolver storeResolver; // Now specifying the exact type
-                                               // instead
-    // of using TenantResolver
+    @PersistenceUnitExtension
+    private UnifiedTenantResolver storeResolver;
 
     @GET
     @Path("/info")
