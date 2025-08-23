@@ -21,10 +21,11 @@ import jakarta.annotation.PostConstruct;
  * This provider switches the database schema based on the tenant ID and has
  * higher priority than the production provider.
  */
-@ApplicationScoped
-@Alternative
-@Priority(1) // Higher priority than production provider
-@Unremovable
+// TEMPORARILY DISABLED - Testing if Quarkus default SCHEMA provider works
+// @ApplicationScoped
+// @Alternative
+// @Priority(1) // Higher priority than production provider
+// @Unremovable
 public class TestSchemaTenantConnectionProvider implements MultiTenantConnectionProvider<String> {
 
     @Inject

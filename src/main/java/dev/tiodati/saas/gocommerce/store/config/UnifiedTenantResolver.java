@@ -24,22 +24,23 @@ public class UnifiedTenantResolver implements TenantResolver {
 
     public static final String TENANT_HEADER = "X-Tenant-ID";
 
-    @Inject
-    @ConfigProperty(name = "quarkus.hibernate-orm.database.default-schema")
-    private String defaultTenantSchema;
+    // Default tenant schema for fallback cases
+    // For SCHEMA multi-tenancy, we use 'public' as a safe default
+    // instead of relying on the removed default-schema configuration
+    private static final String DEFAULT_TENANT_SCHEMA = "public";
 
     @Inject
     Instance<RoutingContext> routingContextInstance;
 
     @PostConstruct
     public void init() {
-        Log.infof("🚀 UNIFIED RESOLVER: UnifiedTenantResolver initialized! Default schema: %s", defaultTenantSchema);
+        Log.infof("🚀 UNIFIED RESOLVER: UnifiedTenantResolver initialized! Default schema: %s", DEFAULT_TENANT_SCHEMA);
         Log.infof("📋 UNIFIED: Routing context instance available: %s", routingContextInstance != null ? "YES" : "NO");
     }
 
     @Override
     public String getDefaultTenantId() {
-        return defaultTenantSchema;
+        return DEFAULT_TENANT_SCHEMA;
     }
 
     @Override
@@ -77,8 +78,8 @@ public class UnifiedTenantResolver implements TenantResolver {
         }
 
         // Fallback: Use default tenant
-        Log.infof("🔄 UNIFIED: No tenant context found, using default: %s", defaultTenantSchema);
-        Log.infof("🎯 UNIFIED: *** FINAL RESULT *** returning tenant: %s", defaultTenantSchema);
+        Log.infof("🔄 UNIFIED: No tenant context found, using default: %s", DEFAULT_TENANT_SCHEMA);
+        Log.infof("🎯 UNIFIED: *** FINAL RESULT *** returning tenant: %s", DEFAULT_TENANT_SCHEMA);
         return getDefaultTenantId();
     }
 
