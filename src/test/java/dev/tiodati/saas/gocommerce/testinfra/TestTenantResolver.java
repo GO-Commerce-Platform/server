@@ -1,7 +1,9 @@
 package dev.tiodati.saas.gocommerce.testinfra;
 
 import io.quarkus.arc.Arc;
+import jakarta.enterprise.inject.Instance;
 import io.quarkus.hibernate.orm.runtime.tenant.TenantResolver;
+import io.quarkus.logging.Log;
 import io.vertx.ext.web.RoutingContext;
 import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -20,27 +22,36 @@ public class TestTenantResolver implements TenantResolver {
     public static final String TENANT_HEADER = "X-Tenant-ID";
 
     @Inject
-    RoutingContext routingContext;
+    Instance<RoutingContext> routingContextInstance;
 
     @Inject
     TestTenantContext testTenantContext;
 
     @Override
     public String resolveTenantId() {
-        // Prioritize TestTenantContext for non-HTTP contexts
+        // First priority: TestTenantContext (always available)
         if (testTenantContext != null && testTenantContext.getCurrentTenant() != null) {
-            return testTenantContext.getCurrentTenant();
+            String tenantId = testTenantContext.getCurrentTenant();
+            Log.debugf("TEST RESOLVER: Resolved tenant from TestTenantContext: %s", tenantId);
+            return tenantId;
         }
 
-        if (routingContext != null) {
-            String tenantId = routingContext.request().getHeader(TENANT_HEADER);
-            if (tenantId != null && !tenantId.trim().isEmpty()) {
-                return tenantId;
+        // Second priority: HTTP header (only in HTTP context)
+        if (routingContextInstance != null && routingContextInstance.isResolvable()) {
+            RoutingContext routingContext = routingContextInstance.get();
+            if (routingContext != null) {
+                String tenantId = routingContext.request().getHeader(TENANT_HEADER);
+                if (tenantId != null && !tenantId.trim().isEmpty()) {
+                    Log.debugf("TEST RESOLVER: Resolved tenant from HTTP header: %s", tenantId);
+                    return tenantId;
+                }
             }
         }
         
         // Fallback for non-HTTP contexts (e.g., direct service calls in tests)
-        return resolveTenantIdFromArc();
+        String fallbackTenant = resolveTenantIdFromArc();
+        Log.debugf("TEST RESOLVER: Resolved tenant from fallback: %s", fallbackTenant);
+        return fallbackTenant;
     }
 
     /**

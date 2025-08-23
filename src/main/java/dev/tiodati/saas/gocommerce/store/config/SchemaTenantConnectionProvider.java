@@ -8,6 +8,7 @@ import org.hibernate.service.UnknownUnwrapTypeException;
 
 import io.agroal.api.AgroalDataSource;
 import io.quarkus.logging.Log;
+import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -17,6 +18,11 @@ import jakarta.inject.Inject;
  */
 @ApplicationScoped
 public class SchemaTenantConnectionProvider implements MultiTenantConnectionProvider<String> {
+
+    @PostConstruct
+    public void init() {
+        Log.infof("PROD MTCP: SchemaTenantConnectionProvider initialized! This should appear if multi-tenancy is working.");
+    }
 
     @Inject
     private AgroalDataSource dataSource;
@@ -34,19 +40,19 @@ public class SchemaTenantConnectionProvider implements MultiTenantConnectionProv
 
     @Override
     public Connection getConnection(String tenantIdentifier) throws SQLException {
-        Log.infof("MTCP: getConnection called with tenant: %s", tenantIdentifier);
+        Log.infof("PROD MTCP: getConnection called with tenant: %s", tenantIdentifier);
         Connection connection = getAnyConnection();
         try {
             // Switch to the tenant's schema
             if (tenantIdentifier != null && !tenantIdentifier.trim().isEmpty()) {
-                Log.infof("Switching database schema to: %s", tenantIdentifier);
-                connection.createStatement().execute("SET search_path TO " + tenantIdentifier);
-                Log.infof("Successfully switched to schema: %s", tenantIdentifier);
+                Log.infof("PROD: Switching database schema to: %s", tenantIdentifier);
+                connection.createStatement().execute("SET search_path TO \"" + tenantIdentifier + "\"");
+                Log.infof("PROD: Successfully switched to schema: %s", tenantIdentifier);
             } else {
-                Log.warnf("No tenant identifier provided or empty, using default schema");
+                Log.warnf("PROD: No tenant identifier provided or empty, using default schema");
             }
         } catch (SQLException e) {
-            Log.errorf(e, "Failed to switch to schema: %s", tenantIdentifier);
+            Log.errorf(e, "PROD: Failed to switch to schema: %s", tenantIdentifier);
             releaseConnection(tenantIdentifier, connection);
             throw e;
         }

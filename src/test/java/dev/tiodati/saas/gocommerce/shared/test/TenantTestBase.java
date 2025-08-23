@@ -47,6 +47,16 @@ public abstract class TenantTestBase {
 
     private String testSchema;
 
+    /**
+     * Gets the current test schema name.
+     * This can be used by subclasses to reference the schema being used for the test.
+     * 
+     * @return the current test schema name
+     */
+    protected String getTestSchema() {
+        return testSchema;
+    }
+
     @BeforeEach
     void setupTenant() {
         this.testSchema = "test_store_" + UUID.randomUUID().toString().replace("-", "");

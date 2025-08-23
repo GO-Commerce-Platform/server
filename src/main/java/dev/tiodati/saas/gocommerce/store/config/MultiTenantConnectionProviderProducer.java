@@ -1,21 +1,5 @@
-package dev.tiodati.saas.gocommerce.store.config;
-
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.inject.Produces;
-import jakarta.inject.Inject;
-import org.hibernate.engine.jdbc.connections.spi.MultiTenantConnectionProvider;
-
-@ApplicationScoped
-public class MultiTenantConnectionProviderProducer {
-
-    @Inject
-    private SchemaTenantConnectionProvider schemaTenantConnectionProvider;
-
-    @Produces
-    @ApplicationScoped
-    public MultiTenantConnectionProvider<String> multiTenantConnectionProvider() {
-        return schemaTenantConnectionProvider;
-    }
-}
+// This file has been disabled to avoid conflicts with the direct class reference configuration in application.properties
+// The multi-tenant connection provider is now configured directly via:
+// quarkus.hibernate-orm.multitenant.tenant-connection-provider=dev.tiodati.saas.gocommerce.store.config.SchemaTenantConnectionProvider
 
 // Copilot: This file may have been generated or refactored by GitHub Copilot.

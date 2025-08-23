@@ -31,6 +31,7 @@ services:
         "start-dev",
         "--http-port=9000",
         "--hostname-strict=false",
+        "--http-enabled=true",
         "--http-relative-path=/",
         "--import-realm",
       ]
