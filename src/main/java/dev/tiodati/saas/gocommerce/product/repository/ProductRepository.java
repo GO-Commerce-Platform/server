@@ -130,31 +130,32 @@ public class ProductRepository implements PanacheRepositoryBase<Product, UUID> {
                                                 BigDecimal minPrice, BigDecimal maxPrice,
                                                 Boolean inStock, Page page) {
         StringBuilder query = new StringBuilder("status = ?1");
-        Object[] params = new Object[10]; // Max parameters we might use
-        int paramIndex = 1;
-        params[0] = ProductStatus.ACTIVE;
+        java.util.List<Object> paramList = new java.util.ArrayList<>();
+        paramList.add(ProductStatus.ACTIVE);
 
         if (searchTerm != null && !searchTerm.trim().isEmpty()) {
             String likePattern = "%" + searchTerm.toLowerCase() + "%";
-            query.append(" AND (LOWER(name) LIKE ?").append(++paramIndex);
-            query.append(" OR LOWER(description) LIKE ?").append(paramIndex);
-            query.append(" OR LOWER(sku) LIKE ?").append(paramIndex).append(")");
-            params[paramIndex - 1] = likePattern;
+            query.append(" AND (LOWER(name) LIKE ?" + (paramList.size() + 1));
+            query.append(" OR LOWER(description) LIKE ?" + (paramList.size() + 2));
+            query.append(" OR LOWER(sku) LIKE ?" + (paramList.size() + 3) + ")");
+            paramList.add(likePattern);
+            paramList.add(likePattern);
+            paramList.add(likePattern);
         }
 
         if (categoryId != null) {
-            query.append(" AND category.id = ?").append(++paramIndex);
-            params[paramIndex - 1] = categoryId;
+            query.append(" AND category.id = ?" + (paramList.size() + 1));
+            paramList.add(categoryId);
         }
 
         if (minPrice != null) {
-            query.append(" AND price >= ?").append(++paramIndex);
-            params[paramIndex - 1] = minPrice;
+            query.append(" AND price >= ?" + (paramList.size() + 1));
+            paramList.add(minPrice);
         }
 
         if (maxPrice != null) {
-            query.append(" AND price <= ?").append(++paramIndex);
-            params[paramIndex - 1] = maxPrice;
+            query.append(" AND price <= ?" + (paramList.size() + 1));
+            paramList.add(maxPrice);
         }
 
         if (inStock != null && inStock) {
@@ -163,11 +164,7 @@ public class ProductRepository implements PanacheRepositoryBase<Product, UUID> {
 
         query.append(" ORDER BY name");
 
-        // Create params array with only the used parameters
-        Object[] finalParams = new Object[paramIndex];
-        System.arraycopy(params, 0, finalParams, 0, paramIndex);
-
-        return find(query.toString(), finalParams)
+        return find(query.toString(), paramList.toArray())
                 .page(page)
                 .list();
     }

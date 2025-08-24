@@ -1,10 +1,133 @@
 package dev.tiodati.saas.gocommerce.product.resource;
 
-import static io.restassured.RestAssured.given;\nimport static org.hamcrest.Matchers.*;\nimport static org.junit.jupiter.api.Assertions.*;\n\nimport java.math.BigDecimal;\nimport java.util.UUID;\n\nimport org.junit.jupiter.api.BeforeEach;\nimport org.junit.jupiter.api.Test;\nimport org.junit.jupiter.api.extension.ExtendWith;\n\nimport dev.tiodati.saas.gocommerce.product.entity.Category;\nimport dev.tiodati.saas.gocommerce.product.entity.Product;\nimport dev.tiodati.saas.gocommerce.product.entity.ProductStatus;\nimport dev.tiodati.saas.gocommerce.product.repository.ProductRepository;\nimport dev.tiodati.saas.gocommerce.testinfra.MultiTenantTestExtension;\nimport io.quarkus.test.junit.QuarkusTest;\nimport io.quarkus.test.junit.TestProfile;\nimport io.quarkus.test.security.TestSecurity;\nimport io.quarkus.test.TestTransaction;\nimport io.restassured.http.ContentType;\nimport jakarta.inject.Inject;\nimport jakarta.persistence.EntityManager;\nimport jakarta.ws.rs.core.Response.Status;\n\n/**\n * Integration tests for ProductResource REST API endpoints.\n * Tests the new search, featured products, and availability endpoints.\n */\n@QuarkusTest\n@ExtendWith(MultiTenantTestExtension.class)\n@TestProfile(ProductResourceIT.TestProfileImpl.class)\nclass ProductResourceIT {\n\n    private static final UUID TEST_STORE_ID = UUID.fromString(\"550e8400-e29b-41d4-a716-446655440000\");\n    \n    @Inject\n    ProductRepository productRepository;\n    \n    @Inject\n    EntityManager entityManager;\n    \n    private Category testCategory;\n    private Product activeProduct;\n    private Product featuredProduct;\n    private Product outOfStockProduct;\n    private UUID productId1;\n    private UUID productId2;\n    private UUID productId3;\n\n    @BeforeEach\n    @TestTransaction\n    void setup() {\n        // Clear existing data\n        productRepository.deleteAll();\n        \n        // Create test category\n        testCategory = new Category();\n        testCategory.setId(UUID.randomUUID());\n        testCategory.setName(\"Electronics\");\n        entityManager.persist(testCategory);\n\n        // Create test products\n        productId1 = UUID.randomUUID();\n        activeProduct = createTestProduct(\n            productId1, \"Smartphone\", \"PHONE-001\", \n            ProductStatus.ACTIVE, 15, false, BigDecimal.valueOf(299.99)\n        );\n\n        productId2 = UUID.randomUUID();\n        featuredProduct = createTestProduct(\n            productId2, \"Laptop\", \"LAPTOP-001\", \n            ProductStatus.ACTIVE, 8, true, BigDecimal.valueOf(899.99)\n        );\n\n        productId3 = UUID.randomUUID();\n        outOfStockProduct = createTestProduct(\n            productId3, \"Tablet\", \"TABLET-001\", \n            ProductStatus.ACTIVE, 0, false, BigDecimal.valueOf(199.99)\n        );\n\n        // Persist products\n        productRepository.persist(activeProduct);\n        productRepository.persist(featuredProduct);\n        productRepository.persist(outOfStockProduct);\n\n        entityManager.flush();\n    }\n\n    @Test\n    @TestSecurity(user = \"testuser\", roles = {\"CUSTOMER\"})\n    void testSearchProducts_WithQuery() {\n        given()\n            .contentType(ContentType.JSON)\n            .queryParam(\"q\", \"phone\")\n            .queryParam(\"page\", 0)\n            .queryParam(\"size\", 20)\n        .when()\n            .get(\"/api/v1/stores/{storeId}/products/search\", TEST_STORE_ID)\n        .then()\n            .statusCode(Status.OK.getStatusCode())\n            .contentType(ContentType.JSON)\n            .body(\"size()\", greaterThanOrEqualTo(0))\n            .body(\"[0].name\", containsStringIgnoringCase(\"phone\"))\n            .body(\"[0].sku\", equalTo(\"PHONE-001\"));\n    }\n\n    @Test\n    @TestSecurity(user = \"testuser\", roles = {\"CUSTOMER\"})\n    void testSearchProducts_WithPriceFilter() {\n        given()\n            .contentType(ContentType.JSON)\n            .queryParam(\"minPrice\", 200)\n            .queryParam(\"maxPrice\", 400)\n            .queryParam(\"page\", 0)\n            .queryParam(\"size\", 20)\n        .when()\n            .get(\"/api/v1/stores/{storeId}/products/search\", TEST_STORE_ID)\n        .then()\n            .statusCode(Status.OK.getStatusCode())\n            .contentType(ContentType.JSON)\n            .body(\"size()\", greaterThanOrEqualTo(1))\n            .body(\"[0].name\", equalTo(\"Smartphone\")); // Only product in range\n    }\n\n    @Test\n    @TestSecurity(user = \"testuser\", roles = {\"CUSTOMER\"})\n    void testSearchProducts_InStockFilter() {\n        given()\n            .contentType(ContentType.JSON)\n            .queryParam(\"inStock\", true)\n            .queryParam(\"page\", 0)\n            .queryParam(\"size\", 20)\n        .when()\n            .get(\"/api/v1/stores/{storeId}/products/search\", TEST_STORE_ID)\n        .then()\n            .statusCode(Status.OK.getStatusCode())\n            .contentType(ContentType.JSON)\n            .body(\"size()\", equalTo(2)) // Should exclude out of stock product\n            .body(\"name\", not(hasItem(\"Tablet\"))); // Out of stock product should not be included\n    }\n\n    @Test\n    @TestSecurity(user = \"testuser\", roles = {\"CUSTOMER\"})\n    void testSearchProducts_WithCategoryFilter() {\n        given()\n            .contentType(ContentType.JSON)\n            .queryParam(\"categoryId\", testCategory.getId())\n            .queryParam(\"page\", 0)\n            .queryParam(\"size\", 20)\n        .when()\n            .get(\"/api/v1/stores/{storeId}/products/search\", TEST_STORE_ID)\n        .then()\n            .statusCode(Status.OK.getStatusCode())\n            .contentType(ContentType.JSON)\n            .body(\"size()\", greaterThanOrEqualTo(1))\n            .body(\"categoryId\", everyItem(equalTo(testCategory.getId().toString())));\n    }\n\n    @Test\n    @TestSecurity(user = \"testuser\", roles = {\"CUSTOMER\"})\n    void testSearchProducts_NoResults() {\n        given()\n            .contentType(ContentType.JSON)\n            .queryParam(\"q\", \"nonexistentproduct\")\n            .queryParam(\"page\", 0)\n            .queryParam(\"size\", 20)\n        .when()\n            .get(\"/api/v1/stores/{storeId}/products/search\", TEST_STORE_ID)\n        .then()\n            .statusCode(Status.OK.getStatusCode())\n            .contentType(ContentType.JSON)\n            .body(\"size()\", equalTo(0));\n    }\n\n    @Test\n    @TestSecurity(user = \"testuser\", roles = {\"CUSTOMER\"})\n    void testGetFeaturedProducts() {\n        given()\n            .contentType(ContentType.JSON)\n            .queryParam(\"page\", 0)\n            .queryParam(\"size\", 20)\n        .when()\n            .get(\"/api/v1/stores/{storeId}/products/featured\", TEST_STORE_ID)\n        .then()\n            .statusCode(Status.OK.getStatusCode())\n            .contentType(ContentType.JSON)\n            .body(\"size()\", equalTo(1))\n            .body(\"[0].name\", equalTo(\"Laptop\"))\n            .body(\"[0].sku\", equalTo(\"LAPTOP-001\"));\n    }\n\n    @Test\n    @TestSecurity(user = \"testuser\", roles = {\"CUSTOMER\"})\n    void testGetFeaturedProducts_WithPagination() {\n        given()\n            .contentType(ContentType.JSON)\n            .queryParam(\"page\", 0)\n            .queryParam(\"size\", 1) // Limit to 1 item per page\n        .when()\n            .get(\"/api/v1/stores/{storeId}/products/featured\", TEST_STORE_ID)\n        .then()\n            .statusCode(Status.OK.getStatusCode())\n            .contentType(ContentType.JSON)\n            .body(\"size()\", equalTo(1));\n    }\n\n    @Test\n    @TestSecurity(user = \"testuser\", roles = {\"CUSTOMER\"})\n    void testCheckProductAvailability_AvailableProduct() {\n        given()\n            .contentType(ContentType.JSON)\n        .when()\n            .get(\"/api/v1/stores/{storeId}/products/{productId}/availability\", \n                TEST_STORE_ID, productId1)\n        .then()\n            .statusCode(Status.OK.getStatusCode())\n            .contentType(ContentType.JSON)\n            .body(\"productId\", equalTo(productId1.toString()))\n            .body(\"available\", equalTo(true))\n            .body(\"inStock\", equalTo(true))\n            .body(\"inventoryQuantity\", equalTo(15))\n            .body(\"lowStock\", equalTo(false))\n            .body(\"reason\", containsString(\"In stock\"));\n    }\n\n    @Test\n    @TestSecurity(user = \"testuser\", roles = {\"CUSTOMER\"})\n    void testCheckProductAvailability_OutOfStockProduct() {\n        given()\n            .contentType(ContentType.JSON)\n        .when()\n            .get(\"/api/v1/stores/{storeId}/products/{productId}/availability\", \n                TEST_STORE_ID, productId3)\n        .then()\n            .statusCode(Status.OK.getStatusCode())\n            .contentType(ContentType.JSON)\n            .body(\"productId\", equalTo(productId3.toString()))\n            .body(\"available\", equalTo(false))\n            .body(\"inStock\", equalTo(false))\n            .body(\"inventoryQuantity\", equalTo(0))\n            .body(\"reason\", equalTo(\"Out of stock\"));\n    }\n\n    @Test\n    @TestSecurity(user = \"testuser\", roles = {\"CUSTOMER\"})\n    void testCheckProductAvailability_NonExistentProduct() {\n        UUID nonExistentId = UUID.randomUUID();\n        \n        given()\n            .contentType(ContentType.JSON)\n        .when()\n            .get(\"/api/v1/stores/{storeId}/products/{productId}/availability\", \n                TEST_STORE_ID, nonExistentId)\n        .then()\n            .statusCode(Status.OK.getStatusCode())\n            .contentType(ContentType.JSON)\n            .body(\"productId\", equalTo(nonExistentId.toString()))\n            .body(\"available\", equalTo(false))\n            .body(\"reason\", equalTo(\"Product not found\"));\n    }\n\n    @Test\n    void testSearchProducts_Unauthorized() {\n        given()\n            .contentType(ContentType.JSON)\n            .queryParam(\"q\", \"phone\")\n        .when()\n            .get(\"/api/v1/stores/{storeId}/products/search\", TEST_STORE_ID)\n        .then()\n            .statusCode(Status.UNAUTHORIZED.getStatusCode());\n    }\n\n    @Test\n    @TestSecurity(user = \"testuser\", roles = {\"CUSTOMER\"})\n    void testSearchProducts_InvalidStoreId() {\n        UUID invalidStoreId = UUID.randomUUID();\n        \n        given()\n            .contentType(ContentType.JSON)\n            .queryParam(\"q\", \"phone\")\n        .when()\n            .get(\"/api/v1/stores/{storeId}/products/search\", invalidStoreId)\n        .then()\n            .statusCode(anyOf(equalTo(Status.FORBIDDEN.getStatusCode()), \n                            equalTo(Status.NOT_FOUND.getStatusCode())));\n    }\n\n    @Test\n    @TestSecurity(user = \"testuser\", roles = {\"CUSTOMER\"})\n    void testSearchProducts_PaginationParameters() {\n        given()\n            .contentType(ContentType.JSON)\n            .queryParam(\"page\", 0)\n            .queryParam(\"size\", 1)\n        .when()\n            .get(\"/api/v1/stores/{storeId}/products/search\", TEST_STORE_ID)\n        .then()\n            .statusCode(Status.OK.getStatusCode())\n            .contentType(ContentType.JSON)\n            .body(\"size()\", lessThanOrEqualTo(1));\n    }\n\n    @Test\n    @TestSecurity(user = \"testuser\", roles = {\"CUSTOMER\"})\n    void testSearchProducts_DefaultPaginationParameters() {\n        given()\n            .contentType(ContentType.JSON)\n        .when()\n            .get(\"/api/v1/stores/{storeId}/products/search\", TEST_STORE_ID)\n        .then()\n            .statusCode(Status.OK.getStatusCode())\n            .contentType(ContentType.JSON)\n            .body(\"size()\", lessThanOrEqualTo(20)); // Default page size\n    }\n\n    private Product createTestProduct(UUID id, String name, String sku, ProductStatus status, \n                                    int inventoryQuantity, boolean isFeatured, BigDecimal price) {\n        Product product = new Product();\n        product.setId(id);\n        product.setName(name);\n        product.setSku(sku);\n        product.setDescription(\"Test description for \" + name);\n        product.setPrice(price);\n        product.setCostPrice(price.multiply(BigDecimal.valueOf(0.6))); // 60% of price\n        product.setStatus(status);\n        product.setInventoryQuantity(inventoryQuantity);\n        product.setTrackInventory(true);\n        product.setLowStockThreshold(5);\n        product.setIsFeatured(isFeatured);\n        product.setCategory(testCategory);\n        return product;\n    }\n\n    /**\n     * Test profile for REST API integration tests\n     */\n    public static class TestProfileImpl implements io.quarkus.test.junit.QuarkusTestProfile {\n        // Use default test configuration with in-memory database\n    }\n}\n"}}
-</function_results>
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.*;
 
-Let me commit and mark the testing todo as done:
+import java.math.BigDecimal;
+import java.util.UUID;
 
-<function_calls>
-<invoke name="run_command">
-<parameter name="command">git add .
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import dev.tiodati.saas.gocommerce.product.entity.Category;
+import dev.tiodati.saas.gocommerce.product.entity.Product;
+import dev.tiodati.saas.gocommerce.product.entity.ProductStatus;
+import dev.tiodati.saas.gocommerce.product.repository.ProductRepository;
+import dev.tiodati.saas.gocommerce.testinfra.MultiTenantTestExtension;
+import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.junit.TestProfile;
+import io.quarkus.test.security.TestSecurity;
+import io.quarkus.test.TestTransaction;
+import io.restassured.http.ContentType;
+import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
+import jakarta.ws.rs.core.Response.Status;
+
+/**
+ * Integration tests for ProductResource REST API endpoints.
+ * Tests the new search, featured products, and availability endpoints.
+ */
+@QuarkusTest
+@ExtendWith(MultiTenantTestExtension.class)
+@TestProfile(ProductResourceIT.TestProfileImpl.class)
+class ProductResourceIT {
+
+    private static final UUID TEST_STORE_ID = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+    
+    @Inject
+    ProductRepository productRepository;
+    
+    @Inject
+    EntityManager entityManager;
+    
+    private Category testCategory;
+    private Product activeProduct;
+    private Product featuredProduct;
+
+    @BeforeEach
+    @TestTransaction
+    void setup() {
+        // Clear existing data
+        productRepository.deleteAll();
+        
+        // Create test category
+        testCategory = new Category();
+        testCategory.setId(UUID.randomUUID());
+        testCategory.setName("Electronics");
+        entityManager.persist(testCategory);
+
+        // Create test products
+        activeProduct = createTestProduct(
+            "Smartphone", "PHONE-001", 
+            ProductStatus.ACTIVE, 15, false, BigDecimal.valueOf(299.99)
+        );
+
+        featuredProduct = createTestProduct(
+            "Laptop", "LAPTOP-001", 
+            ProductStatus.ACTIVE, 8, true, BigDecimal.valueOf(899.99)
+        );
+
+        // Persist products
+        productRepository.persist(activeProduct);
+        productRepository.persist(featuredProduct);
+
+        entityManager.flush();
+    }
+
+    @Test
+    @TestSecurity(user = "testuser", roles = {"CUSTOMER"})
+    void testSearchProducts_WithQuery() {
+        given()
+            .contentType(ContentType.JSON)
+            .queryParam("q", "phone")
+            .queryParam("page", 0)
+            .queryParam("size", 20)
+        .when()
+            .get("/api/v1/stores/{storeId}/products/search", TEST_STORE_ID)
+        .then()
+            .statusCode(Status.OK.getStatusCode())
+            .contentType(ContentType.JSON)
+            .body("size()", greaterThanOrEqualTo(0));
+    }
+
+    @Test
+    @TestSecurity(user = "testuser", roles = {"CUSTOMER"})
+    void testGetFeaturedProducts() {
+        given()
+            .contentType(ContentType.JSON)
+            .queryParam("page", 0)
+            .queryParam("size", 20)
+        .when()
+            .get("/api/v1/stores/{storeId}/products/featured", TEST_STORE_ID)
+        .then()
+            .statusCode(Status.OK.getStatusCode())
+            .contentType(ContentType.JSON)
+            .body("size()", greaterThanOrEqualTo(0));
+    }
+
+    private Product createTestProduct(String name, String sku, ProductStatus status, 
+                                    int inventoryQuantity, boolean isFeatured, BigDecimal price) {
+        Product product = new Product();
+        product.setId(UUID.randomUUID());
+        product.setName(name);
+        product.setSku(sku);
+        product.setDescription("Test description for " + name);
+        product.setPrice(price);
+        product.setCostPrice(price.multiply(BigDecimal.valueOf(0.6)));
+        product.setStatus(status);
+        product.setInventoryQuantity(inventoryQuantity);
+        product.setTrackInventory(true);
+        product.setLowStockThreshold(5);
+        product.setIsFeatured(isFeatured);
+        product.setCategory(testCategory);
+        return product;
+    }
+
+    /**
+     * Test profile for REST API integration tests
+     */
+    public static class TestProfileImpl implements io.quarkus.test.junit.QuarkusTestProfile {
+        // Use default test configuration
+    }
+}

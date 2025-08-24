@@ -52,9 +52,11 @@ class ProductRepositoryTest {
         
         // Create test category
         testCategory = new Category();
-        testCategory.setId(UUID.randomUUID());
         testCategory.setName("Test Category");
+        testCategory.setSlug("test-category");
+        testCategory.setDescription("Test category for repository tests");
         entityManager.persist(testCategory);
+        entityManager.flush(); // Ensure category is saved first
 
         // Create test products
         activeProduct = createTestProduct("Active Product", "ACT-001", ProductStatus.ACTIVE, 10, false);
@@ -262,7 +264,7 @@ class ProductRepositoryTest {
     private Product createTestProduct(String name, String sku, ProductStatus status, 
                                     int inventoryQuantity, boolean isFeatured) {
         Product product = new Product();
-        product.setId(UUID.randomUUID());
+        // Don't set ID manually - let Hibernate generate it
         product.setName(name);
         product.setSku(sku);
         product.setDescription("Test description for " + name);
