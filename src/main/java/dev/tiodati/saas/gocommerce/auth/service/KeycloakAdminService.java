@@ -332,4 +332,44 @@ public class KeycloakAdminService {
                     Response.Status.INTERNAL_SERVER_ERROR);
         }
     }
+
+    /**
+     * Sets the enabled status of a user.
+     *
+     * @param userId  The UUID of the user.
+     * @param enabled Whether the user should be enabled or disabled.
+     */
+    public void setUserEnabled(String userId, boolean enabled) {
+        Log.infof("Attempting to %s user %s in realm %s", 
+                enabled ? "enable" : "disable", userId, targetRealm);
+
+        try {
+            UserResource userResource = keycloakAdminClient.realm(targetRealm)
+                    .users().get(userId);
+            
+            // Get current user representation
+            UserRepresentation userRep = userResource.toRepresentation();
+            
+            // Update enabled status
+            userRep.setEnabled(enabled);
+            
+            // Update the user
+            userResource.update(userRep);
+            
+            Log.infof("Successfully %s user %s in realm %s", 
+                    enabled ? "enabled" : "disabled", userId, targetRealm);
+                    
+        } catch (jakarta.ws.rs.NotFoundException e) {
+            Log.errorf("User %s not found in realm %s", userId, targetRealm);
+            throw new WebApplicationException(
+                    "User not found: " + userId, Response.Status.NOT_FOUND);
+        } catch (WebApplicationException wae) {
+            throw wae;
+        } catch (Exception e) {
+            Log.errorf(e, "Failed to update enabled status for user %s", userId);
+            throw new WebApplicationException(
+                    "Failed to update user enabled status: " + e.getMessage(),
+                    Response.Status.INTERNAL_SERVER_ERROR);
+        }
+    }
 }

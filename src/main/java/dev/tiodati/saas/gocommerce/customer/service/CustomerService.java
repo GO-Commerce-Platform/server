@@ -53,6 +53,35 @@ public interface CustomerService {
     CustomerDto createCustomer(UUID storeId, CreateCustomerDto customerDto);
 
     /**
+     * Create a new customer with Keycloak user ID.
+     *
+     * @param storeId        The store ID
+     * @param customerDto    Customer data
+     * @param keycloakUserId The Keycloak user ID
+     * @return The created customer
+     */
+    CustomerDto createCustomerWithKeycloak(UUID storeId, CreateCustomerDto customerDto, String keycloakUserId);
+
+    /**
+     * Find a customer by Keycloak user ID.
+     *
+     * @param storeId        The store ID
+     * @param keycloakUserId The Keycloak user ID
+     * @return Optional containing the customer if found
+     */
+    Optional<CustomerDto> findCustomerByKeycloakUserId(UUID storeId, String keycloakUserId);
+
+    /**
+     * Link an existing customer with a Keycloak user.
+     *
+     * @param storeId        The store ID
+     * @param customerId     The customer ID
+     * @param keycloakUserId The Keycloak user ID
+     * @return Optional containing the updated customer if found
+     */
+    Optional<CustomerDto> linkCustomerWithKeycloak(UUID storeId, UUID customerId, String keycloakUserId);
+
+    /**
      * Update an existing customer.
      *
      * @param storeId     The store ID

@@ -29,6 +29,17 @@ public class CustomerRepository implements PanacheRepositoryBase<Customer, UUID>
     }
 
     /**
+     * Find customer by Keycloak user ID.
+     *
+     * @param keycloakUserId the Keycloak user ID
+     * @return optional customer
+     */
+    public Optional<Customer> findByKeycloakUserId(String keycloakUserId) {
+        return find("keycloakUserId = ?1", keycloakUserId)
+                .firstResultOptional();
+    }
+
+    /**
      * Find active customers with pagination.
      *
      * @param page the page information
@@ -101,6 +112,18 @@ public class CustomerRepository implements PanacheRepositoryBase<Customer, UUID>
     @jakarta.transaction.Transactional
     public int updateStatus(UUID customerId, CustomerStatus status) {
         return update("status = ?1 WHERE id = ?2", status, customerId);
+    }
+
+    /**
+     * Update customer's Keycloak user ID.
+     *
+     * @param customerId     the customer ID
+     * @param keycloakUserId the Keycloak user ID
+     * @return number of updated records
+     */
+    @jakarta.transaction.Transactional
+    public int updateKeycloakUserId(UUID customerId, String keycloakUserId) {
+        return update("keycloakUserId = ?1 WHERE id = ?2", keycloakUserId, customerId);
     }
 }
 

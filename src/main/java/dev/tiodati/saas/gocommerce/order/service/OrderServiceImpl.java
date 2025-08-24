@@ -18,13 +18,9 @@ import dev.tiodati.saas.gocommerce.order.dto.OrderItemDto;
 import dev.tiodati.saas.gocommerce.order.entity.OrderHeader;
 import dev.tiodati.saas.gocommerce.order.entity.OrderItem;
 import dev.tiodati.saas.gocommerce.order.entity.OrderStatus;
+import dev.tiodati.saas.gocommerce.order.repository.OrderItemRepository;
 import dev.tiodati.saas.gocommerce.order.repository.OrderRepository;
 import dev.tiodati.saas.gocommerce.product.entity.Product;
-
-/**
- * Implementation of OrderService providing store-specific order management
- * functionality.
- */
 @ApplicationScoped
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
@@ -33,6 +29,11 @@ public class OrderServiceImpl implements OrderService {
      * Repository for order data access operations.
      */
     private final OrderRepository orderRepository;
+
+    /**
+     * Repository for order item data access operations.
+     */
+    private final OrderItemRepository orderItemRepository;
 
     @Override
     public List<OrderDto> listOrders(UUID storeId, int page, int size, String statusId) {
@@ -250,8 +251,11 @@ public class OrderServiceImpl implements OrderService {
      * @return the corresponding OrderDto
      */
     private OrderDto mapToDto(OrderHeader order) {
-        // Get order items (this would require a separate query or lazy loading)
-        List<OrderItemDto> items = List.of(); // FIXME: Implement order items loading
+        // Load order items for this order
+        List<OrderItemDto> items = orderItemRepository.findByOrderId(order.getId())
+                .stream()
+                .map(this::mapOrderItemToDto)
+                .toList();
 
         return new OrderDto(
                 order.getId(),
@@ -295,6 +299,28 @@ public class OrderServiceImpl implements OrderService {
     }
 
     /**
+     * Maps an OrderItem entity to OrderItemDto.
+     *
+     * @param orderItem the OrderItem entity to map
+     * @return the corresponding OrderItemDto
+     */
+    private OrderItemDto mapOrderItemToDto(OrderItem orderItem) {
+        return new OrderItemDto(
+                orderItem.getId(),
+                orderItem.getOrder().getId(),
+                orderItem.getProduct().getId(),
+                orderItem.getQuantity(),
+                orderItem.getUnitPrice(),
+                orderItem.getTotalPrice(),
+                orderItem.getProductName(),
+                orderItem.getProductSku(),
+                orderItem.getCreatedAt(),
+                orderItem.getUpdatedAt(),
+                orderItem.getVersion()
+        );
+    }
+
+    /**
      * Creates an OrderItem entity from the create DTO.
      *
      * @param order   The parent order
@@ -302,8 +328,11 @@ public class OrderServiceImpl implements OrderService {
      * @return The created OrderItem entity
      */
     private OrderItem createOrderItem(OrderHeader order, CreateOrderDto.CreateOrderItemDto itemDto) {
-        // Create a product reference using EntityManager.getReference to avoid detached entity issues
-        var product = orderRepository.getEntityManager().getReference(Product.class, itemDto.productId());
+        // Fetch the actual product to get its details
+        var product = orderRepository.getEntityManager().find(Product.class, itemDto.productId());
+        if (product == null) {
+            throw new IllegalArgumentException("Product not found: " + itemDto.productId());
+        }
 
         var totalPrice = itemDto.unitPrice().multiply(BigDecimal.valueOf(itemDto.quantity()));
 
@@ -313,8 +342,8 @@ public class OrderServiceImpl implements OrderService {
                 .quantity(itemDto.quantity())
                 .unitPrice(itemDto.unitPrice())
                 .totalPrice(totalPrice)
-                .productName("Product Name") // FIXME: Fetch from product
-                .productSku("SKU") // FIXME: Fetch from product
+                .productName(product.getName())
+                .productSku(product.getSku())
                 .build();
     }
 

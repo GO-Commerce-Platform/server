@@ -28,6 +28,9 @@ CREATE TABLE customer (
     marketing_emails_opt_in BOOLEAN NOT NULL DEFAULT FALSE,
     preferred_language VARCHAR(5) DEFAULT 'en', -- ISO 639-1 language code
 
+    -- Authentication integration
+    keycloak_user_id VARCHAR(255) UNIQUE, -- Links customer profile with Keycloak authentication account
+
     -- Audit fields
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -38,5 +41,6 @@ CREATE TABLE customer (
 CREATE INDEX idx_customer_email ON customer (email);
 CREATE INDEX idx_customer_status ON customer (status);
 CREATE INDEX idx_customer_created_at ON customer (created_at);
+CREATE INDEX idx_customer_keycloak_user_id ON customer (keycloak_user_id);
 
 -- Copilot: This file may have been generated or refactored by GitHub Copilot.

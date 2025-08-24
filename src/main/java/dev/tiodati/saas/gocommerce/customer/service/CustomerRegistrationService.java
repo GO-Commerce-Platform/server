@@ -71,12 +71,10 @@ public class CustomerRegistrationService {
                 assignCustomerRoles(keycloakUserId);
             }
 
-            // Step 4: Create customer profile
-            CustomerDto createdCustomer = customerService.createCustomer(storeId, customerDto);
-            Log.infof("Created customer profile with ID: %s", createdCustomer.id());
-
-            // TODO: Store the association between customer ID and Keycloak user ID
-            // This might require extending the Customer entity with a keycloakUserId field
+            // Step 4: Create customer profile with Keycloak user ID
+            CustomerDto createdCustomer = customerService.createCustomerWithKeycloak(storeId, customerDto, keycloakUserId);
+            Log.infof("Created customer profile with ID: %s (linked to Keycloak user: %s)", 
+                    createdCustomer.id(), keycloakUserId);
 
             Log.infof("Successfully completed customer registration for %s", customerDto.email());
             return createdCustomer;
@@ -228,14 +226,41 @@ public class CustomerRegistrationService {
             UUID customerId,
             String keycloakUserId) {
 
-        Log.infof("Linking customer %s with Keycloak user %s", customerId, keycloakUserId);
+        Log.infof("Linking customer %s with Keycloak user %s for store %s", customerId, keycloakUserId, storeId);
 
-        // TODO: Implement the linking logic
-        // This would require extending the Customer entity to store keycloakUserId
-        // For now, return the existing customer
+        try {
+            // Step 1: Verify the customer exists
+            var existingCustomer = customerService.findCustomer(storeId, customerId)
+                    .orElseThrow(() -> new CustomerRegistrationException("Customer not found: " + customerId));
 
-        return customerService.findCustomer(storeId, customerId)
-                .orElseThrow(() -> new CustomerRegistrationException("Customer not found"));
+            // Step 2: Check if the customer is already linked to a different Keycloak user
+            if (existingCustomer.keycloakUserId() != null && !existingCustomer.keycloakUserId().equals(keycloakUserId)) {
+                Log.warnf("Customer %s is already linked to Keycloak user %s, unlinking first", 
+                        customerId, existingCustomer.keycloakUserId());
+            }
+
+            // Step 3: Check if the Keycloak user is already linked to a different customer
+            var customerWithSameKeycloakId = customerService.findCustomerByKeycloakUserId(storeId, keycloakUserId);
+            if (customerWithSameKeycloakId.isPresent() && !customerWithSameKeycloakId.get().id().equals(customerId)) {
+                throw new CustomerRegistrationException(
+                        "Keycloak user " + keycloakUserId + " is already linked to a different customer: " 
+                        + customerWithSameKeycloakId.get().id());
+            }
+
+            // Step 4: Perform the linking
+            var linkedCustomer = customerService.linkCustomerWithKeycloak(storeId, customerId, keycloakUserId)
+                    .orElseThrow(() -> new CustomerRegistrationException("Failed to link customer with Keycloak user"));
+
+            Log.infof("Successfully linked customer %s with Keycloak user %s", customerId, keycloakUserId);
+            return linkedCustomer;
+
+        } catch (CustomerRegistrationException e) {
+            throw e;
+        } catch (Exception e) {
+            Log.errorf(e, "Failed to link customer %s with Keycloak user %s", customerId, keycloakUserId);
+            throw new CustomerRegistrationException(
+                    "Failed to link customer with Keycloak user: " + e.getMessage(), e);
+        }
     }
 
     /**
@@ -255,21 +280,59 @@ public class CustomerRegistrationService {
             CustomerStatus status,
             boolean updateKeycloak) {
 
-        Log.infof("Updating customer %s status to %s", customerId, status);
+        Log.infof("Updating customer %s status to %s (updateKeycloak: %s)", customerId, status, updateKeycloak);
 
         // Update customer status
         var updatedCustomer = customerService.updateCustomerStatus(storeId, customerId, status)
                 .orElseThrow(() -> new CustomerRegistrationException("Customer not found"));
 
-        // TODO: If updateKeycloak is true and we have keycloakUserId,
-        // update the Keycloak user enabled status based on customer status
-
-        if (updateKeycloak) {
-            Log.infof("Keycloak user status update requested for customer %s", customerId);
-            // Implementation would require keycloakUserId from customer entity
+        // Synchronize Keycloak user status if requested and customer has associated Keycloak user
+        if (updateKeycloak && updatedCustomer.keycloakUserId() != null) {
+            try {
+                syncKeycloakUserStatus(updatedCustomer.keycloakUserId(), status);
+                Log.infof("Successfully synchronized Keycloak user %s status with customer status %s", 
+                        updatedCustomer.keycloakUserId(), status);
+            } catch (Exception e) {
+                Log.warnf(e, "Failed to update Keycloak user %s status for customer %s, but customer status was updated", 
+                        updatedCustomer.keycloakUserId(), customerId);
+                // Don't fail the entire operation if Keycloak sync fails
+            }
+        } else if (updateKeycloak && updatedCustomer.keycloakUserId() == null) {
+            Log.warnf("Keycloak synchronization requested for customer %s but no Keycloak user ID is associated", 
+                    customerId);
         }
 
         return updatedCustomer;
+    }
+
+    /**
+     * Synchronizes Keycloak user enabled status based on customer status.
+     *
+     * @param keycloakUserId The Keycloak user ID
+     * @param customerStatus The customer status to synchronize with
+     */
+    private void syncKeycloakUserStatus(String keycloakUserId, CustomerStatus customerStatus) {
+        Log.infof("Synchronizing Keycloak user %s with customer status %s", keycloakUserId, customerStatus);
+        
+        try {
+            boolean shouldBeEnabled = switch (customerStatus) {
+                case ACTIVE -> true;
+                case INACTIVE, SUSPENDED -> false;
+            };
+            
+            // Update Keycloak user enabled status
+            keycloakAdminService.setUserEnabled(keycloakUserId, shouldBeEnabled);
+            
+            Log.infof("Keycloak user %s %s based on customer status %s", 
+                    keycloakUserId, 
+                    shouldBeEnabled ? "enabled" : "disabled", 
+                    customerStatus);
+                    
+        } catch (Exception e) {
+            Log.errorf(e, "Failed to synchronize Keycloak user %s status", keycloakUserId);
+            throw new CustomerRegistrationException(
+                    "Failed to synchronize Keycloak user status: " + e.getMessage(), e);
+        }
     }
 
     /**
