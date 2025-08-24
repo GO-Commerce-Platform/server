@@ -17,6 +17,7 @@ import dev.tiodati.saas.gocommerce.auth.annotation.RequiresStoreRole;
 import dev.tiodati.saas.gocommerce.auth.model.Roles;
 import dev.tiodati.saas.gocommerce.auth.service.PermissionValidator;
 import dev.tiodati.saas.gocommerce.product.dto.CreateProductDto;
+import dev.tiodati.saas.gocommerce.product.dto.ProductAvailabilityDto;
 import dev.tiodati.saas.gocommerce.product.dto.ProductDto;
 import dev.tiodati.saas.gocommerce.product.service.ProductService;
 import jakarta.annotation.security.RolesAllowed;
@@ -250,6 +251,99 @@ public class ProductResource {
             Log.error("Error updating inventory", e);
             return Response.serverError()
                     .entity(Map.of("error", "Failed to update inventory: " + e.getMessage()))
+                    .build();
+        }
+    }
+
+    /**
+     * Search products with advanced filtering.
+     *
+     * @param storeId    The store ID
+     * @param query      Search query text (searches name, description, SKU)
+     * @param categoryId Optional category filter
+     * @param minPrice   Optional minimum price filter
+     * @param maxPrice   Optional maximum price filter
+     * @param inStock    Optional filter for products in stock only
+     * @param page       Page number for pagination
+     * @param size       Page size for pagination
+     * @return List of matching products
+     */
+    @GET
+    @Path("/search")
+    @Operation(summary = "Search products", 
+              description = "Search products by text query with optional filters for category, price range, and stock availability")
+    @RolesAllowed({ "PLATFORM_ADMIN", "STORE_ADMIN", "CUSTOMER", "PRODUCT_MANAGER" })
+    @APIResponses({
+            @APIResponse(responseCode = "200", description = "Search results retrieved successfully", 
+                        content = @Content(schema = @Schema(implementation = ProductDto.class)))
+    })
+    public List<ProductDto> searchProducts(
+            @PathParam("storeId") UUID storeId,
+            @QueryParam("q") String query,
+            @QueryParam("categoryId") UUID categoryId,
+            @QueryParam("minPrice") Double minPrice,
+            @QueryParam("maxPrice") Double maxPrice,
+            @QueryParam("inStock") Boolean inStock,
+            @QueryParam("page") @DefaultValue("0") int page,
+            @QueryParam("size") @DefaultValue("20") int size) {
+        Log.infof("Searching products for store %s: query='%s', filters=[category=%s, price=%s-%s, inStock=%s]",
+                storeId, query, categoryId, minPrice, maxPrice, inStock);
+        return productService.searchProducts(storeId, query, categoryId, minPrice, maxPrice, inStock, page, size);
+    }
+
+    /**
+     * Get featured products for a store.
+     *
+     * @param storeId The store ID
+     * @param page    Page number for pagination
+     * @param size    Page size for pagination
+     * @return List of featured products
+     */
+    @GET
+    @Path("/featured")
+    @Operation(summary = "Get featured products", 
+              description = "Retrieves products marked as featured for promotional display")
+    @RolesAllowed({ "PLATFORM_ADMIN", "STORE_ADMIN", "CUSTOMER", "PRODUCT_MANAGER" })
+    @APIResponses({
+            @APIResponse(responseCode = "200", description = "Featured products retrieved successfully", 
+                        content = @Content(schema = @Schema(implementation = ProductDto.class)))
+    })
+    public List<ProductDto> getFeaturedProducts(
+            @PathParam("storeId") UUID storeId,
+            @QueryParam("page") @DefaultValue("0") int page,
+            @QueryParam("size") @DefaultValue("20") int size) {
+        Log.infof("Getting featured products for store %s (page=%d, size=%d)", storeId, page, size);
+        return productService.getFeaturedProducts(storeId, page, size);
+    }
+
+    /**
+     * Check product availability and stock status.
+     *
+     * @param storeId   The store ID
+     * @param productId The product ID
+     * @return Detailed availability information
+     */
+    @GET
+    @Path("/{productId}/availability")
+    @Operation(summary = "Check product availability", 
+              description = "Returns detailed availability information including stock status, availability, and reasons if not available")
+    @RolesAllowed({ "PLATFORM_ADMIN", "STORE_ADMIN", "CUSTOMER", "PRODUCT_MANAGER" })
+    @APIResponses({
+            @APIResponse(responseCode = "200", description = "Availability information retrieved successfully", 
+                        content = @Content(schema = @Schema(implementation = ProductAvailabilityDto.class))),
+            @APIResponse(responseCode = "404", description = "Product not found")
+    })
+    public Response checkProductAvailability(
+            @PathParam("storeId") UUID storeId,
+            @PathParam("productId") UUID productId) {
+        Log.infof("Checking availability for product %s in store %s", productId, storeId);
+        try {
+            ProductAvailabilityDto availability = productService.checkProductAvailability(storeId, productId);
+            return Response.ok(availability).build();
+        } catch (Exception e) {
+            Log.error("Error checking product availability", e);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity(Map.of("error", "Failed to check availability: " + e.getMessage()))
                     .build();
         }
     }

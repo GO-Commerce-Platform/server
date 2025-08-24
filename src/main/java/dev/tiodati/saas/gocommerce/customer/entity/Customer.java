@@ -171,6 +171,13 @@ public class Customer extends PanacheEntityBase {
     private String preferredLanguage = "en";
 
     /**
+     * Associated Keycloak user ID for authentication integration.
+     * This field links the customer profile with their authentication account.
+     */
+    @Column(name = "keycloak_user_id", unique = true)
+    private String keycloakUserId;
+
+    /**
      * Timestamp when the customer was created.
      */
     @Column(name = "created_at", updatable = false)

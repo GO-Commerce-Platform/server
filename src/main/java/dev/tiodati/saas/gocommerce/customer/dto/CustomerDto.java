@@ -27,6 +27,7 @@ import dev.tiodati.saas.gocommerce.customer.entity.CustomerStatus;
  * @param emailVerified        Whether the customer's email is verified
  * @param marketingEmailsOptIn Whether customer opted in to marketing emails
  * @param preferredLanguage    Customer's preferred language (ISO 639-1)
+ * @param keycloakUserId       Associated Keycloak user ID
  * @param createdAt            Timestamp when the customer was created
  * @param updatedAt            Timestamp when the customer was last updated
  */
@@ -48,6 +49,7 @@ public record CustomerDto(
         Boolean emailVerified,
         Boolean marketingEmailsOptIn,
         String preferredLanguage,
+        String keycloakUserId,
         Instant createdAt,
         Instant updatedAt) {
 }

@@ -96,6 +96,59 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     @TenantAware
+    public CustomerDto createCustomerWithKeycloak(UUID storeId, CreateCustomerDto customerDto, String keycloakUserId) {
+        Log.infof("Creating customer with Keycloak user ID for store %s: %s (keycloakUserId: %s)", 
+                storeId, customerDto.email(), keycloakUserId);
+
+        var customer = Customer.builder()
+                .email(customerDto.email().toLowerCase()) // Normalize email to lowercase
+                .firstName(customerDto.firstName())
+                .lastName(customerDto.lastName())
+                .phone(customerDto.phone())
+                .dateOfBirth(customerDto.dateOfBirth())
+                .gender(customerDto.gender())
+                .addressLine1(customerDto.addressLine1())
+                .addressLine2(customerDto.addressLine2())
+                .city(customerDto.city())
+                .stateProvince(customerDto.stateProvince())
+                .postalCode(customerDto.postalCode())
+                .country(customerDto.country())
+                .status(CustomerStatus.ACTIVE)
+                .emailVerified(false)
+                .marketingEmailsOptIn(
+                        customerDto.marketingEmailsOptIn() != null ? customerDto.marketingEmailsOptIn() : false)
+                .preferredLanguage(customerDto.preferredLanguage() != null ? customerDto.preferredLanguage() : "en")
+                .keycloakUserId(keycloakUserId)
+                .build();
+
+        customerRepository.persist(customer);
+
+        return mapToDto(customer);
+    }
+
+    @Override
+    @TenantAware
+    public Optional<CustomerDto> findCustomerByKeycloakUserId(UUID storeId, String keycloakUserId) {
+        Log.infof("Finding customer by Keycloak user ID %s for store %s", keycloakUserId, storeId);
+        return customerRepository.findByKeycloakUserId(keycloakUserId)
+                .map(this::mapToDto);
+    }
+
+    @Override
+    @TenantAware
+    public Optional<CustomerDto> linkCustomerWithKeycloak(UUID storeId, UUID customerId, String keycloakUserId) {
+        Log.infof("Linking customer %s with Keycloak user %s for store %s", customerId, keycloakUserId, storeId);
+        
+        return customerRepository.findByIdOptional(customerId)
+                .map(customer -> {
+                    customer.setKeycloakUserId(keycloakUserId);
+                    customerRepository.persist(customer);
+                    return mapToDto(customer);
+                });
+    }
+
+    @Override
+    @TenantAware
     public Optional<CustomerDto> updateCustomer(UUID storeId, CustomerDto customerDto) {
         Log.infof("Updating customer %s for store %s", customerDto.id(), storeId);
 
@@ -183,6 +236,7 @@ public class CustomerServiceImpl implements CustomerService {
                 customer.getEmailVerified(),
                 customer.getMarketingEmailsOptIn(),
                 customer.getPreferredLanguage(),
+                customer.getKeycloakUserId(),
                 customer.getCreatedAt(),
                 customer.getUpdatedAt());
     }

@@ -1,5 +1,6 @@
 package dev.tiodati.saas.gocommerce.product.service;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -12,6 +13,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 
 import dev.tiodati.saas.gocommerce.product.dto.CreateProductDto;
+import dev.tiodati.saas.gocommerce.product.dto.ProductAvailability;
+import dev.tiodati.saas.gocommerce.product.dto.ProductAvailabilityDto;
 import dev.tiodati.saas.gocommerce.product.dto.ProductDto;
 import dev.tiodati.saas.gocommerce.product.entity.Product;
 import dev.tiodati.saas.gocommerce.product.entity.ProductStatus;
@@ -144,6 +147,78 @@ public class ProductServiceImpl implements ProductService {
         });
     }
 
+    @Override
+    public List<ProductDto> searchProducts(UUID storeId, String query, UUID categoryId,
+                                          Double minPrice, Double maxPrice, Boolean inStock,
+                                          int page, int size) {
+        Log.infof("Searching products for store %s: query='%s', category=%s, price=%s-%s, inStock=%s",
+                storeId, query, categoryId, minPrice, maxPrice, inStock);
+
+        var pageable = Page.of(page, size);
+        
+        if (query == null || query.trim().isEmpty()) {
+            // No search term - use advanced filtering
+            BigDecimal minPriceBD = minPrice != null ? BigDecimal.valueOf(minPrice) : null;
+            BigDecimal maxPriceBD = maxPrice != null ? BigDecimal.valueOf(maxPrice) : null;
+            
+            List<Product> products = productRepository.searchProductsAdvanced(
+                    null, categoryId, minPriceBD, maxPriceBD, inStock, pageable);
+            
+            return products.stream()
+                    .map(this::mapToDto)
+                    .toList();
+        } else {
+            // Text search with filters
+            BigDecimal minPriceBD = minPrice != null ? BigDecimal.valueOf(minPrice) : null;
+            BigDecimal maxPriceBD = maxPrice != null ? BigDecimal.valueOf(maxPrice) : null;
+            
+            List<Product> products = productRepository.searchProductsAdvanced(
+                    query.trim(), categoryId, minPriceBD, maxPriceBD, inStock, pageable);
+            
+            return products.stream()
+                    .map(this::mapToDto)
+                    .toList();
+        }
+    }
+
+    @Override
+    public List<ProductDto> getFeaturedProducts(UUID storeId, int page, int size) {
+        Log.infof("Getting featured products for store %s (page=%d, size=%d)", storeId, page, size);
+
+        var pageable = Page.of(page, size);
+        List<Product> products = productRepository.findFeaturedProducts(pageable);
+
+        return products.stream()
+                .map(this::mapToDto)
+                .toList();
+    }
+
+    @Override
+    public List<ProductDto> getProductsByCategory(UUID storeId, UUID categoryId, int page, int size) {
+        Log.infof("Getting products by category %s for store %s (page=%d, size=%d)",
+                categoryId, storeId, page, size);
+
+        var pageable = Page.of(page, size);
+        List<Product> products = productRepository.findByCategory(categoryId, pageable);
+
+        return products.stream()
+                .map(this::mapToDto)
+                .toList();
+    }
+
+    @Override
+    public ProductAvailabilityDto checkProductAvailability(UUID storeId, UUID productId) {
+        Log.infof("Checking availability for product %s in store %s", productId, storeId);
+
+        ProductAvailability availability = productRepository.checkProductAvailability(productId);
+        
+        if (availability == null) {
+            return ProductAvailabilityDto.inactive(productId, "Product not found");
+        }
+        
+        return mapToAvailabilityDto(availability);
+    }
+
     /**
      * Maps a Product entity to ProductDto.
      *
@@ -163,6 +238,23 @@ public class ProductServiceImpl implements ProductService {
                 product.getCategory() != null ? product.getCategory().getId() : null,
                 product.getCreatedAt(),
                 product.getUpdatedAt());
+    }
+
+    /**
+     * Maps a ProductAvailability to ProductAvailabilityDto.
+     *
+     * @param availability the ProductAvailability to map
+     * @return the corresponding ProductAvailabilityDto
+     */
+    private ProductAvailabilityDto mapToAvailabilityDto(ProductAvailability availability) {
+        return new ProductAvailabilityDto(
+                availability.getProductId(),
+                availability.isAvailable(),
+                !availability.isOutOfStock(),
+                availability.getStockQuantity(),
+                availability.isLowStock(),
+                availability.getAvailabilityMessage()
+        );
     }
 }
 
