@@ -106,9 +106,9 @@ class SchemaManagerTest {
         // When - Query migration history
         int migrationCount = getMigrationCount(EXPECTED_SCHEMA_NAME);
 
-        // Then - Should have 5 migrations (V3, V4, V5, V6, V8)
-        assertEquals(5, migrationCount,
-                "Should have 5 migration records in Flyway history table");
+        // Then - Should have 6 migrations (V3, V4, V5, V6, V8, V9)
+        assertEquals(6, migrationCount,
+                "Should have 6 migration records in Flyway history table");
     }
 
     @Test

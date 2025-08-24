@@ -21,6 +21,7 @@ import io.quarkus.test.junit.TestProfile;
 import io.quarkus.test.TestTransaction;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
+import io.quarkus.logging.Log;
 
 /**
  * Unit tests for ProductRepository's new search and availability methods.
@@ -44,9 +45,11 @@ class ProductRepositoryTest {
     private Product lowStockProduct;
     private Product featuredProduct;
 
-    @BeforeEach
-    @TestTransaction
-    void setup() {
+    /**
+     * Sets up test data within the current transaction context.
+     * Must be called at the beginning of each test method.
+     */
+    private void setupTestData() {
         // Clear existing data
         productRepository.deleteAll();
         
@@ -68,20 +71,22 @@ class ProductRepositoryTest {
         // Set low stock threshold
         lowStockProduct.setLowStockThreshold(5);
 
-        // Persist products
-        productRepository.persist(activeProduct);
-        productRepository.persist(inactiveProduct);
-        productRepository.persist(outOfStockProduct);
-        productRepository.persist(lowStockProduct);
-        productRepository.persist(featuredProduct);
-
-        entityManager.flush();
-        entityManager.clear();
+        // Persist products using persistAndFlush to ensure they're immediately available
+        productRepository.persistAndFlush(activeProduct);
+        productRepository.persistAndFlush(inactiveProduct);
+        productRepository.persistAndFlush(outOfStockProduct);
+        productRepository.persistAndFlush(lowStockProduct);
+        productRepository.persistAndFlush(featuredProduct);
+        
+        // Validate that products were persisted correctly
+        validateTestDataSetup();
     }
 
     @Test
     @TestTransaction
     void testSearchProducts_ByName() {
+        setupTestData();
+        
         Page page = Page.of(0, 10);
         List<Product> results = productRepository.searchProducts("Active", page);
 
@@ -92,6 +97,8 @@ class ProductRepositoryTest {
     @Test
     @TestTransaction
     void testSearchProducts_BySku() {
+        setupTestData();
+        
         Page page = Page.of(0, 10);
         List<Product> results = productRepository.searchProducts("ACT-001", page);
 
@@ -102,6 +109,8 @@ class ProductRepositoryTest {
     @Test
     @TestTransaction
     void testSearchProducts_NoResults() {
+        setupTestData();
+        
         Page page = Page.of(0, 10);
         List<Product> results = productRepository.searchProducts("NonExistent", page);
 
@@ -111,6 +120,8 @@ class ProductRepositoryTest {
     @Test
     @TestTransaction
     void testSearchProductsAdvanced_WithAllFilters() {
+        setupTestData();
+        
         Page page = Page.of(0, 10);
         List<Product> results = productRepository.searchProductsAdvanced(
                 "Product",
@@ -133,6 +144,8 @@ class ProductRepositoryTest {
     @Test
     @TestTransaction
     void testSearchProductsAdvanced_InStockFilter() {
+        setupTestData();
+        
         Page page = Page.of(0, 10);
         List<Product> results = productRepository.searchProductsAdvanced(
                 null, null, null, null, true, page
@@ -149,6 +162,8 @@ class ProductRepositoryTest {
     @Test
     @TestTransaction
     void testFindFeaturedProducts() {
+        setupTestData();
+        
         Page page = Page.of(0, 10);
         List<Product> results = productRepository.findFeaturedProducts(page);
 
@@ -161,6 +176,8 @@ class ProductRepositoryTest {
     @Test
     @TestTransaction
     void testFindInStockProducts() {
+        setupTestData();
+        
         Page page = Page.of(0, 10);
         List<Product> results = productRepository.findInStockProducts(page);
 
@@ -179,6 +196,8 @@ class ProductRepositoryTest {
     @Test
     @TestTransaction
     void testCheckProductAvailability_ActiveProduct() {
+        setupTestData();
+        
         ProductAvailability availability = productRepository.checkProductAvailability(activeProduct.getId());
 
         assertNotNull(availability);
@@ -195,6 +214,8 @@ class ProductRepositoryTest {
     @Test
     @TestTransaction
     void testCheckProductAvailability_OutOfStockProduct() {
+        setupTestData();
+        
         ProductAvailability availability = productRepository.checkProductAvailability(outOfStockProduct.getId());
 
         assertNotNull(availability);
@@ -208,6 +229,8 @@ class ProductRepositoryTest {
     @Test
     @TestTransaction
     void testCheckProductAvailability_LowStockProduct() {
+        setupTestData();
+        
         ProductAvailability availability = productRepository.checkProductAvailability(lowStockProduct.getId());
 
         assertNotNull(availability);
@@ -222,6 +245,8 @@ class ProductRepositoryTest {
     @Test
     @TestTransaction
     void testCheckProductAvailability_InactiveProduct() {
+        setupTestData();
+        
         ProductAvailability availability = productRepository.checkProductAvailability(inactiveProduct.getId());
 
         assertNotNull(availability);
@@ -234,6 +259,8 @@ class ProductRepositoryTest {
     @Test
     @TestTransaction
     void testCheckProductAvailability_NonExistentProduct() {
+        setupTestData();
+        
         UUID nonExistentId = UUID.randomUUID();
         ProductAvailability availability = productRepository.checkProductAvailability(nonExistentId);
 
@@ -243,6 +270,8 @@ class ProductRepositoryTest {
     @Test
     @TestTransaction
     void testSearchProductsAdvanced_PaginationWorks() {
+        setupTestData();
+        
         // Test first page
         Page firstPage = Page.of(0, 2);
         List<Product> firstPageResults = productRepository.searchProductsAdvanced(
@@ -261,6 +290,28 @@ class ProductRepositoryTest {
         }
     }
 
+    /**
+     * Validates that test data was correctly created and persisted.
+     */
+    private void validateTestDataSetup() {
+        Log.infof("🔍 Validating test data setup...");
+        
+        List<Product> allProducts = productRepository.findAll().list();
+        Log.infof("📊 Found %d products in database after setup", allProducts.size());
+        
+        // Assert that we have the expected number of products
+        assertEquals(5, allProducts.size(), "Should have 5 test products");
+        
+        // Log details of each product for debugging
+        allProducts.forEach(product -> {
+            Log.infof("✅ Product: %s (ID: %s, SKU: %s, Status: %s, Inventory: %d, Featured: %s)", 
+                     product.getName(), product.getId(), product.getSku(), 
+                     product.getStatus(), product.getInventoryQuantity(), product.getIsFeatured());
+        });
+        
+        Log.infof("✅ Test data setup validation completed successfully");
+    }
+    
     private Product createTestProduct(String name, String sku, ProductStatus status, 
                                     int inventoryQuantity, boolean isFeatured) {
         Product product = new Product();

@@ -51,11 +51,13 @@ class ProductResourceIT {
         // Clear existing data
         productRepository.deleteAll();
         
-        // Create test category
+        // Create test category - don't manually set ID, let Hibernate generate it
         testCategory = new Category();
-        testCategory.setId(UUID.randomUUID());
         testCategory.setName("Electronics");
+        testCategory.setSlug("electronics");
+        testCategory.setDescription("Electronic products for testing");
         entityManager.persist(testCategory);
+        entityManager.flush(); // Ensure category is saved with generated ID
 
         // Create test products
         activeProduct = createTestProduct(
@@ -109,7 +111,7 @@ class ProductResourceIT {
     private Product createTestProduct(String name, String sku, ProductStatus status, 
                                     int inventoryQuantity, boolean isFeatured, BigDecimal price) {
         Product product = new Product();
-        product.setId(UUID.randomUUID());
+        // Don't manually set ID, let Hibernate generate it
         product.setName(name);
         product.setSku(sku);
         product.setDescription("Test description for " + name);
