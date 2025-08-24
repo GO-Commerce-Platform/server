@@ -5,6 +5,8 @@ import dev.tiodati.saas.gocommerce.order.entity.OrderStatus;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import io.quarkus.panache.common.Page;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 
 import java.time.Instant;
 import java.util.List;
@@ -17,6 +19,18 @@ import java.util.UUID;
  */
 @ApplicationScoped
 public class OrderRepository implements PanacheRepositoryBase<OrderHeader, UUID> {
+    
+    @PersistenceContext
+    EntityManager entityManager;
+    
+    /**
+     * Get the EntityManager instance.
+     *
+     * @return the EntityManager
+     */
+    public EntityManager getEntityManager() {
+        return entityManager;
+    }
 
     /**
      * Find order by order number.
@@ -109,6 +123,7 @@ public class OrderRepository implements PanacheRepositoryBase<OrderHeader, UUID>
      * @param status  the new status
      * @return number of updated records
      */
+    @jakarta.transaction.Transactional
     public int updateStatus(UUID orderId, OrderStatus status) {
         return update("status = ?1, updatedAt = ?2 WHERE id = ?3",
                 status, Instant.now(), orderId);

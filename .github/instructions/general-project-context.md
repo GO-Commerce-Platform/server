@@ -1,23 +1,32 @@
-# GO-Commerce AI Assistant Context
+# GO-Commerce Project Context
 
-This document provides essential context about the GO-Commerce project for AI assistants to better understand its structure, technologies, and conventions.
+This document consolidates all essential context about the GO-Commerce project, including business logic, architecture, data models, conventions, and development workflow. It is intended for both AI assistants and human contributors.
 
 ## 1. Project Overview
 
-GO-Commerce is a multi-store e-commerce SaaS platform built with Quarkus and an event-driven architecture. It supports multiple storefronts with complete data isolation using a schema-per-store approach and Apache Kafka for asynchronous communication.
+GO-Commerce is a multi-tenant, SaaS e-commerce platform built with Quarkus and an event-driven architecture. It enables multiple merchants (stores) to operate independently within a centralized marketplace, with strict data isolation (schema-per-store). The platform supports both B2C and B2B scenarios, product kits, flexible pricing, and order workflows. Authentication and authorization are handled via Keycloak, and Apache Kafka is used for asynchronous processing and integrations.
+
+**Main business goals:**
+
+-   Allow merchants to register and manage their own stores, products, and orders.
+-   Provide isolated, customizable environments for each tenant (store).
+-   Support both B2C and B2B scenarios (individual and company customers).
+-   Enable extensibility via event-driven workflows and integrations.
 
 ## 2. Technology Stack
 
--   **Backend Framework**: Quarkus
--   **Database**: MariaDB (multi-store data), PostgreSQL (Keycloak)
--   **Authentication**: Keycloak for identity and access management (OAuth2/OpenID Connect)
--   **Messaging**: Apache Kafka for event-driven architecture
+-   **Backend Framework**: Quarkus (Java)
+-   **Database**: PostgreSQL (multi-store data), PostgreSQL (Keycloak)
+-   **Authentication**: Keycloak (OAuth2/OpenID Connect)
+-   **Messaging**: Apache Kafka
 -   **Containerization**: Docker & Docker Compose
 -   **ORM**: Hibernate ORM with Panache
 -   **Schema Migrations**: Flyway
+-   **Caching**: Redis
 
 ## 3. System Architecture
 
+-   **Backend**: Monolithic Quarkus application, organized by feature (not by layer), following DDD and SOLID principles.
 -   **Multi-Store Model**: Each store operates as an isolated entity with its own database schema. Platform administrators manage all stores; store administrators manage their specific store.
 -   **Store Resolution**: Stores are typically identified by subdomain (e.g., `store1.gocommerce.com`).
 -   **Event-Driven Architecture**: Apache Kafka is used for asynchronous processing, service decoupling, resilience, scalability, and integration flexibility. Key events include `order.created`, `payment.completed`.
@@ -29,8 +38,11 @@ GO-Commerce is a multi-store e-commerce SaaS platform built with Quarkus and an 
     -   Keycloak Auth Server
     -   Kafka Event Broker
     -   Consumer Services (Notifications, Analytics, etc.)
-    -   MariaDB & PostgreSQL Databases
+    -   PostgreSQL Databases (separate instances for app and Keycloak)
     -   Redis Cache
+-   **API**: RESTful endpoints, OpenAPI/Swagger documentation.
+-   **Security**: JWT, RBAC, HTTPS, CSRF protection, and strong password policies.
+-   **Testing**: Integration-first, using QuarkusTest and real data.
 
 ## 4. Code Organization
 
@@ -48,26 +60,27 @@ The project follows a **Package by Feature** approach. Code is organized into mo
 -   `shared/` (or `common/`): Cross-cutting concerns (utilities, base classes).
 
 **Internal Structure of Feature Packages:**
+
 Typically includes `dto/`, `resource/` (REST controllers), `service/`, `model/` (JPA entities), `repository/`, `event/` (Kafka producers/consumers).
 
-## 5. Data Model
+## 5. Key Data Models
 
--   **Multi-Store Database**: Schema-per-store design.
-    -   `gocommerce_platform` (shared tables like `users`, `roles`, `store`)
-    -   `gocommerce_store_{store_key}` (store-specific schemas for `products`, `orders`, `customers`, etc.)
--   **Core Entities**:
-    -   `store`: Store details, status, configuration.
-    -   `store_admin`: Administrative users for each store.
-    -   `customer`: Base customer entity (individual, company types).
-    -   `address`: Customer shipping/billing addresses.
-    -   `product_category`: Hierarchical product categories.
-    -   `product`: Core product entity (physical, digital, service types), uses JSON for flexible attributes.
-    -   `product_inventory`: Inventory tracking.
-    -   `price_list` & `product_price`: Pricing rules.
-    -   `product_kit` & `product_kit_item`: Product bundles.
-    -   `customer_order` & `order_item`: Order details.
-    -   `event_store`: Stores domain events.
--   **JPA Entities**: PanacheEntityBase is often used. Timestamps (`createdAt`, `updatedAt`) are common.
+-   **Store**: Represents a merchant's storefront, including configuration, subdomain, and status.
+-   **StoreAdmin**: Administrative user for a specific store.
+-   **Customer**: Base entity for all customers, with subtypes:
+    -   **IndividualCustomer**: Personal shoppers.
+    -   **CompanyCustomer**: Business accounts.
+-   **Address**: Shipping and billing addresses linked to customers.
+-   **ProductCategory**: Hierarchical categories for products.
+-   **Product**: Core product entity (physical, digital, or service), with flexible attributes.
+-   **ProductInventory**: Tracks stock and restocking for products.
+-   **ProductKit**: Bundles of products sold together.
+-   **ProductKitItem**: Items and quantities within a kit.
+-   **PriceList**: Groups of prices with targeting and validity rules.
+-   **ProductPrice**: Pricing for products within specific price lists.
+-   **CustomerOrder**: Order header, including status, totals, and addresses.
+-   **OrderItem**: Line items within an order (product or kit).
+-   **EventStore**: Stores domain events for audit and recovery.
 
 ## 6. Authentication and Authorization (RBAC)
 
@@ -88,7 +101,7 @@ Typically includes `dto/`, `resource/` (REST controllers), `service/`, `model/` 
 ## 7. Docker Setup
 
 -   **Configuration**: `.env` file in the `docker` directory.
--   **Services**: `mariadb`, `keycloak`, `keycloak-db` (PostgreSQL), `app` (Quarkus application).
+-   **Services**: `postgres` (main app), `keycloak-db` (PostgreSQL for Keycloak), `keycloak`, `app` (Quarkus application).
 -   **Network**: `gocommerce-network`.
 -   **Key Commands**:
     -   Start: `docker compose up -d`
@@ -133,7 +146,6 @@ Typically includes `dto/`, `resource/` (REST controllers), `service/`, `model/` 
 -   Use descriptive commit messages.
 -   Create PRs with clear titles and descriptions, linking to issues.
 
-
 ## 11. Key File Locations
 
 -   **README.md**: Main project entry point.
@@ -144,6 +156,6 @@ Typically includes `dto/`, `resource/` (REST controllers), `service/`, `model/` 
 -   **Tests (`/src/test/java`)**.
 -   **Maven POM**: `pom.xml`.
 -   **License**: `LICENSE`, `COMMERCIAL_LICENSE`.
--   **This Document**: `COPILOT_CONTEXT.md`.
+-   **This Document**: `.github/instructions/general-project-context.md`.
 
-This consolidated document should help in understanding the project structure and conventions for future AI-assisted development.
+---

@@ -32,8 +32,8 @@ public record CreateProductDto(
     @DecimalMin(value = "0.0", message = "Cost cannot be negative")
     BigDecimal cost,
 
-    @PositiveOrZero(message = "Stock quantity cannot be negative")
-    int stockQuantity,
+    @PositiveOrZero(message = "Inventory quantity cannot be negative")
+    int inventoryQuantity,
 
     boolean isActive,
 

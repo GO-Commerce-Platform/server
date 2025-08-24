@@ -22,7 +22,7 @@ public class CartItemRepository implements PanacheRepositoryBase<CartItem, UUID>
      * @return list of cart items
      */
     public List<CartItem> findByCartId(UUID cartId) {
-        return find("shoppingCart.id = ?1", cartId).list();
+        return find("cart.id = ?1", cartId).list();
     }
 
     /**
@@ -33,7 +33,7 @@ public class CartItemRepository implements PanacheRepositoryBase<CartItem, UUID>
      * @return optional cart item
      */
     public Optional<CartItem> findByCartAndProduct(UUID cartId, UUID productId) {
-        return find("shoppingCart.id = ?1 and product.id = ?2", cartId, productId)
+        return find("cart.id = ?1 and product.id = ?2", cartId, productId)
                 .firstResultOptional();
     }
 
@@ -55,7 +55,7 @@ public class CartItemRepository implements PanacheRepositoryBase<CartItem, UUID>
      * @return number of items in the cart
      */
     public long countItemsInCart(UUID cartId) {
-        return count("shoppingCart.id = ?1", cartId);
+        return count("cart.id = ?1", cartId);
     }
 
     /**
@@ -65,8 +65,8 @@ public class CartItemRepository implements PanacheRepositoryBase<CartItem, UUID>
      * @return total quantity of all items
      */
     public Integer getTotalQuantityInCart(UUID cartId) {
-        var result = find("SELECT COALESCE(SUM(quantity), 0) FROM CartItem " +
-                "WHERE shoppingCart.id = ?1", cartId)
+        var result = find("SELECT COALESCE(SUM(quantity), 0) FROM CartItem "
+                + "WHERE cart.id = ?1", cartId)
                 .project(Integer.class)
                 .firstResult();
         return result != null ? result : 0;
@@ -80,7 +80,7 @@ public class CartItemRepository implements PanacheRepositoryBase<CartItem, UUID>
      */
     public Double getCartSubtotal(UUID cartId) {
         var result = find("SELECT COALESCE(SUM(quantity * unitPrice), 0.0) FROM CartItem "
-                + "WHERE shoppingCart.id = ?1", cartId)
+                + "WHERE cart.id = ?1", cartId)
                 .project(Double.class)
                 .firstResult();
         return result != null ? result : 0.0;
@@ -117,7 +117,7 @@ public class CartItemRepository implements PanacheRepositoryBase<CartItem, UUID>
      * @return number of deleted items
      */
     public long removeByCartAndProduct(UUID cartId, UUID productId) {
-        return delete("shoppingCart.id = ?1 and product.id = ?2", cartId, productId);
+        return delete("cart.id = ?1 and product.id = ?2", cartId, productId);
     }
 
     /**
@@ -127,7 +127,7 @@ public class CartItemRepository implements PanacheRepositoryBase<CartItem, UUID>
      * @return number of deleted items
      */
     public long clearCart(UUID cartId) {
-        return delete("shoppingCart.id = ?1", cartId);
+        return delete("cart.id = ?1", cartId);
     }
 
     /**

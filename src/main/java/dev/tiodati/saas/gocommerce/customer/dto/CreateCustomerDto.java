@@ -24,6 +24,7 @@ import dev.tiodati.saas.gocommerce.customer.entity.Customer;
  * @param preferredLanguage    Customer's preferred language (ISO 639-1)
  *                             (optional, defaults to "en")
  */
+
 public record CreateCustomerDto(
         String email,
         String firstName,

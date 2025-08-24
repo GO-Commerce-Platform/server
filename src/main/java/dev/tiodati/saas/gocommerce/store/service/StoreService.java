@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import dev.tiodati.saas.gocommerce.store.SchemaManager;
+import dev.tiodati.saas.gocommerce.platform.SchemaManager;
 import dev.tiodati.saas.gocommerce.store.StoreContext;
 import dev.tiodati.saas.gocommerce.store.entity.Store;
 import dev.tiodati.saas.gocommerce.store.entity.StoreAdmin;
@@ -50,7 +50,7 @@ public class StoreService {
 
     /**
      * Get a store by its ID.
-     * 
+     *
      * @return An Optional containing the store if found, or empty if not.
      * @param id The ID of the store to retrieve.
      * @throws IllegalArgumentException if the ID is null.
@@ -76,7 +76,7 @@ public class StoreService {
 
     /**
      * Get a store by its unique key.
-     * 
+     *
      * @param storeKey The unique key of the store
      * @return An Optional containing the store if found, or empty if not.
      * @throws IllegalArgumentException if the storeKey is null or empty.
@@ -98,7 +98,7 @@ public class StoreService {
 
     /**
      * Get a store by its subdomain.
-     * 
+     *
      * @param subdomain The subdomain of the store
      * @return An Optional containing the store if found, or empty if not.
      * @throws IllegalArgumentException if the subdomain is null or empty.
@@ -120,7 +120,7 @@ public class StoreService {
 
     /**
      * List all stores.
-     * 
+     *
      * @return A list of all stores that are not deleted, ordered by name.
      * @throws PersistenceException     if there is an error retrieving the stores.
      * @throws IllegalStateException    if no stores are found.
@@ -139,7 +139,7 @@ public class StoreService {
 
     /**
      * List all active stores.
-     * 
+     *
      * @return A list of active stores, ordered by name.
      * @throws PersistenceException     if there is an error retrieving the stores.
      * @throws IllegalStateException    if no stores are found.
@@ -156,7 +156,7 @@ public class StoreService {
 
     /**
      * Create a new store with default schema and admin user.
-     * 
+     *
      * @param store The store to create
      * @param admin The admin user for the store
      * @return The created store with generated ID and schema name
@@ -216,7 +216,7 @@ public class StoreService {
 
     /**
      * Update an existing store.
-     * 
+     *
      * @param store The store to update
      * @return The updated store
      * @throws IllegalArgumentException      if the store ID is null or if the store
@@ -251,7 +251,7 @@ public class StoreService {
 
     /**
      * Change store status.
-     * 
+     *
      * @param storeId The ID of the store to update
      * @param status  The new status to set for the store
      * @return The updated store with new status

@@ -33,8 +33,8 @@ import lombok.RequiredArgsConstructor;
 public class CartServiceImpl implements CartService {
 
     /**
-    * Repository for shopping cart operations.
-    **/
+     * Repository for shopping cart operations.
+     **/
     private final ShoppingCartRepository cartRepository;
 
     /** Repository for cart item operations. */
@@ -57,6 +57,7 @@ public class CartServiceImpl implements CartService {
         // Create new cart for customer
         var customer = new Customer();
         customer.setId(customerId);
+        customer.setVersion(0); // Initialize version for detached entity
 
         var cart = ShoppingCart.builder()
                 .customer(customer)
@@ -225,11 +226,12 @@ public class CartServiceImpl implements CartService {
             return Optional.of(mapToDto(customerCart));
         } else {
             // Transfer guest cart to customer
-            cartRepository.transferGuestCartToCustomer(sessionId, customerId);
-            cart.setSessionId(null);
-
             var customer = new Customer();
             customer.setId(customerId);
+            customer.setVersion(0); // Initialize version for detached entity
+
+            cartRepository.transferGuestCartToCustomer(sessionId, customer);
+            cart.setSessionId(null);
             cart.setCustomer(customer);
 
             return Optional.of(mapToDto(cart));
@@ -276,9 +278,10 @@ public class CartServiceImpl implements CartService {
 
     @Override
     public boolean isCartActive(UUID cartId) {
-        return cartRepository.findByIdOptional(cartId)
-                .map(cart -> cart.getStatus() == CartStatus.ACTIVE)
-                .orElse(false);
+        // Query directly from database to avoid stale entities from bulk updates
+        return cartRepository.find("id = ?1 and status = ?2", cartId, CartStatus.ACTIVE)
+                .firstResultOptional()
+                .isPresent();
     }
 
     @Override

@@ -3,7 +3,7 @@
   "enabled": true,
   "displayName": "GO-Commerce Platform",
   "loginTheme": "keycloak",
-  "sslRequired": "external",
+  "sslRequired": "none",
   "registrationAllowed": false,
   "clients": [
     {

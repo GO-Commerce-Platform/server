@@ -72,7 +72,7 @@ public class ProductRepository implements PanacheRepositoryBase<Product, UUID> {
      * @return list of products with low stock
      */
     public List<Product> findLowStock(int threshold) {
-        return find("stockQuantity <= ?1 AND status = ?2", threshold, ProductStatus.ACTIVE)
+        return find("inventoryQuantity <= ?1 AND status = ?2", threshold, ProductStatus.ACTIVE)
                 .list();
     }
 
@@ -84,7 +84,7 @@ public class ProductRepository implements PanacheRepositoryBase<Product, UUID> {
      * @return number of updated records
      */
     public int updateStock(UUID productId, int newQuantity) {
-        return update("stockQuantity = ?1 WHERE id = ?2", newQuantity, productId);
+        return update("inventoryQuantity = ?1 WHERE id = ?2", newQuantity, productId);
     }
 
     /**

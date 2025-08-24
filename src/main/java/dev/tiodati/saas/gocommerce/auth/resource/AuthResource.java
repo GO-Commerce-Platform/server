@@ -123,28 +123,40 @@ public class AuthResource {
     }
 
     /**
-     * Logs out the currently authenticated user. Requires the refresh token to
-     * be passed, typically from a secure cookie or client storage.
+     * Logs out the currently authenticated user. Validates the provided access token
+     * and uses the refresh token to invalidate the session.
      *
-     * @param refreshTokenRequest DTO containing the refresh token of the user
-     *                            to log out.
+     * @param authorizationHeader The Authorization header containing the Bearer token.
+     * @param refreshTokenRequest DTO containing the refresh token of the user to log out.
      * @return Response indicating logout status.
      */
     @POST
     @Path("/logout")
-    @Authenticated // Requires an authenticated user to logout, primarily to get
-                   // their refresh token
+    @PermitAll // Changed to PermitAll and validate token manually
     @Operation(summary = "User Logout", description = "Logs out the currently authenticated user by invalidating their session.")
     @APIResponse(responseCode = "204", description = "Logout successful.")
     @APIResponse(responseCode = "400", description = "Invalid request or missing refresh token.")
     @APIResponse(responseCode = "401", description = "User not authenticated or refresh token invalid.")
     @APIResponse(responseCode = "500", description = "Internal server error during logout.")
     public Response logout(
+            @HeaderParam("Authorization") String authorizationHeader,
             @RequestBody(description = "Refresh token for logout.", required = true, content = @Content(mediaType = MediaType.APPLICATION_JSON, schema = @Schema(implementation = RefreshTokenRequest.class))) @Valid RefreshTokenRequest refreshTokenRequest) {
-        // Note: The actual refresh token should be securely handled.
-        // For Keycloak, logout often involves invalidating the refresh token on
-        // the server.
-        // The client also needs to clear its local tokens.
+        
+        // Validate the access token first
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            return Response.status(Response.Status.UNAUTHORIZED)
+                    .entity("{\"error\":\"Bearer token is missing or malformed.\"}")
+                    .build();
+        }
+        
+        String accessToken = authorizationHeader.substring("Bearer ".length());
+        if (!authService.validateToken(accessToken)) {
+            return Response.status(Response.Status.UNAUTHORIZED)
+                    .entity("{\"error\":\"Access token is invalid or expired.\"}")
+                    .build();
+        }
+        
+        // Now proceed with logout using the refresh token
         try {
             authService.logout(refreshTokenRequest.refreshToken());
             return Response.noContent().build(); // HTTP 204 No Content is

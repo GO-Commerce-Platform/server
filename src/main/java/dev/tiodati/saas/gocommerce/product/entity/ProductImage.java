@@ -45,7 +45,7 @@ public class ProductImage extends PanacheEntityBase {
      */
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id", columnDefinition = "BINARY(16)")
+    @Column(name = "id")
     private UUID id;
 
     /**

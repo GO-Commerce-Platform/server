@@ -1,6 +1,6 @@
 # GO-Commerce
 
-A multi-store e-commerce SaaS platform built with Quarkus and event-driven architecture.
+A multi-store e-commerce SaaS platform built with Quarkus 3.23.4 and event-driven architecture.
 
 ## Project Overview
 
@@ -8,8 +8,8 @@ GO-Commerce is a scalable, multi-store e-commerce platform designed to support m
 
 ## Technology Stack
 
--   **Backend Framework**: Quarkus
--   **Database**: MariaDB (multi-store data), PostgreSQL (Keycloak)
+-   **Backend Framework**: Quarkus 3.23.4
+-   **Database**: PostgreSQL (multi-store data), PostgreSQL (Keycloak)
 -   **Authentication**: Keycloak for identity and access management
 -   **Messaging**: Apache Kafka for event-driven architecture
 -   **Containerization**: Docker & Docker Compose
@@ -54,12 +54,14 @@ The complete documentation for this project is available in the [Wiki](https://g
 7. [Data Model](https://github.com/aquele-dinho/GO-Commerce/wiki/06-Data-Model)
 8. [Test Plan](https://github.com/aquele-dinho/GO-Commerce/wiki/07-Test-Plan)
 9. [MVP Planning](https://github.com/aquele-dinho/GO-Commerce/wiki/08-MVP-Planning)
+10. [AI Agent Instructions](https://github.com/aquele-dinho/GO-Commerce/wiki/09-AI-Agent-Instructions.md)
 
 ### Technical Architecture Documentation
 
 For detailed technical implementation guides, see also:
 
 -   [Multi-Schema Architecture](./wiki/Multi-Schema-Architecture.md) - Complete guide to the schema-per-store implementation
+-   [Database Migration from MariaDB to PostgreSQL](./MIGRATION-FROM-MARIADB.md) - Details about the database migration
 
 ## Getting Started
 
@@ -82,9 +84,10 @@ For detailed technical implementation guides, see also:
 
     This script builds the application and starts all required containers:
 
-    - MariaDB (database)
-    - Keycloak and PostgreSQL (authentication)
-    - The Quarkus application
+    - PostgreSQL (main application database)
+    - PostgreSQL (Keycloak database - separate instance)
+    - Keycloak (authentication and identity management)
+    - The Quarkus 3.23.4 application
 
 4. Alternatively, run just the infrastructure in Docker and the application in dev mode
 

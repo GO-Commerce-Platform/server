@@ -50,7 +50,7 @@ public class Product extends PanacheEntityBase {
      */
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id", columnDefinition = "BINARY(16)")
+    @Column(name = "id")
     private UUID id;
 
     /**
@@ -228,11 +228,39 @@ public class Product extends PanacheEntityBase {
     void prePersist() {
         createdAt = Instant.now();
         updatedAt = createdAt;
+        
+        // Generate slug from name if not provided
+        if (slug == null && name != null) {
+            slug = generateSlugFromName(name);
+        }
     }
 
     @PreUpdate
     void preUpdate() {
         updatedAt = Instant.now();
+    }
+    
+    /**
+     * Generates a URL-friendly slug from the product name.
+     * Appends a unique identifier to handle duplicates.
+     * 
+     * @param name the product name
+     * @return a slug suitable for URLs
+     */
+    private String generateSlugFromName(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            return null;
+        }
+        
+        String baseSlug = name.toLowerCase()
+                .replaceAll("[^a-z0-9\\s-]", "") // Remove special characters except spaces and hyphens
+                .replaceAll("\\s+", "-") // Replace spaces with hyphens
+                .replaceAll("-+", "-") // Replace multiple hyphens with single hyphen
+                .replaceAll("^-|-$", ""); // Remove leading and trailing hyphens
+        
+        // Add a unique identifier to prevent duplicates
+        String uniqueId = java.util.UUID.randomUUID().toString().substring(0, 8);
+        return baseSlug + "-" + uniqueId;
     }
 }
 

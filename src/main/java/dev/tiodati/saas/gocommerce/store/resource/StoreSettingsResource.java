@@ -56,7 +56,7 @@ public class StoreSettingsResource {
     @GET
     @Path("/get")
     @Operation(summary = "Get a store setting", description = "Retrieves a store setting by path")
-    @RolesAllowed({ "admin", "store-admin" })
+    @RolesAllowed({ "PLATFORM_ADMIN", "STORE_ADMIN" })
     @RequiresStoreRole({ Roles.STORE_ADMIN })
     @APIResponses({
             @APIResponse(responseCode = "200", description = "Setting retrieved successfully"),
@@ -87,7 +87,7 @@ public class StoreSettingsResource {
     @POST
     @Path("/update")
     @Operation(summary = "Update a store setting", description = "Updates a single store setting")
-    @RolesAllowed({ "admin", "store-admin" })
+    @RolesAllowed({ "PLATFORM_ADMIN", "STORE_ADMIN" })
     @RequiresStoreRole({ Roles.STORE_ADMIN })
     @APIResponses({
             @APIResponse(responseCode = "200", description = "Setting updated successfully"),
@@ -132,7 +132,7 @@ public class StoreSettingsResource {
     @POST
     @Path("/bulk-update")
     @Operation(summary = "Bulk update store settings", description = "Updates multiple store settings at once")
-    @RolesAllowed({ "admin", "store-admin" })
+    @RolesAllowed({ "PLATFORM_ADMIN", "STORE_ADMIN" })
     @RequiresStoreRole({ Roles.STORE_ADMIN })
     @APIResponses({
             @APIResponse(responseCode = "200", description = "Settings updated successfully"),

@@ -12,6 +12,8 @@ import java.sql.Statement;
 import java.util.List;
 import java.util.UUID;
 
+import javax.sql.DataSource;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer;
@@ -33,9 +35,6 @@ import dev.tiodati.saas.gocommerce.store.service.StoreService;
 import io.quarkus.logging.Log;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
-
-import javax.sql.DataSource;
 
 /**
  * Integration test for StoreCreationService that validates the complete store
@@ -133,7 +132,6 @@ public class StoreCreationServiceImplIT {
 
     @Test
     @Order(1)
-    @Transactional
     void testCompleteStoreCreationWorkflow() throws Exception {
         Log.info("Testing complete store creation workflow");
 
@@ -174,7 +172,6 @@ public class StoreCreationServiceImplIT {
 
     @Test
     @Order(2)
-    @Transactional
     void testDuplicateStoreKeyValidation() {
         Log.info("Testing duplicate store key validation");
 
@@ -205,7 +202,6 @@ public class StoreCreationServiceImplIT {
 
     @Test
     @Order(3)
-    @Transactional
     void testDuplicateSubdomainValidation() {
         Log.info("Testing duplicate subdomain validation");
 
@@ -236,7 +232,6 @@ public class StoreCreationServiceImplIT {
 
     @Test
     @Order(4)
-    @Transactional
     void testInvalidInputValidation() {
         Log.info("Testing invalid input validation");
 

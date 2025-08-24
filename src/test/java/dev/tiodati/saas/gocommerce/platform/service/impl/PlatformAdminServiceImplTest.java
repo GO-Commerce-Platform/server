@@ -19,7 +19,8 @@ import dev.tiodati.saas.gocommerce.platform.api.dto.UpdateStoreRequest; // Impor
 import dev.tiodati.saas.gocommerce.platform.repository.PlatformStoreRepository;
 import dev.tiodati.saas.gocommerce.platform.service.PlatformAdminService;
 import dev.tiodati.saas.gocommerce.store.entity.StoreStatus;
-import dev.tiodati.saas.gocommerce.store.entity.Store; // Import the new Store entity
+import dev.tiodati.saas.gocommerce.store.entity.Store;
+import dev.tiodati.saas.gocommerce.shared.test.TestDataFactory;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -50,157 +51,115 @@ public class PlatformAdminServiceImplTest {
     @Test
     @Transactional
     void testCreateStoreSuccess() {
-        String ownerId = UUID.randomUUID().toString();
-        CreateStoreRequest uniqueCreateRequest = new CreateStoreRequest(
-                "Success Store",
-                "success-store-" + UUID.randomUUID().toString().substring(0, 8),
-                ownerId, // Added ownerId
-                "success@store.com", "USD", "en-US", StoreStatus.ACTIVE,
-                "A success store description.");
+        CreateStoreRequest createRequest = TestDataFactory.createStoreRequest();
 
         StoreResponse createdStoreResponse = platformAdminService
-                .createStore(uniqueCreateRequest);
+                .createStore(createRequest);
 
         assertNotNull(createdStoreResponse);
         assertNotNull(createdStoreResponse.id());
-        assertEquals(uniqueCreateRequest.name(), createdStoreResponse.name()); // Changed
-                                                                               // to
-                                                                               // name()
-        assertEquals(uniqueCreateRequest.subdomain(),
+        assertEquals(createRequest.name(), createdStoreResponse.name());
+        assertEquals(createRequest.subdomain(),
                 createdStoreResponse.subdomain());
-        assertEquals(uniqueCreateRequest.ownerId(),
+        assertEquals(createRequest.ownerId(),
                 createdStoreResponse.ownerId()); // Assert ownerId
-        assertEquals(uniqueCreateRequest.status().toString(),
+        assertEquals(createRequest.status().toString(),
                 createdStoreResponse.status());
         assertNotNull(createdStoreResponse.createdAt());
         assertNotNull(createdStoreResponse.updatedAt());
 
-        Optional<Store> persistedStoreOpt = platformStoreRepository // Changed
-                                                                    // to Store
+        Optional<Store> persistedStoreOpt = platformStoreRepository
                 .findByIdOptional(createdStoreResponse.id());
         assertTrue(persistedStoreOpt.isPresent());
-        Store persistedStore = persistedStoreOpt.get(); // Changed to Store
-        assertEquals(uniqueCreateRequest.name(), persistedStore.getName()); // Changed
-                                                                            // to
-                                                                            // getName()
-        assertEquals(uniqueCreateRequest.subdomain(),
+        Store persistedStore = persistedStoreOpt.get();
+        assertEquals(createRequest.name(), persistedStore.getName());
+        assertEquals(createRequest.subdomain(),
                 persistedStore.getSubdomain());
-        assertEquals(uniqueCreateRequest.ownerId(),
+        assertEquals(createRequest.ownerId(),
                 persistedStore.getOwnerId()); // Assert ownerId
-        assertEquals(uniqueCreateRequest.email(), persistedStore.getEmail());
-        assertEquals(uniqueCreateRequest.status(), persistedStore.getStatus()); // Assert
-                                                                                // status
+        assertEquals(createRequest.email(), persistedStore.getEmail());
+        assertEquals(createRequest.status(), persistedStore.getStatus());
         assertNotNull(persistedStore.getCreatedAt());
         assertNotNull(persistedStore.getUpdatedAt());
-        // assertEquals(uniqueCreateRequest.domainSuffix(),
-        // persistedStore.getDomainSuffix()); // This line would fail if
-        // domainSuffix is not in DTO or automatically set in a predictable way
     }
 
     @Test
     @Transactional
     void testCreateStoreDuplicateSubdomain() {
-        String ownerId = UUID.randomUUID().toString();
-        String duplicateSubdomain = "duplicate-store-"
-                + UUID.randomUUID().toString().substring(0, 8);
-        // Arrange: Create and persist an initial store
-        CreateStoreRequest initialRequest = new CreateStoreRequest(
-                "Initial Store", duplicateSubdomain, ownerId,
-                "initial@store.com", "USD", "en-US", StoreStatus.ACTIVE,
-                "Initial store description.");
-        platformAdminService.createStore(initialRequest); // Persist the first
-                                                          // store
+        CreateStoreRequest initialRequest = TestDataFactory.createStoreRequest();
+        platformAdminService.createStore(initialRequest);
 
-        // Prepare another request with the same subdomain
+        String uniqueName = "Duplicate Store " + UUID.randomUUID().toString().substring(0, 8);
         CreateStoreRequest duplicateCreateRequest = new CreateStoreRequest(
-                "Duplicate Store", duplicateSubdomain, // Same subdomain
-                UUID.randomUUID().toString(), // Different ownerId
-                "duplicate@store.com", "EUR", "fr-FR", StoreStatus.PENDING,
-                "Duplicate store description."); // Removed domainSuffix
+                uniqueName,
+                initialRequest.subdomain(), // Same subdomain
+                UUID.randomUUID().toString(),
+                "duplicate@store.com",
+                "EUR",
+                "fr-FR",
+                StoreStatus.PENDING,
+                "Duplicate store description."
+        );
 
-        // Act & Assert
         DuplicateResourceException exception = assertThrows(
                 DuplicateResourceException.class,
                 () -> platformAdminService.createStore(duplicateCreateRequest));
 
-        assertEquals("Store with subdomain '" + duplicateSubdomain
+        assertEquals("Store with subdomain '" + initialRequest.subdomain()
                 + "' already exists.", exception.getMessage());
     }
 
     @Test
     @Transactional
     void testUpdateStoreSuccess() {
-        String initialOwnerId = UUID.randomUUID().toString();
-        String uniqueSubdomainForUpdate = "update-test-store-"
-                + UUID.randomUUID().toString().substring(0, 8);
-        // Arrange: Persist an initial store using CreateStoreRequest
-        StoreResponse createdInitialStore = platformAdminService
-                .createStore(new CreateStoreRequest("Original Store Name",
-                        uniqueSubdomainForUpdate, initialOwnerId,
-                        "update@store.com", "USD", "en-US", StoreStatus.ACTIVE,
-                        "Original desc"));
+        StoreResponse createdInitialStore = platformAdminService.createStore(TestDataFactory.createStoreRequest());
         UUID storeId = createdInitialStore.id();
 
+        String updatedName = "Updated Store Name " + UUID.randomUUID().toString().substring(0, 8);
         String updatedOwnerId = UUID.randomUUID().toString();
-        // Prepare DTO for update using UpdateStoreRequest
         UpdateStoreRequest updateRequest = new UpdateStoreRequest(
-                "Updated Store Name", updatedOwnerId, "updated@store.com",
+                updatedName, updatedOwnerId, "updated@store.com",
                 "EUR", "fr-FR", StoreStatus.INACTIVE, "Updated description");
 
-        // Act
         StoreResponse updatedStoreResponse = platformAdminService
-                .updateStore(storeId, updateRequest); // Use UpdateStoreRequest
+                .updateStore(storeId, updateRequest);
 
-        // Assert
         assertNotNull(updatedStoreResponse);
         assertEquals(storeId, updatedStoreResponse.id());
-        assertEquals("Updated Store Name", updatedStoreResponse.name()); // Changed
-                                                                         // to
-                                                                         // name()
-        assertEquals(updatedOwnerId, updatedStoreResponse.ownerId()); // Assert
-                                                                      // ownerId
+        assertEquals(updatedName, updatedStoreResponse.name());
+        assertEquals(updatedOwnerId, updatedStoreResponse.ownerId());
         assertEquals(StoreStatus.INACTIVE.toString(),
-                updatedStoreResponse.status()); // Assert against String status
+                updatedStoreResponse.status());
         assertNotNull(updatedStoreResponse.updatedAt());
-        // Ensure createdAt is still the original one
         assertEquals(createdInitialStore.createdAt(),
                 updatedStoreResponse.createdAt());
 
-        Optional<Store> fetchedStoreOpt = platformStoreRepository // Changed to
-                                                                  // Store
+        Optional<Store> fetchedStoreOpt = platformStoreRepository
                 .findByIdOptional(storeId);
         assertTrue(fetchedStoreOpt.isPresent());
-        Store fetchedStore = fetchedStoreOpt.get(); // Changed to Store
-        assertEquals("Updated Store Name", fetchedStore.getName()); // Changed
-                                                                    // to
-                                                                    // getName()
-        assertEquals(updatedOwnerId, fetchedStore.getOwnerId()); // Assert
-                                                                 // ownerId
+        Store fetchedStore = fetchedStoreOpt.get();
+        assertEquals(updatedName, fetchedStore.getName());
+        assertEquals(updatedOwnerId, fetchedStore.getOwnerId());
         assertEquals(StoreStatus.INACTIVE, fetchedStore.getStatus());
         assertEquals("updated@store.com", fetchedStore.getEmail());
         assertEquals("Updated description", fetchedStore.getDescription());
         assertNotNull(fetchedStore.getUpdatedAt());
-        // Ensure createdAt is not changed by update
         assertEquals(createdInitialStore.createdAt(),
                 fetchedStore.getCreatedAt());
     }
 
     @Test
     @Transactional
-    void testUpdateStoreNotFound() { // Renamed method
-        // Arrange: A non-existent UUID
+    void testUpdateStoreNotFound() {
         UUID nonExistentId = UUID.randomUUID();
-        String dummyOwnerId = UUID.randomUUID().toString(); // Added dummy ownerId
-        // Use UpdateStoreRequest for the update payload
+        String dummyOwnerId = UUID.randomUUID().toString();
         UpdateStoreRequest updatePayload = new UpdateStoreRequest(
-                "Non Existent Update", dummyOwnerId, "non@existent.com", "USD", "en-US", // Added dummyOwnerId
+                "Non Existent Update", dummyOwnerId, "non@existent.com", "USD", "en-US",
                 StoreStatus.ACTIVE, "Non existent description");
 
-        // Act & Assert
         ResourceNotFoundException exception = assertThrows(
                 ResourceNotFoundException.class, () -> platformAdminService
-                        .updateStore(nonExistentId, updatePayload)); // Use
-                                                                     // UpdateStoreRequest
+                        .updateStore(nonExistentId, updatePayload));
 
         assertEquals("Store not found with ID: " + nonExistentId,
                 exception.getMessage());
@@ -209,41 +168,25 @@ public class PlatformAdminServiceImplTest {
     @Test
     @Transactional
     void testDeleteStoreSuccess() {
-        String ownerId = UUID.randomUUID().toString();
-        String uniqueSubdomainForDelete = "delete-me-store-"
-                + UUID.randomUUID().toString().substring(0, 8);
-        // Arrange: Persist a store to delete using CreateStoreRequest
-        StoreResponse createdStoreToDelete = platformAdminService
-                .createStore(new CreateStoreRequest("Store To Delete",
-                        uniqueSubdomainForDelete, ownerId, "delete@store.com",
-                        "USD", "en-US", StoreStatus.ACTIVE, "Desc to delete"));
+        StoreResponse createdStoreToDelete = platformAdminService.createStore(TestDataFactory.createStoreRequest());
         UUID storeId = createdStoreToDelete.id();
 
-        // Act
         platformAdminService.deleteStore(storeId);
 
-        // Assert: Verify the store is marked as DELETING (or DELETED based on
-        // service impl)
-        Optional<Store> deletedStoreOpt = platformStoreRepository // Changed to
-                                                                  // Store
+        Optional<Store> deletedStoreOpt = platformStoreRepository
                 .findByIdOptional(storeId);
         assertTrue(deletedStoreOpt.isPresent(),
                 "Store should still be found in the database.");
-        // Assuming deleteStore in PlatformAdminServiceImpl sets status to
-        // DELETING
         assertEquals(StoreStatus.DELETING, deletedStoreOpt.get().getStatus(),
                 "Store's status should be DELETING after soft deletion.");
         assertNotNull(deletedStoreOpt.get().getUpdatedAt());
-
     }
 
     @Test
     @Transactional
-    void testDeleteStoreNotFound() { // Renamed method
-        // Arrange: A non-existent UUID
+    void testDeleteStoreNotFound() {
         UUID nonExistentId = UUID.randomUUID();
 
-        // Act & Assert
         ResourceNotFoundException exception = assertThrows(
                 ResourceNotFoundException.class,
                 () -> platformAdminService.deleteStore(nonExistentId));

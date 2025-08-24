@@ -14,9 +14,9 @@ public record ProductDto(
     String description,
     BigDecimal price,
     BigDecimal cost,
-    int stockQuantity,
+    int inventoryQuantity,
     boolean isActive,
     UUID categoryId,
     Instant createdAt,
-    Instant updatedA
+    Instant updatedAt
 ) { }

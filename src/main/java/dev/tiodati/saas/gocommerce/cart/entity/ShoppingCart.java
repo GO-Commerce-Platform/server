@@ -22,6 +22,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,10 +30,10 @@ import java.util.UUID;
 
 /**
  * Entity representing a customer's shopping cart.
- * Maps to the 'shopping_carts' table.
+ * Maps to the 'shopping_cart' table.
  */
 @Entity
-@Table(name = "shopping_carts")
+@Table(name = "shopping_cart")
 @Data
 @Builder
 @NoArgsConstructor
@@ -44,14 +45,14 @@ public class ShoppingCart {
      */
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    @Column(name = "id", nullable = false, columnDefinition = "BINARY(16)")
+    @Column(name = "id")
     private UUID id;
 
     /**
      * The customer who owns this cart.
      */
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "customer_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id")
     private Customer customer;
 
     /**
@@ -59,6 +60,13 @@ public class ShoppingCart {
      */
     @Column(name = "session_id", length = 255)
     private String sessionId;
+
+    /**
+     * Total amount of the shopping cart.
+     */
+    @Column(name = "total_amount", precision = 10, scale = 2)
+    @Builder.Default
+    private BigDecimal totalAmount = BigDecimal.ZERO;
 
     /**
      * Current status of the shopping cart.

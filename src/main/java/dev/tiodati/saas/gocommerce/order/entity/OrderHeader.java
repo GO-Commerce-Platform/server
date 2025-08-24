@@ -48,7 +48,7 @@ public class OrderHeader extends PanacheEntityBase {
      */
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id", columnDefinition = "BINARY(16)")
+    @Column(name = "id")
     private UUID id;
 
     /**
@@ -61,7 +61,7 @@ public class OrderHeader extends PanacheEntityBase {
      * Customer ID who placed the order.
      * Note: Using UUID for customer reference to avoid circular dependency.
      */
-    @Column(name = "customer_id", nullable = false, columnDefinition = "BINARY(16)")
+    @Column(name = "customer_id", nullable = false)
     private UUID customerId;
 
     /**

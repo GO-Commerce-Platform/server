@@ -302,9 +302,8 @@ public class OrderServiceImpl implements OrderService {
      * @return The created OrderItem entity
      */
     private OrderItem createOrderItem(OrderHeader order, CreateOrderDto.CreateOrderItemDto itemDto) {
-        // Create a product reference (would normally be fetched from repository)
-        var product = new Product();
-        product.setId(itemDto.productId());
+        // Create a product reference using EntityManager.getReference to avoid detached entity issues
+        var product = orderRepository.getEntityManager().getReference(Product.class, itemDto.productId());
 
         var totalPrice = itemDto.unitPrice().multiply(BigDecimal.valueOf(itemDto.quantity()));
 

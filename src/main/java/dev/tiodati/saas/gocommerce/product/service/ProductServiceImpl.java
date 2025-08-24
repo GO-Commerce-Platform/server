@@ -70,7 +70,7 @@ public class ProductServiceImpl implements ProductService {
         product.setDescription(productDto.description());
         product.setPrice(productDto.price());
         product.setCostPrice(productDto.cost());
-        product.setInventoryQuantity(0); // Start with 0 stock, to be updated separately
+        product.setInventoryQuantity(productDto.inventoryQuantity());
         product.setStatus(ProductStatus.ACTIVE);
 
         // Map category if provided
@@ -101,7 +101,7 @@ public class ProductServiceImpl implements ProductService {
                     product.setDescription(productDto.description());
                     product.setPrice(productDto.price());
                     product.setCostPrice(productDto.cost());
-                    product.setInventoryQuantity(productDto.stockQuantity());
+                    product.setInventoryQuantity(productDto.inventoryQuantity());
                     product.setStatus(productDto.isActive() ? ProductStatus.ACTIVE : ProductStatus.ARCHIVED);
 
                     // Update category if provided

@@ -67,23 +67,21 @@ public class StoreRoleAuthorizationInterceptor {
                         Roles[] requiredRoles = annotation.value();
 
                         if (requiredRoles.length > 0) {
+                                // Platform admin has access to all endpoints - check first
+                                if (roleVerificationService.isPlatformAdmin()) {
+                                        Log.debugf("Platform admin access granted");
+                                        return context.proceed();
+                                }
+
                                 // Check if user has any of the required roles
                                 boolean hasRequiredRole = roleVerificationService
                                                 .hasAnyRole(requiredRoles);
 
                                 // If user has a required role, check if they
-                                // have access to the
-                                // current store
+                                // have access to the current store
                                 if (hasRequiredRole) {
                                         String currentStoreId = StoreContext
                                                         .getCurrentStore();
-
-                                        // Platform admin has access to all
-                                        // stores
-                                        if (roleVerificationService
-                                                        .isPlatformAdmin()) {
-                                                return context.proceed();
-                                        }
 
                                         // Check if user is admin for this
                                         // specific store
