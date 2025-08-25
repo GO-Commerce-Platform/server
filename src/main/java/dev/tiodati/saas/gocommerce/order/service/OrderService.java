@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import dev.tiodati.saas.gocommerce.order.dto.CreateOrderDto;
+import dev.tiodati.saas.gocommerce.order.dto.CreateOrderFromCartDto;
 import dev.tiodati.saas.gocommerce.order.dto.OrderDto;
 
 /**
@@ -62,6 +63,19 @@ public interface OrderService {
      * @return The created order
      */
     OrderDto createOrder(UUID storeId, CreateOrderDto orderDto);
+
+    /**
+     * Create a new order from a shopping cart.
+     * This method converts cart items to order items, validates stock availability,
+     * updates inventory, and optionally clears the cart after successful order creation.
+     *
+     * @param storeId        The store ID
+     * @param cartOrderDto   Cart order conversion data
+     * @return The created order
+     * @throws IllegalArgumentException if cart is not found or empty
+     * @throws IllegalStateException    if insufficient stock or cart validation fails
+     */
+    OrderDto createOrderFromCart(UUID storeId, CreateOrderFromCartDto cartOrderDto);
 
     /**
      * Update order status.

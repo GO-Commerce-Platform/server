@@ -13,6 +13,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 import dev.tiodati.saas.gocommerce.order.dto.CreateOrderDto;
+import dev.tiodati.saas.gocommerce.order.dto.CreateOrderFromCartDto;
 import dev.tiodati.saas.gocommerce.order.dto.OrderDto;
 import dev.tiodati.saas.gocommerce.order.dto.OrderItemDto;
 import dev.tiodati.saas.gocommerce.order.entity.OrderHeader;
@@ -21,6 +22,10 @@ import dev.tiodati.saas.gocommerce.order.entity.OrderStatus;
 import dev.tiodati.saas.gocommerce.order.repository.OrderItemRepository;
 import dev.tiodati.saas.gocommerce.order.repository.OrderRepository;
 import dev.tiodati.saas.gocommerce.product.entity.Product;
+import dev.tiodati.saas.gocommerce.cart.service.CartService;
+import dev.tiodati.saas.gocommerce.cart.dto.ShoppingCartDto;
+import dev.tiodati.saas.gocommerce.cart.dto.CartItemDto;
+import dev.tiodati.saas.gocommerce.inventory.service.InventoryService;
 @ApplicationScoped
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
@@ -34,6 +39,16 @@ public class OrderServiceImpl implements OrderService {
      * Repository for order item data access operations.
      */
     private final OrderItemRepository orderItemRepository;
+
+    /**
+     * Service for cart operations.
+     */
+    private final CartService cartService;
+
+    /**
+     * Service for inventory operations.
+     */
+    private final InventoryService inventoryService;
 
     @Override
     public List<OrderDto> listOrders(UUID storeId, int page, int size, String statusId) {
@@ -141,6 +156,143 @@ public class OrderServiceImpl implements OrderService {
         }
 
         return mapToDto(order);
+    }
+
+    @Override
+    @Transactional
+    public OrderDto createOrderFromCart(UUID storeId, CreateOrderFromCartDto cartOrderDto) {
+        Log.infof("Creating order from cart %s for store %s, customer %s", 
+                cartOrderDto.cartId(), storeId, cartOrderDto.customerId());
+
+        // Get and validate the shopping cart
+        Optional<ShoppingCartDto> cartOptional = cartService.getCartById(cartOrderDto.cartId());
+        if (cartOptional.isEmpty()) {
+            throw new IllegalArgumentException("Shopping cart not found: " + cartOrderDto.cartId());
+        }
+
+        ShoppingCartDto cart = cartOptional.get();
+        
+        // Validate cart state
+        if (!cart.isActive()) {
+            throw new IllegalStateException("Cart is not active: " + cartOrderDto.cartId());
+        }
+
+        if (cart.isEmpty()) {
+            throw new IllegalArgumentException("Cannot create order from empty cart: " + cartOrderDto.cartId());
+        }
+
+        if (cart.isExpired()) {
+            throw new IllegalStateException("Cart has expired: " + cartOrderDto.cartId());
+        }
+
+        // Validate customer ownership of the cart
+        if (!cartOrderDto.customerId().equals(cart.customerId())) {
+            throw new IllegalArgumentException("Customer does not own the specified cart");
+        }
+
+        // Validate stock availability for all cart items and reserve stock
+        var stockReservationId = UUID.randomUUID().toString();
+        boolean stockReserved = false;
+        
+        try {
+            // Validate and reserve stock for all cart items
+            for (CartItemDto cartItem : cart.items()) {
+                // Check stock availability
+                if (!inventoryService.hasSufficientStock(storeId, cartItem.productId(), cartItem.quantity())) {
+                    throw new IllegalStateException(
+                            String.format("Insufficient stock for product %s. Required: %d", 
+                                    cartItem.productId(), cartItem.quantity()));
+                }
+            }
+
+            // Reserve stock for order processing (15-minute window)
+            for (CartItemDto cartItem : cart.items()) {
+                String itemReservationId = stockReservationId + "-" + cartItem.productId();
+                if (!inventoryService.reserveStock(storeId, cartItem.productId(), 
+                        cartItem.quantity(), itemReservationId)) {
+                    throw new IllegalStateException(
+                            String.format("Failed to reserve stock for product %s", cartItem.productId()));
+                }
+            }
+            stockReserved = true;
+
+            // Convert cart items to order items
+            var orderItems = cart.items().stream()
+                    .map(cartItem -> new CreateOrderDto.CreateOrderItemDto(
+                            cartItem.productId(),
+                            cartItem.quantity(),
+                            cartItem.unitPrice()))
+                    .toList();
+
+            // Create order DTO from cart and address information
+            var createOrderDto = new CreateOrderDto(
+                    cartOrderDto.customerId(),
+                    cartOrderDto.shippingFirstName(),
+                    cartOrderDto.shippingLastName(),
+                    cartOrderDto.shippingAddressLine1(),
+                    cartOrderDto.shippingAddressLine2(),
+                    cartOrderDto.shippingCity(),
+                    cartOrderDto.shippingStateProvince(),
+                    cartOrderDto.shippingPostalCode(),
+                    cartOrderDto.shippingCountry(),
+                    cartOrderDto.shippingPhone(),
+                    cartOrderDto.billingFirstName(),
+                    cartOrderDto.billingLastName(),
+                    cartOrderDto.billingAddressLine1(),
+                    cartOrderDto.billingAddressLine2(),
+                    cartOrderDto.billingCity(),
+                    cartOrderDto.billingStateProvince(),
+                    cartOrderDto.billingPostalCode(),
+                    cartOrderDto.billingCountry(),
+                    cartOrderDto.billingPhone(),
+                    cartOrderDto.notes(),
+                    orderItems
+            );
+
+            // Create the order
+            OrderDto createdOrder = createOrder(storeId, createOrderDto);
+
+            // Confirm stock reservations (convert to actual stock reduction)
+            for (CartItemDto cartItem : cart.items()) {
+                String itemReservationId = stockReservationId + "-" + cartItem.productId();
+                inventoryService.confirmStockReservation(storeId, itemReservationId, 
+                        "Order #" + createdOrder.orderNumber() + " - Stock confirmed");
+            }
+
+            // Clear the cart if requested (default: true)
+            if (cartOrderDto.shouldClearCartAfterOrder()) {
+                try {
+                    cartService.clearCart(cartOrderDto.cartId());
+                    Log.infof("Cart %s cleared after successful order creation", cartOrderDto.cartId());
+                } catch (Exception e) {
+                    // Cart clearing failure shouldn't fail the order creation
+                    Log.warnf(e, "Failed to clear cart %s after order creation. Order was still created successfully.", 
+                            cartOrderDto.cartId());
+                }
+            }
+
+            Log.infof("Successfully created order %s from cart %s", 
+                    createdOrder.orderNumber(), cartOrderDto.cartId());
+            
+            return createdOrder;
+
+        } catch (Exception e) {
+            // Release any reserved stock on failure
+            if (stockReserved) {
+                try {
+                    for (CartItemDto cartItem : cart.items()) {
+                        String itemReservationId = stockReservationId + "-" + cartItem.productId();
+                        inventoryService.releaseStockReservation(storeId, itemReservationId);
+                    }
+                    Log.infof("Released stock reservations due to order creation failure");
+                } catch (Exception reservationException) {
+                    Log.errorf(reservationException, "Failed to release stock reservations after order creation failure");
+                }
+            }
+            
+            // Re-throw the original exception
+            throw e;
+        }
     }
 
     @Override
