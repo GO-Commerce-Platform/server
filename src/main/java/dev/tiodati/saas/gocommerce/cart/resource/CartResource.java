@@ -31,7 +31,7 @@ import lombok.RequiredArgsConstructor;
  * REST endpoint for shopping cart operations.
  * Provides HTTP API for cart and cart item management.
  */
-@Path("/api/v1/carts")
+@Path("/api/v1/cart")
 @ApplicationScoped
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -44,6 +44,28 @@ public class CartResource {
      */
     private final CartService cartService;
 
+    @GET
+    @Operation(summary = "Get current cart", description = "Retrieves the current active cart based on user context")
+    @APIResponses({
+            @APIResponse(responseCode = "200", description = "Cart retrieved successfully"),
+            @APIResponse(responseCode = "404", description = "Cart not found")
+    })
+    public Response getCurrentCart(@QueryParam("customerId") UUID customerId, @QueryParam("sessionId") String sessionId) {
+        Log.infof("REST: Getting current cart - customerId: %s, sessionId: %s", customerId, sessionId);
+
+        if (customerId != null) {
+            var cart = cartService.getOrCreateCart(customerId);
+            return Response.ok(cart).build();
+        } else if (sessionId != null) {
+            var cart = cartService.getOrCreateGuestCart(sessionId);
+            return Response.ok(cart).build();
+        } else {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("Error: Either customerId or sessionId must be provided")
+                    .build();
+        }
+    }
+    
     @GET
     @Path("/customer/{customerId}")
     @Operation(summary = "Get or create cart for customer", description = "Retrieves the active cart for a customer or creates a new one if none exists")
@@ -72,6 +94,40 @@ public class CartResource {
     }
 
     @GET
+    @Path("/summary")
+    @Operation(summary = "Get cart summary", description = "Retrieves a summary of cart totals and item count")
+    @APIResponses({
+            @APIResponse(responseCode = "200", description = "Cart summary retrieved"),
+            @APIResponse(responseCode = "404", description = "Cart not found")
+    })
+    public Response getCartSummary(@QueryParam("customerId") UUID customerId, @QueryParam("sessionId") String sessionId) {
+        Log.infof("REST: Getting cart summary - customerId: %s, sessionId: %s", customerId, sessionId);
+
+        try {
+            UUID cartId = null;
+            if (customerId != null) {
+                var cart = cartService.getOrCreateCart(customerId);
+                cartId = cart.id();
+            } else if (sessionId != null) {
+                var cart = cartService.getOrCreateGuestCart(sessionId);
+                cartId = cart.id();
+            } else {
+                return Response.status(Response.Status.BAD_REQUEST)
+                        .entity("Error: Either customerId or sessionId must be provided")
+                        .build();
+            }
+            
+            return cartService.getCartSummary(cartId)
+                    .map(summary -> Response.ok(summary).build())
+                    .orElse(Response.status(Response.Status.NOT_FOUND).build());
+        } catch (Exception e) {
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity("Error: " + e.getMessage())
+                    .build();
+        }
+    }
+    
+    @GET
     @Path("/{cartId}")
     @Operation(summary = "Get cart by ID", description = "Retrieves a specific cart by its ID")
     @APIResponses({
@@ -86,23 +142,8 @@ public class CartResource {
                 .orElse(Response.status(Response.Status.NOT_FOUND).build());
     }
 
-    @GET
-    @Path("/{cartId}/summary")
-    @Operation(summary = "Get cart summary", description = "Retrieves a summary of cart totals and item count")
-    @APIResponses({
-            @APIResponse(responseCode = "200", description = "Cart summary retrieved"),
-            @APIResponse(responseCode = "404", description = "Cart not found")
-    })
-    public Response getCartSummary(@PathParam("cartId") UUID cartId) {
-        Log.infof("REST: Getting cart summary for %s", cartId);
-
-        return cartService.getCartSummary(cartId)
-                .map(summary -> Response.ok(summary).build())
-                .orElse(Response.status(Response.Status.NOT_FOUND).build());
-    }
-
     @POST
-    @Path("/{cartId}/items")
+    @Path("/items")
     @Operation(summary = "Add item to cart", description = "Adds a product to the cart or increases quantity if already present")
     @APIResponses({
             @APIResponse(responseCode = "201", description = "Item added to cart"),
@@ -110,16 +151,30 @@ public class CartResource {
             @APIResponse(responseCode = "404", description = "Cart or product not found")
     })
     public Response addItemToCart(
-            @PathParam("cartId") UUID cartId,
+            @QueryParam("customerId") UUID customerId,
+            @QueryParam("sessionId") String sessionId,
             @Valid CreateCartItemDto createItemDto) {
-        Log.infof("REST: Adding item to cart %s", cartId);
+        Log.infof("REST: Adding item to cart - customerId: %s, sessionId: %s", customerId, sessionId);
 
         try {
+            UUID cartId = null;
+            if (customerId != null) {
+                var cart = cartService.getOrCreateCart(customerId);
+                cartId = cart.id();
+            } else if (sessionId != null) {
+                var cart = cartService.getOrCreateGuestCart(sessionId);
+                cartId = cart.id();
+            } else {
+                return Response.status(Response.Status.BAD_REQUEST)
+                        .entity("Error: Either customerId or sessionId must be provided")
+                        .build();
+            }
+            
             var cartItem = cartService.addItemToCart(cartId, createItemDto);
-            return Response.created(URI.create("/api/v1/carts/" + cartId + "/items/" + cartItem.id()))
+            return Response.created(URI.create("/api/v1/cart/items/" + cartItem.id()))
                     .entity(cartItem)
                     .build();
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException | IllegalStateException e) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("Error: " + e.getMessage())
                     .build();
@@ -127,7 +182,7 @@ public class CartResource {
     }
 
     @PUT
-    @Path("/{cartId}/items/{itemId}")
+    @Path("/items/{itemId}")
     @Operation(summary = "Update cart item", description = "Updates the quantity of an item in the cart")
     @APIResponses({
             @APIResponse(responseCode = "200", description = "Item updated successfully"),
@@ -135,15 +190,29 @@ public class CartResource {
             @APIResponse(responseCode = "404", description = "Cart or item not found")
     })
     public Response updateCartItem(
-            @PathParam("cartId") UUID cartId,
+            @QueryParam("customerId") UUID customerId,
+            @QueryParam("sessionId") String sessionId,
             @PathParam("itemId") UUID itemId,
             @Valid UpdateCartItemDto updateItemDto) {
-        Log.infof("REST: Updating item %s in cart %s", itemId, cartId);
+        Log.infof("REST: Updating item %s - customerId: %s, sessionId: %s", itemId, customerId, sessionId);
 
         try {
+            UUID cartId = null;
+            if (customerId != null) {
+                var cart = cartService.getOrCreateCart(customerId);
+                cartId = cart.id();
+            } else if (sessionId != null) {
+                var cart = cartService.getOrCreateGuestCart(sessionId);
+                cartId = cart.id();
+            } else {
+                return Response.status(Response.Status.BAD_REQUEST)
+                        .entity("Error: Either customerId or sessionId must be provided")
+                        .build();
+            }
+            
             var cartItem = cartService.updateCartItem(cartId, itemId, updateItemDto);
             return Response.ok(cartItem).build();
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException | IllegalStateException e) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("Error: " + e.getMessage())
                     .build();
@@ -151,7 +220,7 @@ public class CartResource {
     }
 
     @DELETE
-    @Path("/{cartId}/items/{itemId}")
+    @Path("/items/{itemId}")
     @Operation(summary = "Remove item from cart", description = "Removes a specific item from the cart")
     @APIResponses({
             @APIResponse(responseCode = "204", description = "Item removed successfully"),
@@ -159,11 +228,25 @@ public class CartResource {
             @APIResponse(responseCode = "404", description = "Cart or item not found")
     })
     public Response removeItemFromCart(
-            @PathParam("cartId") UUID cartId,
+            @QueryParam("customerId") UUID customerId,
+            @QueryParam("sessionId") String sessionId,
             @PathParam("itemId") UUID itemId) {
-        Log.infof("REST: Removing item %s from cart %s", itemId, cartId);
+        Log.infof("REST: Removing item %s - customerId: %s, sessionId: %s", itemId, customerId, sessionId);
 
         try {
+            UUID cartId = null;
+            if (customerId != null) {
+                var cart = cartService.getOrCreateCart(customerId);
+                cartId = cart.id();
+            } else if (sessionId != null) {
+                var cart = cartService.getOrCreateGuestCart(sessionId);
+                cartId = cart.id();
+            } else {
+                return Response.status(Response.Status.BAD_REQUEST)
+                        .entity("Error: Either customerId or sessionId must be provided")
+                        .build();
+            }
+            
             cartService.removeItemFromCart(cartId, itemId);
             return Response.noContent().build();
         } catch (IllegalArgumentException e) {
@@ -174,16 +257,30 @@ public class CartResource {
     }
 
     @DELETE
-    @Path("/{cartId}/items")
     @Operation(summary = "Clear cart", description = "Removes all items from the cart")
     @APIResponses({
             @APIResponse(responseCode = "204", description = "Cart cleared successfully"),
             @APIResponse(responseCode = "404", description = "Cart not found")
     })
-    public Response clearCart(@PathParam("cartId") UUID cartId) {
-        Log.infof("REST: Clearing cart %s", cartId);
+    public Response clearCart(
+            @QueryParam("customerId") UUID customerId,
+            @QueryParam("sessionId") String sessionId) {
+        Log.infof("REST: Clearing cart - customerId: %s, sessionId: %s", customerId, sessionId);
 
         try {
+            UUID cartId = null;
+            if (customerId != null) {
+                var cart = cartService.getOrCreateCart(customerId);
+                cartId = cart.id();
+            } else if (sessionId != null) {
+                var cart = cartService.getOrCreateGuestCart(sessionId);
+                cartId = cart.id();
+            } else {
+                return Response.status(Response.Status.BAD_REQUEST)
+                        .entity("Error: Either customerId or sessionId must be provided")
+                        .build();
+            }
+            
             cartService.clearCart(cartId);
             return Response.noContent().build();
         } catch (IllegalArgumentException e) {

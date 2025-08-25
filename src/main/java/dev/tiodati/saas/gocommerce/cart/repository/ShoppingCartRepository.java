@@ -140,6 +140,42 @@ public class ShoppingCartRepository implements PanacheRepositoryBase<ShoppingCar
                 + "where sessionId = ?2 and status = ?3",
                 customer, sessionId, CartStatus.ACTIVE);
     }
+
+    /**
+     * Mark expired carts as EXPIRED status.
+     * Updates carts that have passed their expiration date.
+     *
+     * @param currentTime the current timestamp to compare against
+     * @return number of carts marked as expired
+     */
+    public int markExpiredCartsAsExpired(LocalDateTime currentTime) {
+        return update("status = ?1, updatedAt = CURRENT_TIMESTAMP "
+                + "where status = ?2 and expiresAt IS NOT NULL and expiresAt < ?3",
+                CartStatus.EXPIRED, CartStatus.ACTIVE, currentTime);
+    }
+
+    /**
+     * Count carts that are expired but not yet marked as EXPIRED.
+     * 
+     * @param currentTime the current timestamp to compare against
+     * @return number of expired carts
+     */
+    public long countExpiredCarts(LocalDateTime currentTime) {
+        return count("status = ?1 and expiresAt IS NOT NULL and expiresAt < ?2",
+                CartStatus.ACTIVE, currentTime);
+    }
+
+    /**
+     * Delete old expired carts permanently.
+     * Removes carts that have been in EXPIRED status for the specified period.
+     * 
+     * @param cutoffDate date before which expired carts should be deleted
+     * @return number of deleted carts
+     */
+    public int deleteOldExpiredCarts(LocalDateTime cutoffDate) {
+        return (int) delete("status = ?1 and updatedAt < ?2",
+                CartStatus.EXPIRED, cutoffDate);
+    }
 }
 
 // Copilot: This file may have been generated or refactored by GitHub Copilot.
