@@ -292,7 +292,7 @@ public class InventoryServiceImpl implements InventoryService {
 
         // Create a decrease adjustment
         InventoryAdjustmentDto adjustmentDto = InventoryAdjustmentDto.decrease(
-            reservation.productId(), reservation.quantity(), reason);
+            reservation.productId, reservation.quantity, reason);
 
         boolean success = recordInventoryAdjustment(storeId, adjustmentDto);
         if (success) {
