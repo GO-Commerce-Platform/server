@@ -9,6 +9,7 @@ import dev.tiodati.saas.gocommerce.inventory.repository.InventoryAdjustmentRepos
 import dev.tiodati.saas.gocommerce.product.entity.Product;
 import dev.tiodati.saas.gocommerce.product.entity.ProductStatus;
 import dev.tiodati.saas.gocommerce.product.repository.ProductRepository;
+import dev.tiodati.saas.gocommerce.store.StoreContext;
 
 import io.quarkus.logging.Log;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -52,6 +53,12 @@ public class InventoryServiceImpl implements InventoryService {
     public boolean updateProductInventory(UUID storeId, UUID productId, InventoryUpdateDto updateDto) {
         Log.infof("Updating inventory for product %s in store %s: quantity=%d", 
                   productId, storeId, updateDto.newQuantity());
+
+        // Validate store context for multi-tenant security
+        if (!validateStoreContext(storeId)) {
+            Log.errorf("Store context validation failed for storeId: %s", storeId);
+            return false;
+        }
 
         try {
             Optional<Product> productOpt = productRepository.findByIdOptional(productId);
@@ -109,6 +116,12 @@ public class InventoryServiceImpl implements InventoryService {
         Log.infof("Recording inventory adjustment for product %s: type=%s, quantity=%d", 
                   adjustmentDto.productId(), adjustmentDto.adjustmentType(), adjustmentDto.quantity());
 
+        // Validate store context for multi-tenant security
+        if (!validateStoreContext(storeId)) {
+            Log.errorf("Store context validation failed for storeId: %s", storeId);
+            return false;
+        }
+
         try {
             Optional<Product> productOpt = productRepository.findByIdOptional(adjustmentDto.productId());
             if (productOpt.isEmpty()) {
@@ -160,6 +173,12 @@ public class InventoryServiceImpl implements InventoryService {
         Log.infof("Getting low stock alerts for store %s (limit=%s, urgency=%s)", 
                   storeId, limit, urgencyLevel);
 
+        // Validate store context for multi-tenant security
+        if (!validateStoreContext(storeId)) {
+            Log.errorf("Store context validation failed for storeId: %s", storeId);
+            return List.of(); // Return empty list on validation failure
+        }
+
         List<Product> products = productRepository.find("status = ?1 AND trackInventory = true", ProductStatus.ACTIVE).list();
         
         List<LowStockAlertDto> alerts = products.stream()
@@ -184,6 +203,13 @@ public class InventoryServiceImpl implements InventoryService {
     @Override
     public InventoryReportDto generateInventoryReport(UUID storeId, InventoryReportDto.ReportType reportType, boolean includeCategoryBreakdown) {
         Log.infof("Generating inventory report for store %s: type=%s", storeId, reportType);
+
+        // Validate store context for multi-tenant security
+        if (!validateStoreContext(storeId)) {
+            Log.errorf("Store context validation failed for storeId: %s", storeId);
+            // Return empty report on validation failure
+            return InventoryReportDto.createSummary(0, BigDecimal.ZERO, 0, 0, 0, 0.0);
+        }
 
         List<Product> allProducts = productRepository.find("status = ?1", ProductStatus.ACTIVE).list();
         
@@ -232,6 +258,12 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     public boolean hasSufficientStock(UUID storeId, UUID productId, Integer requiredQuantity) {
+        // Validate store context for multi-tenant security
+        if (!validateStoreContext(storeId)) {
+            Log.errorf("Store context validation failed for storeId: %s", storeId);
+            return false;
+        }
+
         Integer currentStock = getCurrentStockLevel(storeId, productId);
         if (currentStock == null) {
             return false;
@@ -305,6 +337,12 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     public Integer getCurrentStockLevel(UUID storeId, UUID productId) {
+        // Validate store context for multi-tenant security
+        if (!validateStoreContext(storeId)) {
+            Log.errorf("Store context validation failed for storeId: %s", storeId);
+            return null;
+        }
+
         Optional<Product> productOpt = productRepository.findByIdOptional(productId);
         if (productOpt.isPresent()) {
             Product product = productOpt.get();
@@ -317,6 +355,12 @@ public class InventoryServiceImpl implements InventoryService {
     @Transactional
     public boolean bulkUpdateInventory(UUID storeId, List<InventoryUpdateDto> updates) {
         Log.infof("Performing bulk inventory update for store %s: %d products", storeId, updates.size());
+
+        // Validate store context for multi-tenant security
+        if (!validateStoreContext(storeId)) {
+            Log.errorf("Store context validation failed for storeId: %s", storeId);
+            return false;
+        }
 
         try {
             for (InventoryUpdateDto update : updates) {
@@ -537,6 +581,29 @@ public class InventoryServiceImpl implements InventoryService {
                     );
                 })
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Validates that the current store context matches the provided storeId.
+     * This ensures multi-tenant security by preventing cross-store data access.
+     *
+     * @param storeId the store ID to validate against current context
+     * @return true if validation passes, false otherwise
+     */
+    private boolean validateStoreContext(UUID storeId) {
+        String currentStoreId = StoreContext.getCurrentStoreId();
+        
+        if (currentStoreId == null) {
+            Log.warnf("No store context set for operation on store %s", storeId);
+            return false;
+        }
+        
+        if (!currentStoreId.equals(storeId.toString())) {
+            Log.errorf("Store context mismatch: current=%s, requested=%s", currentStoreId, storeId);
+            return false;
+        }
+        
+        return true;
     }
 
     /**
