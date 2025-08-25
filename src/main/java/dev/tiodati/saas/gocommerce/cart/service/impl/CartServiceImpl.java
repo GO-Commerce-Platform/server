@@ -18,7 +18,9 @@ import dev.tiodati.saas.gocommerce.cart.repository.CartItemRepository;
 import dev.tiodati.saas.gocommerce.cart.repository.ShoppingCartRepository;
 import dev.tiodati.saas.gocommerce.cart.service.CartService;
 import dev.tiodati.saas.gocommerce.customer.entity.Customer;
+import dev.tiodati.saas.gocommerce.inventory.service.InventoryService;
 import dev.tiodati.saas.gocommerce.product.repository.ProductRepository;
+import dev.tiodati.saas.gocommerce.store.StoreContext;
 import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
@@ -42,6 +44,15 @@ public class CartServiceImpl implements CartService {
 
     /** Repository for product operations. */
     private final ProductRepository productRepository;
+    
+    /** Service for inventory operations. */
+    private final InventoryService inventoryService;
+    
+    /** Store context for multi-tenant operations. */
+    private final StoreContext storeContext;
+    
+    /** Service for cart expiration management. */
+    private final dev.tiodati.saas.gocommerce.cart.service.CartExpirationService cartExpirationService;
 
     @Override
     @Transactional
@@ -115,11 +126,20 @@ public class CartServiceImpl implements CartService {
         Log.infof("Adding item to cart %s: product %s, quantity %d",
                 cartId, createItemDto.productId(), createItemDto.quantity());
 
+        // Validate store context for multi-tenant security
+        validateStoreContext();
+        
         var cart = cartRepository.findByIdOptional(cartId)
                 .orElseThrow(() -> new IllegalArgumentException("Cart not found: " + cartId));
 
         if (cart.getStatus() != CartStatus.ACTIVE) {
             throw new IllegalArgumentException("Cart is not active: " + cartId);
+        }
+        
+        // Check if cart is expired
+        if (cartExpirationService.isCartExpired(cartId)) {
+            cartExpirationService.expireCart(cartId);
+            throw new IllegalArgumentException("Cart has expired: " + cartId);
         }
 
         var product = productRepository.findByIdOptional(createItemDto.productId())
@@ -131,11 +151,19 @@ public class CartServiceImpl implements CartService {
         if (existingItem.isPresent()) {
             // Update existing item quantity
             var item = existingItem.get();
-            item.setQuantity(item.getQuantity() + createItemDto.quantity());
+            var newQuantity = item.getQuantity() + createItemDto.quantity();
+            
+            // Validate stock availability for the new total quantity
+            validateStockAvailability(product.getId(), newQuantity);
+            
+            item.setQuantity(newQuantity);
             cartItemRepository.persist(item);
             updateCartTotals(cart);
             return mapToItemDto(item);
         } else {
+            // Validate stock availability for new item
+            validateStockAvailability(product.getId(), createItemDto.quantity());
+            
             // Create new cart item
             var cartItem = CartItem.builder()
                     .cart(cart)
@@ -157,6 +185,15 @@ public class CartServiceImpl implements CartService {
         Log.infof("Updating cart item %s in cart %s with quantity %d",
                 itemId, cartId, updateItemDto.quantity());
 
+        // Validate store context for multi-tenant security
+        validateStoreContext();
+        
+        // Check if cart is expired
+        if (cartExpirationService.isCartExpired(cartId)) {
+            cartExpirationService.expireCart(cartId);
+            throw new IllegalArgumentException("Cart has expired: " + cartId);
+        }
+        
         var cartItem = cartItemRepository.findByIdOptional(itemId)
                 .orElseThrow(() -> new IllegalArgumentException("Cart item not found: " + itemId));
 
@@ -164,6 +201,9 @@ public class CartServiceImpl implements CartService {
             throw new IllegalArgumentException("Cart item does not belong to cart: " + cartId);
         }
 
+        // Validate stock availability for the updated quantity
+        validateStockAvailability(cartItem.getProduct().getId(), updateItemDto.quantity());
+        
         cartItem.setQuantity(updateItemDto.quantity());
         cartItemRepository.persist(cartItem);
 
@@ -375,6 +415,40 @@ public class CartServiceImpl implements CartService {
                 item.getTotalPrice(),
                 item.getAddedAt(),
                 item.getUpdatedAt());
+    }
+    
+    /**
+     * Validates the current store context for multi-tenant security.
+     * Ensures operations are performed in the correct tenant context.
+     */
+    private void validateStoreContext() {
+        var currentStoreId = storeContext.getCurrentStoreId();
+        if (currentStoreId == null) {
+            throw new IllegalStateException("Store context is not set. Multi-tenant validation failed.");
+        }
+        Log.debugf("Validated store context: %s", currentStoreId);
+    }
+    
+    /**
+     * Validates stock availability for a product and quantity.
+     * Uses the inventory service to check if sufficient stock is available.
+     *
+     * @param productId the product ID to check
+     * @param quantity the required quantity
+     * @throws IllegalArgumentException if insufficient stock
+     */
+    private void validateStockAvailability(UUID productId, Integer quantity) {
+        var storeIdString = storeContext.getCurrentStoreId();
+        if (storeIdString == null) {
+            throw new IllegalStateException("Store context is not set for stock validation");
+        }
+        
+        var storeId = UUID.fromString(storeIdString);
+        if (!inventoryService.hasSufficientStock(storeId, productId, quantity)) {
+            throw new IllegalArgumentException(
+                String.format("Insufficient stock for product %s. Requested: %d", productId, quantity));
+        }
+        Log.debugf("Stock validation passed for product %s, quantity %d", productId, quantity);
     }
 }
 
