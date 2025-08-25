@@ -5,7 +5,9 @@ import dev.tiodati.saas.gocommerce.inventory.dto.InventoryReportDto;
 import dev.tiodati.saas.gocommerce.inventory.dto.InventoryUpdateDto;
 import dev.tiodati.saas.gocommerce.inventory.dto.LowStockAlertDto;
 import dev.tiodati.saas.gocommerce.inventory.entity.InventoryAdjustment;
+import dev.tiodati.saas.gocommerce.inventory.entity.StockReservation;
 import dev.tiodati.saas.gocommerce.inventory.repository.InventoryAdjustmentRepository;
+import dev.tiodati.saas.gocommerce.inventory.repository.StockReservationRepository;
 import dev.tiodati.saas.gocommerce.product.entity.Product;
 import dev.tiodati.saas.gocommerce.product.entity.ProductStatus;
 import dev.tiodati.saas.gocommerce.product.repository.ProductRepository;
@@ -28,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -41,12 +42,10 @@ public class InventoryServiceImpl implements InventoryService {
 
     private final ProductRepository productRepository;
     private final InventoryAdjustmentRepository adjustmentRepository;
+    private final StockReservationRepository stockReservationRepository;
 
     @Inject
     SecurityIdentity securityIdentity;
-
-    // In-memory stock reservations (in production, use Redis or database)
-    private final Map<String, StockReservation> stockReservations = new ConcurrentHashMap<>();
 
     @Override
     @Transactional
@@ -275,40 +274,88 @@ public class InventoryServiceImpl implements InventoryService {
             return true; // If not tracking inventory, assume sufficient
         }
 
-        return currentStock >= requiredQuantity;
+        // Account for existing reservations
+        int reservedQuantity = stockReservationRepository.getTotalReservedQuantity(productId);
+        int availableStock = currentStock - reservedQuantity;
+        
+        Log.debugf("Stock availability check for product %s: current=%d, reserved=%d, available=%d, required=%d",
+                   productId, currentStock, reservedQuantity, availableStock, requiredQuantity);
+
+        return availableStock >= requiredQuantity;
     }
 
     @Override
+    @Transactional
     public boolean reserveStock(UUID storeId, UUID productId, Integer quantity, String reservationId) {
         Log.infof("Reserving stock: product=%s, quantity=%d, reservation=%s", 
                   productId, quantity, reservationId);
 
-        if (!hasSufficientStock(storeId, productId, quantity)) {
-            Log.warnf("Insufficient stock for reservation: product=%s, required=%d", productId, quantity);
+        // Validate store context for multi-tenant security
+        if (!validateStoreContext(storeId)) {
+            Log.errorf("Store context validation failed for storeId: %s", storeId);
             return false;
         }
 
-        StockReservation reservation = new StockReservation(
-            reservationId, productId, quantity, Instant.now()
-        );
+        try {
+            // Clean up any expired reservations for this product first
+            cleanupExpiredReservations();
+            
+            // Check if sufficient stock is available
+            if (!hasSufficientStock(storeId, productId, quantity)) {
+                Log.warnf("Insufficient stock for reservation: product=%s, required=%d", productId, quantity);
+                return false;
+            }
 
-        stockReservations.put(reservationId, reservation);
-        Log.infof("Stock reserved successfully: %s", reservationId);
-        return true;
+            // Create database-backed reservation with 15-minute expiry
+            stockReservationRepository.createReservation(
+                reservationId,
+                productId,
+                quantity,
+                15, // 15 minutes expiry
+                getCurrentUserName(),
+                null, // no reference
+                "Stock reservation for order processing"
+            );
+
+            Log.infof("Stock reserved successfully in database: %s", reservationId);
+            return true;
+            
+        } catch (IllegalArgumentException e) {
+            Log.warnf("Failed to create reservation - already exists: %s", reservationId);
+            return false;
+        } catch (Exception e) {
+            Log.errorf(e, "Failed to reserve stock: %s", reservationId);
+            return false;
+        }
     }
 
     @Override
+    @Transactional
     public boolean releaseStockReservation(UUID storeId, String reservationId) {
         Log.infof("Releasing stock reservation: %s", reservationId);
         
-        StockReservation reservation = stockReservations.remove(reservationId);
-        if (reservation != null) {
-            Log.infof("Stock reservation released: %s", reservationId);
-            return true;
+        // Validate store context for multi-tenant security
+        if (!validateStoreContext(storeId)) {
+            Log.errorf("Store context validation failed for storeId: %s", storeId);
+            return false;
         }
         
-        Log.warnf("Reservation not found: %s", reservationId);
-        return false;
+        try {
+            boolean updated = stockReservationRepository.updateReservationStatus(
+                reservationId, StockReservation.ReservationStatus.RELEASED);
+            
+            if (updated) {
+                Log.infof("Stock reservation released in database: %s", reservationId);
+                return true;
+            } else {
+                Log.warnf("Reservation not found or already processed: %s", reservationId);
+                return false;
+            }
+            
+        } catch (Exception e) {
+            Log.errorf(e, "Failed to release reservation: %s", reservationId);
+            return false;
+        }
     }
 
     @Override
@@ -316,23 +363,40 @@ public class InventoryServiceImpl implements InventoryService {
     public boolean confirmStockReservation(UUID storeId, String reservationId, String reason) {
         Log.infof("Confirming stock reservation: %s", reservationId);
         
-        StockReservation reservation = stockReservations.get(reservationId);
-        if (reservation == null) {
-            Log.warnf("Reservation not found: %s", reservationId);
+        // Validate store context for multi-tenant security
+        if (!validateStoreContext(storeId)) {
+            Log.errorf("Store context validation failed for storeId: %s", storeId);
             return false;
         }
+        
+        try {
+            // Find the active reservation
+            Optional<StockReservation> reservationOpt = stockReservationRepository.findActiveReservation(reservationId);
+            if (reservationOpt.isEmpty()) {
+                Log.warnf("Active reservation not found: %s", reservationId);
+                return false;
+            }
 
-        // Create a decrease adjustment
-        InventoryAdjustmentDto adjustmentDto = InventoryAdjustmentDto.decrease(
-            reservation.productId, reservation.quantity, reason);
+            StockReservation reservation = reservationOpt.get();
+            
+            // Create a decrease adjustment to reduce actual inventory
+            InventoryAdjustmentDto adjustmentDto = InventoryAdjustmentDto.decrease(
+                reservation.getProductId(), reservation.getQuantity(), reason);
 
-        boolean success = recordInventoryAdjustment(storeId, adjustmentDto);
-        if (success) {
-            stockReservations.remove(reservationId);
-            Log.infof("Stock reservation confirmed and removed: %s", reservationId);
+            boolean success = recordInventoryAdjustment(storeId, adjustmentDto);
+            if (success) {
+                // Mark reservation as confirmed
+                stockReservationRepository.updateReservationStatus(
+                    reservationId, StockReservation.ReservationStatus.CONFIRMED);
+                Log.infof("Stock reservation confirmed and inventory reduced: %s", reservationId);
+            }
+
+            return success;
+            
+        } catch (Exception e) {
+            Log.errorf(e, "Failed to confirm reservation: %s", reservationId);
+            return false;
         }
-
-        return success;
     }
 
     @Override
@@ -607,19 +671,17 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     /**
-     * Internal class for stock reservations.
+     * Clean up expired reservations to free up stock.
+     * This method should be called periodically or before stock availability checks.
      */
-    private static class StockReservation {
-        final String reservationId;
-        final UUID productId;
-        final Integer quantity;
-        final Instant reservedAt;
-
-        StockReservation(String reservationId, UUID productId, Integer quantity, Instant reservedAt) {
-            this.reservationId = reservationId;
-            this.productId = productId;
-            this.quantity = quantity;
-            this.reservedAt = reservedAt;
+    private void cleanupExpiredReservations() {
+        try {
+            int expiredCount = stockReservationRepository.expireOldReservations(100);
+            if (expiredCount > 0) {
+                Log.infof("Cleaned up %d expired stock reservations", expiredCount);
+            }
+        } catch (Exception e) {
+            Log.warnf(e, "Failed to clean up expired reservations");
         }
     }
 }
