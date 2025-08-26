@@ -1,6 +1,7 @@
 package dev.tiodati.saas.gocommerce.order.service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -31,8 +32,12 @@ import dev.tiodati.saas.gocommerce.cart.repository.ShoppingCartRepository;
 import dev.tiodati.saas.gocommerce.cart.repository.CartItemRepository;
 import dev.tiodati.saas.gocommerce.inventory.service.InventoryService;
 import dev.tiodati.saas.gocommerce.inventory.dto.InventoryAdjustmentDto;
-import java.util.Map;
+import dev.tiodati.saas.gocommerce.promotion.service.PromotionService;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Map;
+
 @ApplicationScoped
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
@@ -61,6 +66,11 @@ public class OrderServiceImpl implements OrderService {
      * Service for inventory management operations.
      */
     private final InventoryService inventoryService;
+
+    /**
+     * Service for promotion and discount management.
+     */
+    private final PromotionService promotionService;
 
     @Override
     public List<OrderDto> listOrders(UUID storeId, int page, int size, String statusId) {
@@ -122,7 +132,7 @@ public class OrderServiceImpl implements OrderService {
 
         // Calculate totals
         var subtotal = calculateSubtotal(orderDto.items());
-        var discountAmount = calculateDiscount(orderDto);
+        var discountAmount = calculateDiscount(storeId, orderDto);
         var discountedSubtotal = subtotal.subtract(discountAmount);
         var taxAmount = calculateTax(discountedSubtotal);
         var shippingAmount = calculateShipping(orderDto);
@@ -476,38 +486,22 @@ public class OrderServiceImpl implements OrderService {
      */
     private BigDecimal calculateTax(BigDecimal subtotal) {
         // Simple 10% tax rate - in production would be more sophisticated
-        return subtotal.multiply(BigDecimal.valueOf(0.10));
+        return subtotal.multiply(BigDecimal.valueOf(0.10))
+                .setScale(2, RoundingMode.HALF_UP);
     }
 
     /**
-     * Calculates discount amount for direct order creation.
+     * Calculates discount amount for direct order creation using database-backed promotions.
      *
+     * @param storeId  The store ID
      * @param orderDto Order data
      * @return Discount amount
      */
-    private BigDecimal calculateDiscount(CreateOrderDto orderDto) {
-        // Basic discount calculation - in production would be more sophisticated
-        // This could include promotional codes, customer discounts, bulk discounts, etc.
+    private BigDecimal calculateDiscount(UUID storeId, CreateOrderDto orderDto) {
+        var subtotal = calculateSubtotal(orderDto.items());
+        var promotionCodes = extractPromotionCodes(orderDto.notes());
         
-        // For now, check for any promotional code patterns in notes
-        var notes = orderDto.notes();
-        if (notes != null) {
-            // Simple percentage discount based on promo codes in notes
-            if (notes.contains("VIP10")) {
-                var subtotal = calculateSubtotal(orderDto.items());
-                return subtotal.multiply(BigDecimal.valueOf(0.10)); // 10% discount
-            }
-            if (notes.contains("WELCOME5")) {
-                var subtotal = calculateSubtotal(orderDto.items());
-                return subtotal.multiply(BigDecimal.valueOf(0.05)); // 5% discount
-            }
-            if (notes.contains("SAVE20")) {
-                return BigDecimal.valueOf(20.00); // $20 flat discount
-            }
-        }
-        
-        // No discount applied
-        return BigDecimal.ZERO;
+        return promotionService.calculateBestDiscount(storeId, subtotal, promotionCodes);
     }
 
     /**
@@ -676,7 +670,7 @@ public class OrderServiceImpl implements OrderService {
 
         // Calculate totals from cart items
         var subtotal = calculateSubtotalFromCartItems(cartItems);
-        var discountAmount = calculateDiscountFromCart(createOrderDto, subtotal);
+        var discountAmount = calculateDiscountFromCart(storeId, createOrderDto, subtotal);
         var discountedSubtotal = subtotal.subtract(discountAmount);
         var taxAmount = calculateTax(discountedSubtotal);
         var shippingAmount = calculateShippingFromCart(createOrderDto);
@@ -760,43 +754,17 @@ public class OrderServiceImpl implements OrderService {
     }
 
     /**
-     * Calculates discount amount for cart-based order creation.
+     * Calculates discount amount for cart-based order creation using database-backed promotions.
      *
+     * @param storeId        The store ID
      * @param createOrderDto Order creation data
      * @param subtotal       Order subtotal before discounts
      * @return Discount amount
      */
-    private BigDecimal calculateDiscountFromCart(CreateOrderFromCartDto createOrderDto, BigDecimal subtotal) {
-        // Basic discount calculation for cart orders - in production would be more sophisticated
-        // This could integrate with a promotion engine, loyalty programs, customer tiers, etc.
+    private BigDecimal calculateDiscountFromCart(UUID storeId, CreateOrderFromCartDto createOrderDto, BigDecimal subtotal) {
+        var promotionCodes = extractPromotionCodes(createOrderDto.notes());
         
-        // Check for promotional codes in notes
-        var notes = createOrderDto.notes();
-        if (notes != null) {
-            // Simple percentage discount based on promo codes in notes
-            if (notes.contains("VIP10")) {
-                return subtotal.multiply(BigDecimal.valueOf(0.10)); // 10% discount
-            }
-            if (notes.contains("WELCOME5")) {
-                return subtotal.multiply(BigDecimal.valueOf(0.05)); // 5% discount
-            }
-            if (notes.contains("SAVE20")) {
-                return BigDecimal.valueOf(20.00); // $20 flat discount
-            }
-            if (notes.contains("BULK15") && subtotal.compareTo(BigDecimal.valueOf(100.00)) >= 0) {
-                return subtotal.multiply(BigDecimal.valueOf(0.15)); // 15% discount for orders over $100
-            }
-        }
-        
-        // Volume-based discounts
-        if (subtotal.compareTo(BigDecimal.valueOf(500.00)) >= 0) {
-            return subtotal.multiply(BigDecimal.valueOf(0.10)); // 10% discount for orders over $500
-        } else if (subtotal.compareTo(BigDecimal.valueOf(200.00)) >= 0) {
-            return subtotal.multiply(BigDecimal.valueOf(0.05)); // 5% discount for orders over $200
-        }
-        
-        // No discount applied
-        return BigDecimal.ZERO;
+        return promotionService.calculateBestDiscount(storeId, subtotal, promotionCodes);
     }
 
     /**
@@ -942,10 +910,12 @@ public class OrderServiceImpl implements OrderService {
             Log.infof("Reduced %d units of product %s from inventory for order %s",
                     itemDto.quantity(), itemDto.productId(), orderNumber);
         } catch (Exception e) {
-            Log.warnf("Failed to reduce inventory for product %s in order %s: %s",
+            Log.errorf("Failed to reduce inventory for product %s in order %s: %s",
                     itemDto.productId(), orderNumber, e.getMessage());
-            // In production, you might want to throw an exception here to prevent overselling
-            // throw new IllegalStateException("Failed to reduce inventory for product: " + itemDto.productId(), e);
+            // Critical: Prevent overselling by failing the order creation
+            throw new IllegalStateException(
+                    String.format("Failed to reduce inventory for product %s in order %s. Order creation aborted to prevent overselling.", 
+                            itemDto.productId(), orderNumber), e);
         }
     }
 
@@ -1141,8 +1111,10 @@ public class OrderServiceImpl implements OrderService {
                                 .orElseThrow(() -> new IllegalArgumentException("Order item not found: " + item.orderItemId()));
                         
                         // Calculate proportional amount based on quantity
-                        var unitRefund = originalItem.getTotalPrice().divide(BigDecimal.valueOf(originalItem.getQuantity()));
-                        return unitRefund.multiply(BigDecimal.valueOf(item.quantity()));
+                        var unitRefund = originalItem.getTotalPrice()
+                                .divide(BigDecimal.valueOf(originalItem.getQuantity()), 2, RoundingMode.HALF_UP);
+                        return unitRefund.multiply(BigDecimal.valueOf(item.quantity()))
+                                .setScale(2, RoundingMode.HALF_UP);
                     })
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
@@ -1236,6 +1208,32 @@ public class OrderServiceImpl implements OrderService {
         var datePrefix = now.format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
         var uniqueSuffix = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         return String.format("REF-%s-%s", datePrefix, uniqueSuffix);
+    }
+
+    /**
+     * Extracts promotion codes from order notes.
+     *
+     * @param notes The order notes
+     * @return List of promotion codes found in the notes
+     */
+    private List<String> extractPromotionCodes(String notes) {
+        if (notes == null || notes.trim().isEmpty()) {
+            return List.of();
+        }
+        
+        // Simple implementation: look for common promotion code patterns
+        // In production, this could be more sophisticated (regex, dedicated field, etc.)
+        var codes = new ArrayList<String>();
+        var words = Arrays.asList(notes.toUpperCase().split("\\s+"));
+        
+        for (String word : words) {
+            // Look for codes that match common patterns (letters + numbers)
+            if (word.matches("[A-Z]+\\d+") || word.matches("[A-Z]+") && word.length() >= 3) {
+                codes.add(word);
+            }
+        }
+        
+        return codes;
     }
 }
 
