@@ -1,6 +1,7 @@
 package dev.tiodati.saas.gocommerce.order.service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -13,14 +14,30 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 import dev.tiodati.saas.gocommerce.order.dto.CreateOrderDto;
+import dev.tiodati.saas.gocommerce.order.dto.CreateOrderFromCartDto;
+import dev.tiodati.saas.gocommerce.order.dto.CreateRefundDto;
 import dev.tiodati.saas.gocommerce.order.dto.OrderDto;
 import dev.tiodati.saas.gocommerce.order.dto.OrderItemDto;
+import dev.tiodati.saas.gocommerce.order.dto.RefundDto;
 import dev.tiodati.saas.gocommerce.order.entity.OrderHeader;
 import dev.tiodati.saas.gocommerce.order.entity.OrderItem;
 import dev.tiodati.saas.gocommerce.order.entity.OrderStatus;
 import dev.tiodati.saas.gocommerce.order.repository.OrderItemRepository;
 import dev.tiodati.saas.gocommerce.order.repository.OrderRepository;
 import dev.tiodati.saas.gocommerce.product.entity.Product;
+import dev.tiodati.saas.gocommerce.cart.entity.ShoppingCart;
+import dev.tiodati.saas.gocommerce.cart.entity.CartItem;
+import dev.tiodati.saas.gocommerce.cart.entity.CartStatus;
+import dev.tiodati.saas.gocommerce.cart.repository.ShoppingCartRepository;
+import dev.tiodati.saas.gocommerce.cart.repository.CartItemRepository;
+import dev.tiodati.saas.gocommerce.inventory.service.InventoryService;
+import dev.tiodati.saas.gocommerce.inventory.dto.InventoryAdjustmentDto;
+import dev.tiodati.saas.gocommerce.promotion.service.PromotionService;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+
 @ApplicationScoped
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
@@ -34,6 +51,26 @@ public class OrderServiceImpl implements OrderService {
      * Repository for order item data access operations.
      */
     private final OrderItemRepository orderItemRepository;
+
+    /**
+     * Repository for shopping cart data access operations.
+     */
+    private final ShoppingCartRepository cartRepository;
+
+    /**
+     * Repository for cart item data access operations.
+     */
+    private final CartItemRepository cartItemRepository;
+
+    /**
+     * Service for inventory management operations.
+     */
+    private final InventoryService inventoryService;
+
+    /**
+     * Service for promotion and discount management.
+     */
+    private final PromotionService promotionService;
 
     @Override
     public List<OrderDto> listOrders(UUID storeId, int page, int size, String statusId) {
@@ -95,9 +132,11 @@ public class OrderServiceImpl implements OrderService {
 
         // Calculate totals
         var subtotal = calculateSubtotal(orderDto.items());
-        var taxAmount = calculateTax(subtotal);
+        var discountAmount = calculateDiscount(storeId, orderDto);
+        var discountedSubtotal = subtotal.subtract(discountAmount);
+        var taxAmount = calculateTax(discountedSubtotal);
         var shippingAmount = calculateShipping(orderDto);
-        var totalAmount = subtotal.add(taxAmount).add(shippingAmount);
+        var totalAmount = discountedSubtotal.add(taxAmount).add(shippingAmount);
 
         // Create order header
         var order = OrderHeader.builder()
@@ -107,7 +146,7 @@ public class OrderServiceImpl implements OrderService {
                 .subtotal(subtotal)
                 .taxAmount(taxAmount)
                 .shippingAmount(shippingAmount)
-                .discountAmount(BigDecimal.ZERO)
+                .discountAmount(discountAmount)
                 .totalAmount(totalAmount)
                 .currencyCode("USD")
                 .locale("en")
@@ -134,13 +173,58 @@ public class OrderServiceImpl implements OrderService {
 
         orderRepository.persist(order);
 
-        // Create order items
+        // Create order items and reduce inventory
         for (var itemDto : orderDto.items()) {
             var item = createOrderItem(order, itemDto);
             orderRepository.getEntityManager().persist(item);
+            
+            // Reduce inventory stock for this item
+            reduceInventoryForOrderItem(storeId, itemDto, order.getOrderNumber());
         }
 
         return mapToDto(order);
+    }
+
+    @Override
+    @Transactional
+    public OrderDto createOrderFromCart(UUID storeId, CreateOrderFromCartDto createOrderDto) {
+        Log.infof("Creating order from cart %s for store %s, customer %s", 
+                createOrderDto.cartId(), storeId, createOrderDto.customerId());
+
+        // 1. Validate and retrieve the shopping cart
+        var cart = validateAndRetrieveCart(createOrderDto.cartId(), createOrderDto.customerId());
+        
+        // 2. Get cart items
+        var cartItems = cartItemRepository.findByCartId(cart.getId());
+        if (cartItems.isEmpty()) {
+            throw new IllegalArgumentException("Shopping cart is empty");
+        }
+
+        // 3. Check stock availability for all items
+        validateStockAvailability(storeId, cartItems);
+
+        // 4. Reserve stock for all items
+        var reservationIds = reserveStockForCartItems(storeId, cartItems);
+
+        try {
+            // 5. Create the order
+            var order = createOrderFromCartData(storeId, createOrderDto, cart, cartItems);
+
+            // 6. Confirm stock reservations (convert to actual stock reduction)
+            confirmStockReservations(storeId, reservationIds, "Order creation: " + order.orderNumber());
+
+            // 7. Clear the cart if requested
+            if (createOrderDto.shouldClearCartAfterOrder()) {
+                clearCart(cart);
+            }
+
+            Log.infof("Successfully created order %s from cart %s", order.orderNumber(), cart.getId());
+            return order;
+        } catch (Exception e) {
+            // If anything goes wrong, release the reserved stock
+            releaseStockReservations(storeId, reservationIds);
+            throw e;
+        }
     }
 
     @Override
@@ -150,9 +234,18 @@ public class OrderServiceImpl implements OrderService {
 
         return orderRepository.findByIdOptional(orderId)
                 .map(order -> {
+                    // Validate status transition
+                    var currentStatusId = order.getStatus() != null ? order.getStatus().getId() : "PENDING";
+                    validateStatusTransition(currentStatusId, newStatusId);
+                    
                     var newStatus = new OrderStatus();
                     newStatus.setId(newStatusId);
+                    newStatus.setName(getStatusName(newStatusId));
                     order.setStatus(newStatus);
+                    
+                    // Update relevant dates based on status
+                    updateOrderDatesForStatus(order, newStatusId);
+                    
                     orderRepository.persist(order);
                     return mapToDto(order);
                 });
@@ -165,11 +258,16 @@ public class OrderServiceImpl implements OrderService {
 
         return orderRepository.findByIdOptional(orderId)
                 .map(order -> {
+                    // Validate status transition to SHIPPED
+                    var currentStatusId = order.getStatus() != null ? order.getStatus().getId() : "PENDING";
+                    validateStatusTransition(currentStatusId, "SHIPPED");
+                    
                     order.setShippedDate(shippedDate);
 
-                    // Update status to SHIPPED if current status allows it
+                    // Update status to SHIPPED
                     var shippedStatus = new OrderStatus();
                     shippedStatus.setId("SHIPPED");
+                    shippedStatus.setName("Shipped");
                     order.setStatus(shippedStatus);
 
                     orderRepository.persist(order);
@@ -184,11 +282,16 @@ public class OrderServiceImpl implements OrderService {
 
         return orderRepository.findByIdOptional(orderId)
                 .map(order -> {
+                    // Validate status transition to DELIVERED
+                    var currentStatusId = order.getStatus() != null ? order.getStatus().getId() : "PENDING";
+                    validateStatusTransition(currentStatusId, "DELIVERED");
+                    
                     order.setDeliveredDate(deliveredDate);
 
                     // Update status to DELIVERED
                     var deliveredStatus = new OrderStatus();
                     deliveredStatus.setId("DELIVERED");
+                    deliveredStatus.setName("Delivered");
                     order.setStatus(deliveredStatus);
 
                     orderRepository.persist(order);
@@ -225,14 +328,16 @@ public class OrderServiceImpl implements OrderService {
 
         return orderRepository.findByIdOptional(orderId)
                 .map(order -> {
-                    // Check if order can be cancelled (e.g., not shipped yet)
-                    if (order.getShippedDate() != null) {
-                        throw new IllegalStateException("Cannot cancel order that has already been shipped");
-                    }
+                    // Validate that order can be cancelled
+                    validateOrderCancellation(order);
+
+                    // Restore inventory for all order items
+                    restoreInventoryForCancelledOrder(storeId, order);
 
                     // Update status to CANCELLED
                     var cancelledStatus = new OrderStatus();
                     cancelledStatus.setId("CANCELLED");
+                    cancelledStatus.setName("Cancelled");
                     order.setStatus(cancelledStatus);
 
                     // Add cancellation reason to notes
@@ -240,6 +345,7 @@ public class OrderServiceImpl implements OrderService {
                     order.setNotes(existingNotes + "\nCancelled: " + reason);
 
                     orderRepository.persist(order);
+                    Log.infof("Successfully cancelled order %s and restored inventory", order.getOrderNumber());
                     return mapToDto(order);
                 });
     }
@@ -348,13 +454,16 @@ public class OrderServiceImpl implements OrderService {
     }
 
     /**
-     * Generates a unique order number.
+     * Generates a unique order number using a combination of timestamp and UUID.
+     * Format: ORD-YYYYMMDD-XXXXXXXX (where X is first 8 chars of UUID)
      *
      * @return A unique order number
      */
     private String generateOrderNumber() {
-        // Simple implementation - in production would be more sophisticated
-        return "ORD-" + System.currentTimeMillis();
+        var now = java.time.LocalDateTime.now();
+        var datePrefix = now.format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
+        var uniqueSuffix = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        return String.format("ORD-%s-%s", datePrefix, uniqueSuffix);
     }
 
     /**
@@ -377,7 +486,22 @@ public class OrderServiceImpl implements OrderService {
      */
     private BigDecimal calculateTax(BigDecimal subtotal) {
         // Simple 10% tax rate - in production would be more sophisticated
-        return subtotal.multiply(BigDecimal.valueOf(0.10));
+        return subtotal.multiply(BigDecimal.valueOf(0.10))
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Calculates discount amount for direct order creation using database-backed promotions.
+     *
+     * @param storeId  The store ID
+     * @param orderDto Order data
+     * @return Discount amount
+     */
+    private BigDecimal calculateDiscount(UUID storeId, CreateOrderDto orderDto) {
+        var subtotal = calculateSubtotal(orderDto.items());
+        var promotionCodes = extractPromotionCodes(orderDto.notes());
+        
+        return promotionService.calculateBestDiscount(storeId, subtotal, promotionCodes);
     }
 
     /**
@@ -401,6 +525,715 @@ public class OrderServiceImpl implements OrderService {
         status.setId("PENDING");
         status.setName("Pending");
         return status;
+    }
+
+    // Helper methods for cart-to-order conversion
+
+    /**
+     * Validates and retrieves a shopping cart.
+     *
+     * @param cartId     The cart ID
+     * @param customerId The customer ID
+     * @return The validated shopping cart
+     * @throws IllegalArgumentException if cart is not found, not active, expired, or doesn't belong to customer
+     */
+    private ShoppingCart validateAndRetrieveCart(UUID cartId, UUID customerId) {
+        var cart = cartRepository.findByIdOptional(cartId)
+                .orElseThrow(() -> new IllegalArgumentException("Shopping cart not found"));
+
+        // Check if cart belongs to the customer
+        if (!cart.getCustomer().getId().equals(customerId)) {
+            throw new IllegalArgumentException("Shopping cart does not belong to the specified customer");
+        }
+
+        // Check if cart is active
+        if (cart.getStatus() != CartStatus.ACTIVE) {
+            throw new IllegalArgumentException("Shopping cart is not active");
+        }
+
+        // Check if cart is not expired
+        if (cart.getExpiresAt() != null && cart.getExpiresAt().isBefore(java.time.LocalDateTime.now())) {
+            throw new IllegalArgumentException("Shopping cart has expired");
+        }
+
+        return cart;
+    }
+
+    /**
+     * Validates stock availability for all cart items.
+     *
+     * @param storeId   The store ID
+     * @param cartItems The cart items to validate
+     * @throws IllegalStateException if insufficient stock for any item
+     */
+    private void validateStockAvailability(UUID storeId, List<CartItem> cartItems) {
+        for (var cartItem : cartItems) {
+            var productId = cartItem.getProduct().getId();
+            var requestedQuantity = cartItem.getQuantity();
+            
+            var hasSufficientStock = inventoryService.hasSufficientStock(storeId, productId, requestedQuantity);
+            if (!hasSufficientStock) {
+                throw new IllegalStateException(
+                    String.format("Insufficient stock for product %s (SKU: %s). Requested: %d", 
+                            productId, cartItem.getProduct().getSku(), requestedQuantity));
+            }
+        }
+    }
+
+    /**
+     * Reserves stock for all cart items.
+     *
+     * @param storeId   The store ID
+     * @param cartItems The cart items
+     * @return Map of product IDs to reservation IDs
+     */
+    private Map<UUID, String> reserveStockForCartItems(UUID storeId, List<CartItem> cartItems) {
+        Map<UUID, String> reservationIds = new HashMap<>();
+        
+        for (var cartItem : cartItems) {
+            var productId = cartItem.getProduct().getId();
+            var reservationId = generateReservationId(productId);
+            
+            var success = inventoryService.reserveStock(storeId, productId, cartItem.getQuantity(), reservationId);
+            if (!success) {
+                // If any reservation fails, release all previous reservations
+                releaseStockReservations(storeId, reservationIds);
+                throw new IllegalStateException(
+                    String.format("Failed to reserve stock for product %s (SKU: %s)", 
+                            productId, cartItem.getProduct().getSku()));
+            }
+            
+            reservationIds.put(productId, reservationId);
+        }
+        
+        return reservationIds;
+    }
+
+    /**
+     * Releases stock reservations (used in error scenarios).
+     *
+     * @param storeId       The store ID
+     * @param reservationIds Map of product IDs to reservation IDs
+     */
+    private void releaseStockReservations(UUID storeId, Map<UUID, String> reservationIds) {
+        for (var entry : reservationIds.entrySet()) {
+            try {
+                inventoryService.releaseStockReservation(storeId, entry.getValue());
+            } catch (Exception e) {
+                // Log but don't throw - we're already in error handling
+                Log.warnf("Failed to release stock reservation %s for product %s: %s", 
+                        entry.getValue(), entry.getKey(), e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Confirms stock reservations (converts reservations to actual stock reduction).
+     *
+     * @param storeId       The store ID
+     * @param reservationIds Map of product IDs to reservation IDs
+     * @param reason        Reason for the stock confirmation
+     */
+    private void confirmStockReservations(UUID storeId, Map<UUID, String> reservationIds, String reason) {
+        for (var entry : reservationIds.entrySet()) {
+            var success = inventoryService.confirmStockReservation(storeId, entry.getValue(), reason);
+            if (!success) {
+                Log.warnf("Failed to confirm stock reservation %s for product %s", 
+                        entry.getValue(), entry.getKey());
+            }
+        }
+    }
+
+    /**
+     * Generates a unique reservation ID for stock reservation.
+     *
+     * @param productId The product ID
+     * @return A unique reservation ID
+     */
+    private String generateReservationId(UUID productId) {
+        return "ORDER-" + System.currentTimeMillis() + "-" + productId.toString().substring(0, 8);
+    }
+
+    /**
+     * Creates an order from cart data.
+     *
+     * @param storeId        The store ID
+     * @param createOrderDto The order creation data
+     * @param cart           The shopping cart
+     * @param cartItems      The cart items
+     * @return The created order DTO
+     */
+    private OrderDto createOrderFromCartData(UUID storeId, CreateOrderFromCartDto createOrderDto, 
+                                              ShoppingCart cart, List<CartItem> cartItems) {
+        // Generate unique order number
+        var orderNumber = generateOrderNumber();
+
+        // Calculate totals from cart items
+        var subtotal = calculateSubtotalFromCartItems(cartItems);
+        var discountAmount = calculateDiscountFromCart(storeId, createOrderDto, subtotal);
+        var discountedSubtotal = subtotal.subtract(discountAmount);
+        var taxAmount = calculateTax(discountedSubtotal);
+        var shippingAmount = calculateShippingFromCart(createOrderDto);
+        var totalAmount = discountedSubtotal.add(taxAmount).add(shippingAmount);
+
+        // Create order header
+        var order = OrderHeader.builder()
+                .orderNumber(orderNumber)
+                .customerId(createOrderDto.customerId())
+                .status(getDefaultOrderStatus())
+                .subtotal(subtotal)
+                .taxAmount(taxAmount)
+                .shippingAmount(shippingAmount)
+                .discountAmount(discountAmount)
+                .totalAmount(totalAmount)
+                .currencyCode("USD")
+                .locale("en")
+                .shippingFirstName(createOrderDto.shippingFirstName())
+                .shippingLastName(createOrderDto.shippingLastName())
+                .shippingAddressLine1(createOrderDto.shippingAddressLine1())
+                .shippingAddressLine2(createOrderDto.shippingAddressLine2())
+                .shippingCity(createOrderDto.shippingCity())
+                .shippingStateProvince(createOrderDto.shippingStateProvince())
+                .shippingPostalCode(createOrderDto.shippingPostalCode())
+                .shippingCountry(createOrderDto.shippingCountry())
+                .shippingPhone(createOrderDto.shippingPhone())
+                .billingFirstName(createOrderDto.billingFirstName())
+                .billingLastName(createOrderDto.billingLastName())
+                .billingAddressLine1(createOrderDto.billingAddressLine1())
+                .billingAddressLine2(createOrderDto.billingAddressLine2())
+                .billingCity(createOrderDto.billingCity())
+                .billingStateProvince(createOrderDto.billingStateProvince())
+                .billingPostalCode(createOrderDto.billingPostalCode())
+                .billingCountry(createOrderDto.billingCountry())
+                .billingPhone(createOrderDto.billingPhone())
+                .notes(createOrderDto.notes())
+                .build();
+
+        orderRepository.persist(order);
+
+        // Create order items from cart items
+        for (var cartItem : cartItems) {
+            var orderItem = createOrderItemFromCartItem(order, cartItem);
+            orderRepository.getEntityManager().persist(orderItem);
+        }
+
+        return mapToDto(order);
+    }
+
+    /**
+     * Creates an OrderItem from a CartItem.
+     *
+     * @param order    The parent order
+     * @param cartItem The cart item
+     * @return The created OrderItem entity
+     */
+    private OrderItem createOrderItemFromCartItem(OrderHeader order, CartItem cartItem) {
+        var totalPrice = cartItem.getUnitPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity()));
+
+        return OrderItem.builder()
+                .order(order)
+                .product(cartItem.getProduct())
+                .quantity(cartItem.getQuantity())
+                .unitPrice(cartItem.getUnitPrice())
+                .totalPrice(totalPrice)
+                .productName(cartItem.getProduct().getName())
+                .productSku(cartItem.getProduct().getSku())
+                .build();
+    }
+
+    /**
+     * Calculates subtotal from cart items.
+     *
+     * @param cartItems The cart items
+     * @return Subtotal amount
+     */
+    private BigDecimal calculateSubtotalFromCartItems(List<CartItem> cartItems) {
+        return cartItems.stream()
+                .map(item -> item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * Calculates discount amount for cart-based order creation using database-backed promotions.
+     *
+     * @param storeId        The store ID
+     * @param createOrderDto Order creation data
+     * @param subtotal       Order subtotal before discounts
+     * @return Discount amount
+     */
+    private BigDecimal calculateDiscountFromCart(UUID storeId, CreateOrderFromCartDto createOrderDto, BigDecimal subtotal) {
+        var promotionCodes = extractPromotionCodes(createOrderDto.notes());
+        
+        return promotionService.calculateBestDiscount(storeId, subtotal, promotionCodes);
+    }
+
+    /**
+     * Calculates shipping amount for cart order.
+     *
+     * @param createOrderDto Order creation data
+     * @return Shipping amount
+     */
+    private BigDecimal calculateShippingFromCart(CreateOrderFromCartDto createOrderDto) {
+        // Simple flat rate shipping - in production would be more sophisticated
+        return BigDecimal.valueOf(9.99);
+    }
+
+    /**
+     * Clears the shopping cart by removing all items and updating status.
+     *
+     * @param cart The cart to clear
+     */
+    private void clearCart(ShoppingCart cart) {
+        // Remove all cart items
+        var cartItems = cartItemRepository.findByCartId(cart.getId());
+        for (var cartItem : cartItems) {
+            cartItemRepository.delete(cartItem);
+        }
+
+        // Update cart status to CONVERTED
+        cart.setStatus(CartStatus.CONVERTED);
+        cart.setTotalAmount(BigDecimal.ZERO);
+        cartRepository.persist(cart);
+    }
+
+    // Business logic helper methods for order status management
+
+    /**
+     * Validates that a status transition is allowed based on business rules.
+     *
+     * @param currentStatusId The current order status
+     * @param newStatusId     The target status
+     * @throws IllegalArgumentException if the status transition is not allowed
+     */
+    private void validateStatusTransition(String currentStatusId, String newStatusId) {
+        // Define allowed status transitions based on business rules
+        Map<String, List<String>> allowedTransitions = Map.of(
+                "PENDING", List.of("CONFIRMED", "CANCELLED"),
+                "CONFIRMED", List.of("PROCESSING", "CANCELLED"),
+                "PROCESSING", List.of("SHIPPED", "CANCELLED"),
+                "SHIPPED", List.of("DELIVERED"),
+                "DELIVERED", List.of(), // No transitions from delivered
+                "CANCELLED", List.of()  // No transitions from cancelled
+        );
+
+        var allowedFromCurrent = allowedTransitions.getOrDefault(currentStatusId, List.of());
+        if (!allowedFromCurrent.contains(newStatusId)) {
+            throw new IllegalArgumentException(
+                    String.format("Invalid status transition from %s to %s", currentStatusId, newStatusId));
+        }
+    }
+
+    /**
+     * Gets the human-readable status name for a status ID.
+     *
+     * @param statusId The status ID
+     * @return The status name
+     */
+    private String getStatusName(String statusId) {
+        return switch (statusId) {
+            case "PENDING" -> "Pending";
+            case "CONFIRMED" -> "Confirmed";
+            case "PROCESSING" -> "Processing";
+            case "SHIPPED" -> "Shipped";
+            case "DELIVERED" -> "Delivered";
+            case "CANCELLED" -> "Cancelled";
+            default -> statusId;
+        };
+    }
+
+    /**
+     * Updates order dates based on the new status.
+     *
+     * @param order       The order to update
+     * @param newStatusId The new status ID
+     */
+    private void updateOrderDatesForStatus(OrderHeader order, String newStatusId) {
+        var now = Instant.now();
+        switch (newStatusId) {
+            case "SHIPPED" -> {
+                if (order.getShippedDate() == null) {
+                    order.setShippedDate(now);
+                }
+            }
+            case "DELIVERED" -> {
+                if (order.getDeliveredDate() == null) {
+                    order.setDeliveredDate(now);
+                }
+            }
+        }
+    }
+
+    /**
+     * Validates that an order can be cancelled based on business rules.
+     *
+     * @param order The order to validate
+     * @throws IllegalStateException if the order cannot be cancelled
+     */
+    private void validateOrderCancellation(OrderHeader order) {
+        var currentStatusId = order.getStatus() != null ? order.getStatus().getId() : "PENDING";
+        
+        // Orders that are already shipped or delivered cannot be cancelled
+        if ("SHIPPED".equals(currentStatusId) || "DELIVERED".equals(currentStatusId)) {
+            throw new IllegalStateException(
+                    String.format("Cannot cancel order in status %s", currentStatusId));
+        }
+        
+        // Orders that are already cancelled cannot be cancelled again
+        if ("CANCELLED".equals(currentStatusId)) {
+            throw new IllegalStateException("Order is already cancelled");
+        }
+        
+        // Additional validation based on shipped date (as a safety check)
+        if (order.getShippedDate() != null) {
+            throw new IllegalStateException("Cannot cancel order that has already been shipped");
+        }
+    }
+
+    /**
+     * Reduces inventory stock for an order item during direct order creation.
+     *
+     * @param storeId     The store ID
+     * @param itemDto     The order item DTO
+     * @param orderNumber The order number for reference
+     */
+    private void reduceInventoryForOrderItem(UUID storeId, CreateOrderDto.CreateOrderItemDto itemDto, String orderNumber) {
+        try {
+            var adjustmentDto = new InventoryAdjustmentDto(
+                    itemDto.productId(),
+                    InventoryAdjustmentDto.AdjustmentType.DECREASE,  // Remove from stock
+                    itemDto.quantity(),  // Quantity to reduce
+                    String.format("Direct order creation: %s", orderNumber),
+                    orderNumber,  // Reference to order
+                    null   // No additional notes
+            );
+            inventoryService.recordInventoryAdjustment(storeId, adjustmentDto);
+            Log.infof("Reduced %d units of product %s from inventory for order %s",
+                    itemDto.quantity(), itemDto.productId(), orderNumber);
+        } catch (Exception e) {
+            Log.errorf("Failed to reduce inventory for product %s in order %s: %s",
+                    itemDto.productId(), orderNumber, e.getMessage());
+            // Critical: Prevent overselling by failing the order creation
+            throw new IllegalStateException(
+                    String.format("Failed to reduce inventory for product %s in order %s. Order creation aborted to prevent overselling.", 
+                            itemDto.productId(), orderNumber), e);
+        }
+    }
+
+    /**
+     * Restores inventory for all items in a cancelled order.
+     *
+     * @param storeId The store ID
+     * @param order   The cancelled order
+     */
+    private void restoreInventoryForCancelledOrder(UUID storeId, OrderHeader order) {
+        var orderItems = orderItemRepository.findByOrderId(order.getId());
+        
+        for (var orderItem : orderItems) {
+            try {
+                var productId = orderItem.getProduct().getId();
+                var quantity = orderItem.getQuantity();
+                var reason = String.format("Order cancellation: %s", order.getOrderNumber());
+                
+                var adjustmentDto = new InventoryAdjustmentDto(
+                        productId,
+                        InventoryAdjustmentDto.AdjustmentType.INCREASE,  // Add back to stock
+                        quantity,  // Positive quantity to add back to stock
+                        reason,
+                        null,  // No reference
+                        null   // No additional notes
+                );
+                inventoryService.recordInventoryAdjustment(storeId, adjustmentDto);
+                Log.infof("Restored %d units of product %s to inventory for cancelled order %s",
+                        quantity, orderItem.getProductSku(), order.getOrderNumber());
+            } catch (Exception e) {
+                // Log but don't fail the cancellation if inventory restoration fails
+                Log.warnf("Failed to restore inventory for product %s in cancelled order %s: %s",
+                        orderItem.getProductSku(), order.getOrderNumber(), e.getMessage());
+            }
+        }
+    }
+
+    // Refund functionality methods
+
+    @Override
+    @Transactional
+    public RefundDto createRefund(UUID storeId, CreateRefundDto createRefundDto) {
+        Log.infof("Creating refund for order %s in store %s (type: %s, amount: %s)",
+                createRefundDto.orderId(), storeId, createRefundDto.refundType(), createRefundDto.refundAmount());
+
+        // Find the order
+        var order = orderRepository.findByIdOptional(createRefundDto.orderId())
+                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + createRefundDto.orderId()));
+
+        // Validate order is refundable
+        validateOrderRefundable(order);
+
+        // Calculate refund amount and validate
+        var calculatedRefundAmount = calculateRefundAmount(order, createRefundDto);
+        var remainingRefundableAmount = getRemainingRefundableAmount(order);
+        
+        if (calculatedRefundAmount.compareTo(remainingRefundableAmount) > 0) {
+            throw new IllegalStateException(
+                    String.format("Refund amount %.2f exceeds remaining refundable amount %.2f",
+                            calculatedRefundAmount.doubleValue(), remainingRefundableAmount.doubleValue()));
+        }
+
+        // Generate refund number
+        var refundNumber = generateRefundNumber();
+
+        // Create refund items
+        var refundItems = createRefundItems(order, createRefundDto);
+
+        // In a real implementation, this would create and persist Refund and RefundItem entities
+        // For now, we'll create a DTO with simulated data
+        var refundId = UUID.randomUUID();
+        var now = Instant.now();
+        
+        var refund = new RefundDto(
+                refundId,
+                order.getId(),
+                order.getOrderNumber(),
+                refundNumber,
+                createRefundDto.refundType().name(),
+                "PENDING", // Initial status
+                calculatedRefundAmount,
+                null, // Not yet processed
+                createRefundDto.reason(),
+                createRefundDto.refundMethod(),
+                refundItems,
+                createRefundDto.notes(),
+                now, // Requested date
+                null, // Not yet processed
+                now, // Created at
+                now, // Updated at
+                1L   // Version
+        );
+
+        Log.infof("Created refund %s for order %s (amount: %.2f)", 
+                refundNumber, order.getOrderNumber(), calculatedRefundAmount.doubleValue());
+        
+        return refund;
+    }
+
+    @Override
+    public List<RefundDto> getOrderRefunds(UUID storeId, UUID orderId) {
+        Log.infof("Getting refunds for order %s in store %s", orderId, storeId);
+        
+        // In a real implementation, this would query refund repository
+        // For now, return empty list as we don't have persistent refunds
+        return List.of();
+    }
+
+    @Override
+    public Optional<RefundDto> findRefund(UUID storeId, UUID refundId) {
+        Log.infof("Finding refund %s in store %s", refundId, storeId);
+        
+        // In a real implementation, this would query refund repository
+        // For now, return empty as we don't have persistent refunds
+        return Optional.empty();
+    }
+
+    @Override
+    @Transactional
+    public Optional<RefundDto> processRefund(UUID storeId, UUID refundId, BigDecimal processedAmount, String notes) {
+        Log.infof("Processing refund %s in store %s (amount: %.2f)", 
+                refundId, storeId, processedAmount.doubleValue());
+        
+        // In a real implementation, this would:
+        // 1. Find the refund by ID
+        // 2. Validate it's in PENDING status
+        // 3. Process the payment refund via payment gateway
+        // 4. Update refund status to PROCESSED
+        // 5. Set processed amount and date
+        // 6. Update inventory if needed
+        
+        // For now, return empty as we don't have persistent refunds
+        return Optional.empty();
+    }
+
+    // Helper methods for refund functionality
+
+    /**
+     * Validates that an order can be refunded.
+     *
+     * @param order The order to validate
+     * @throws IllegalStateException if the order cannot be refunded
+     */
+    private void validateOrderRefundable(OrderHeader order) {
+        var currentStatusId = order.getStatus() != null ? order.getStatus().getId() : "PENDING";
+        
+        // Only orders that are DELIVERED can be refunded (in most business models)
+        // CANCELLED orders can also be refunded if payment was already processed
+        if (!"DELIVERED".equals(currentStatusId) && !"CANCELLED".equals(currentStatusId)) {
+            throw new IllegalStateException(
+                    String.format("Order in status %s cannot be refunded", currentStatusId));
+        }
+        
+        // Additional validation could include checking refund time limits
+        if (order.getDeliveredDate() != null) {
+            var daysSinceDelivery = java.time.Duration.between(order.getDeliveredDate(), Instant.now()).toDays();
+            if (daysSinceDelivery > 30) {
+                throw new IllegalStateException("Refund period has expired (30 days after delivery)");
+            }
+        }
+    }
+
+    /**
+     * Calculates the refund amount based on the refund request.
+     *
+     * @param order           The order being refunded
+     * @param createRefundDto The refund request
+     * @return The calculated refund amount
+     */
+    private BigDecimal calculateRefundAmount(OrderHeader order, CreateRefundDto createRefundDto) {
+        if (createRefundDto.refundType() == CreateRefundDto.RefundType.FULL) {
+            // Full refund - return total amount paid
+            return order.getTotalAmount();
+        }
+        
+        if (createRefundDto.refundAmount() != null) {
+            // Explicit refund amount specified
+            return createRefundDto.refundAmount();
+        }
+        
+        if (createRefundDto.items() != null && !createRefundDto.items().isEmpty()) {
+            // Calculate based on items being refunded
+            return createRefundDto.items().stream()
+                    .map(item -> {
+                        if (item.refundAmount() != null) {
+                            return item.refundAmount();
+                        }
+                        // Find the original order item to calculate proportional refund
+                        var orderItems = orderItemRepository.findByOrderId(order.getId());
+                        var originalItem = orderItems.stream()
+                                .filter(oi -> oi.getId().equals(item.orderItemId()))
+                                .findFirst()
+                                .orElseThrow(() -> new IllegalArgumentException("Order item not found: " + item.orderItemId()));
+                        
+                        // Calculate proportional amount based on quantity
+                        var unitRefund = originalItem.getTotalPrice()
+                                .divide(BigDecimal.valueOf(originalItem.getQuantity()), 2, RoundingMode.HALF_UP);
+                        return unitRefund.multiply(BigDecimal.valueOf(item.quantity()))
+                                .setScale(2, RoundingMode.HALF_UP);
+                    })
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+        
+        throw new IllegalArgumentException("Cannot determine refund amount from request");
+    }
+
+    /**
+     * Gets the remaining refundable amount for an order.
+     *
+     * @param order The order
+     * @return The remaining amount that can be refunded
+     */
+    private BigDecimal getRemainingRefundableAmount(OrderHeader order) {
+        // In a real implementation, this would subtract already processed refunds
+        // For now, assume the full order amount is refundable
+        return order.getTotalAmount();
+    }
+
+    /**
+     * Creates refund item DTOs from the refund request.
+     *
+     * @param order           The order being refunded
+     * @param createRefundDto The refund request
+     * @return List of refund item DTOs
+     */
+    private List<RefundDto.RefundItemDto> createRefundItems(OrderHeader order, CreateRefundDto createRefundDto) {
+        if (createRefundDto.refundType() == CreateRefundDto.RefundType.FULL) {
+            // Full refund - include all order items
+            return orderItemRepository.findByOrderId(order.getId()).stream()
+                    .map(orderItem -> new RefundDto.RefundItemDto(
+                            UUID.randomUUID(), // Refund item ID
+                            UUID.randomUUID(), // Refund ID (would be actual refund ID)
+                            orderItem.getId(),
+                            orderItem.getProduct().getId(),
+                            orderItem.getProductName(),
+                            orderItem.getProductSku(),
+                            orderItem.getQuantity(),
+                            orderItem.getUnitPrice(),
+                            orderItem.getTotalPrice(),
+                            Instant.now(),
+                            Instant.now(),
+                            1L
+                    ))
+                    .toList();
+        }
+        
+        if (createRefundDto.items() != null) {
+            // Partial refund - include specified items
+            var orderItems = orderItemRepository.findByOrderId(order.getId());
+            return createRefundDto.items().stream()
+                    .map(refundItem -> {
+                        var orderItem = orderItems.stream()
+                                .filter(oi -> oi.getId().equals(refundItem.orderItemId()))
+                                .findFirst()
+                                .orElseThrow(() -> new IllegalArgumentException("Order item not found: " + refundItem.orderItemId()));
+                        
+                        var refundAmount = refundItem.refundAmount() != null ? 
+                                refundItem.refundAmount() :
+                                orderItem.getUnitPrice().multiply(BigDecimal.valueOf(refundItem.quantity()));
+                        
+                        return new RefundDto.RefundItemDto(
+                                UUID.randomUUID(), // Refund item ID
+                                UUID.randomUUID(), // Refund ID (would be actual refund ID)
+                                orderItem.getId(),
+                                orderItem.getProduct().getId(),
+                                orderItem.getProductName(),
+                                orderItem.getProductSku(),
+                                refundItem.quantity(),
+                                orderItem.getUnitPrice(),
+                                refundAmount,
+                                Instant.now(),
+                                Instant.now(),
+                                1L
+                        );
+                    })
+                    .toList();
+        }
+        
+        // No items specified - empty list
+        return List.of();
+    }
+
+    /**
+     * Generates a unique refund number.
+     *
+     * @return A unique refund number
+     */
+    private String generateRefundNumber() {
+        var now = java.time.LocalDateTime.now();
+        var datePrefix = now.format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
+        var uniqueSuffix = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        return String.format("REF-%s-%s", datePrefix, uniqueSuffix);
+    }
+
+    /**
+     * Extracts promotion codes from order notes.
+     *
+     * @param notes The order notes
+     * @return List of promotion codes found in the notes
+     */
+    private List<String> extractPromotionCodes(String notes) {
+        if (notes == null || notes.trim().isEmpty()) {
+            return List.of();
+        }
+        
+        // Simple implementation: look for common promotion code patterns
+        // In production, this could be more sophisticated (regex, dedicated field, etc.)
+        var codes = new ArrayList<String>();
+        var words = Arrays.asList(notes.toUpperCase().split("\\s+"));
+        
+        for (String word : words) {
+            // Look for codes that match common patterns (letters + numbers)
+            if (word.matches("[A-Z]+\\d+") || word.matches("[A-Z]+") && word.length() >= 3) {
+                codes.add(word);
+            }
+        }
+        
+        return codes;
     }
 }
 

@@ -1,12 +1,16 @@
 package dev.tiodati.saas.gocommerce.order.service;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import dev.tiodati.saas.gocommerce.order.dto.CreateOrderDto;
+import dev.tiodati.saas.gocommerce.order.dto.CreateOrderFromCartDto;
+import dev.tiodati.saas.gocommerce.order.dto.CreateRefundDto;
 import dev.tiodati.saas.gocommerce.order.dto.OrderDto;
+import dev.tiodati.saas.gocommerce.order.dto.RefundDto;
 
 /**
  * Service interface for order management operations.
@@ -62,6 +66,19 @@ public interface OrderService {
      * @return The created order
      */
     OrderDto createOrder(UUID storeId, CreateOrderDto orderDto);
+
+    /**
+     * Create a new order from a shopping cart.
+     * Validates cart ownership, stock availability, and converts cart items to order items.
+     * Optionally clears the cart after successful order creation.
+     *
+     * @param storeId           The store ID
+     * @param createOrderDto    Order creation data with cart ID and shipping/billing info
+     * @return The created order
+     * @throws IllegalArgumentException if cart is not found, empty, expired, or customer doesn't own it
+     * @throws IllegalStateException    if insufficient stock is available for any cart items
+     */
+    OrderDto createOrderFromCart(UUID storeId, CreateOrderFromCartDto createOrderDto);
 
     /**
      * Update order status.
@@ -123,6 +140,46 @@ public interface OrderService {
      * @return Optional containing the updated order if found and cancellable
      */
     Optional<OrderDto> cancelOrder(UUID storeId, UUID orderId, String reason);
+
+    /**
+     * Create a refund for an order.
+     *
+     * @param storeId       The store ID
+     * @param createRefundDto Refund creation data
+     * @return The created refund
+     * @throws IllegalArgumentException if order is not found or not refundable
+     * @throws IllegalStateException if refund amount exceeds refundable amount
+     */
+    RefundDto createRefund(UUID storeId, CreateRefundDto createRefundDto);
+
+    /**
+     * Get refunds for an order.
+     *
+     * @param storeId The store ID
+     * @param orderId The order ID
+     * @return List of refunds for the order
+     */
+    List<RefundDto> getOrderRefunds(UUID storeId, UUID orderId);
+
+    /**
+     * Find a refund by ID.
+     *
+     * @param storeId  The store ID
+     * @param refundId The refund ID
+     * @return Optional containing the refund if found
+     */
+    Optional<RefundDto> findRefund(UUID storeId, UUID refundId);
+
+    /**
+     * Process a pending refund.
+     *
+     * @param storeId  The store ID
+     * @param refundId The refund ID
+     * @param processedAmount The amount actually processed (may differ from requested)
+     * @param notes    Processing notes
+     * @return Optional containing the processed refund if found
+     */
+    Optional<RefundDto> processRefund(UUID storeId, UUID refundId, BigDecimal processedAmount, String notes);
 }
 
 // Copilot: This file may have been generated or refactored by GitHub Copilot.
