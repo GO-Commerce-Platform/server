@@ -13,6 +13,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 import dev.tiodati.saas.gocommerce.order.dto.CreateOrderDto;
+import dev.tiodati.saas.gocommerce.order.dto.CreateOrderFromCartDto;
 import dev.tiodati.saas.gocommerce.order.dto.OrderDto;
 import dev.tiodati.saas.gocommerce.order.dto.OrderItemDto;
 import dev.tiodati.saas.gocommerce.order.entity.OrderHeader;
@@ -21,6 +22,14 @@ import dev.tiodati.saas.gocommerce.order.entity.OrderStatus;
 import dev.tiodati.saas.gocommerce.order.repository.OrderItemRepository;
 import dev.tiodati.saas.gocommerce.order.repository.OrderRepository;
 import dev.tiodati.saas.gocommerce.product.entity.Product;
+import dev.tiodati.saas.gocommerce.cart.entity.ShoppingCart;
+import dev.tiodati.saas.gocommerce.cart.entity.CartItem;
+import dev.tiodati.saas.gocommerce.cart.entity.CartStatus;
+import dev.tiodati.saas.gocommerce.cart.repository.ShoppingCartRepository;
+import dev.tiodati.saas.gocommerce.cart.repository.CartItemRepository;
+import dev.tiodati.saas.gocommerce.inventory.service.InventoryService;
+import java.util.Map;
+import java.util.HashMap;
 @ApplicationScoped
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
@@ -34,6 +43,21 @@ public class OrderServiceImpl implements OrderService {
      * Repository for order item data access operations.
      */
     private final OrderItemRepository orderItemRepository;
+
+    /**
+     * Repository for shopping cart data access operations.
+     */
+    private final ShoppingCartRepository cartRepository;
+
+    /**
+     * Repository for cart item data access operations.
+     */
+    private final CartItemRepository cartItemRepository;
+
+    /**
+     * Service for inventory management operations.
+     */
+    private final InventoryService inventoryService;
 
     @Override
     public List<OrderDto> listOrders(UUID storeId, int page, int size, String statusId) {
@@ -141,6 +165,48 @@ public class OrderServiceImpl implements OrderService {
         }
 
         return mapToDto(order);
+    }
+
+    @Override
+    @Transactional
+    public OrderDto createOrderFromCart(UUID storeId, CreateOrderFromCartDto createOrderDto) {
+        Log.infof("Creating order from cart %s for store %s, customer %s", 
+                createOrderDto.cartId(), storeId, createOrderDto.customerId());
+
+        // 1. Validate and retrieve the shopping cart
+        var cart = validateAndRetrieveCart(createOrderDto.cartId(), createOrderDto.customerId());
+        
+        // 2. Get cart items
+        var cartItems = cartItemRepository.findByCartId(cart.getId());
+        if (cartItems.isEmpty()) {
+            throw new IllegalArgumentException("Shopping cart is empty");
+        }
+
+        // 3. Check stock availability for all items
+        validateStockAvailability(storeId, cartItems);
+
+        // 4. Reserve stock for all items
+        var reservationIds = reserveStockForCartItems(storeId, cartItems);
+
+        try {
+            // 5. Create the order
+            var order = createOrderFromCartData(storeId, createOrderDto, cart, cartItems);
+
+            // 6. Confirm stock reservations (convert to actual stock reduction)
+            confirmStockReservations(storeId, reservationIds, "Order creation: " + order.orderNumber());
+
+            // 7. Clear the cart if requested
+            if (createOrderDto.shouldClearCartAfterOrder()) {
+                clearCart(cart);
+            }
+
+            Log.infof("Successfully created order %s from cart %s", order.orderNumber(), cart.getId());
+            return order;
+        } catch (Exception e) {
+            // If anything goes wrong, release the reserved stock
+            releaseStockReservations(storeId, reservationIds);
+            throw e;
+        }
     }
 
     @Override
@@ -401,6 +467,259 @@ public class OrderServiceImpl implements OrderService {
         status.setId("PENDING");
         status.setName("Pending");
         return status;
+    }
+
+    // Helper methods for cart-to-order conversion
+
+    /**
+     * Validates and retrieves a shopping cart.
+     *
+     * @param cartId     The cart ID
+     * @param customerId The customer ID
+     * @return The validated shopping cart
+     * @throws IllegalArgumentException if cart is not found, not active, expired, or doesn't belong to customer
+     */
+    private ShoppingCart validateAndRetrieveCart(UUID cartId, UUID customerId) {
+        var cart = cartRepository.findByIdOptional(cartId)
+                .orElseThrow(() -> new IllegalArgumentException("Shopping cart not found"));
+
+        // Check if cart belongs to the customer
+        if (!cart.getCustomer().getId().equals(customerId)) {
+            throw new IllegalArgumentException("Shopping cart does not belong to the specified customer");
+        }
+
+        // Check if cart is active
+        if (cart.getStatus() != CartStatus.ACTIVE) {
+            throw new IllegalArgumentException("Shopping cart is not active");
+        }
+
+        // Check if cart is not expired
+        if (cart.getExpiresAt() != null && cart.getExpiresAt().isBefore(java.time.LocalDateTime.now())) {
+            throw new IllegalArgumentException("Shopping cart has expired");
+        }
+
+        return cart;
+    }
+
+    /**
+     * Validates stock availability for all cart items.
+     *
+     * @param storeId   The store ID
+     * @param cartItems The cart items to validate
+     * @throws IllegalStateException if insufficient stock for any item
+     */
+    private void validateStockAvailability(UUID storeId, List<CartItem> cartItems) {
+        for (var cartItem : cartItems) {
+            var productId = cartItem.getProduct().getId();
+            var requestedQuantity = cartItem.getQuantity();
+            
+            var hasSufficientStock = inventoryService.hasSufficientStock(storeId, productId, requestedQuantity);
+            if (!hasSufficientStock) {
+                throw new IllegalStateException(
+                    String.format("Insufficient stock for product %s (SKU: %s). Requested: %d", 
+                            productId, cartItem.getProduct().getSku(), requestedQuantity));
+            }
+        }
+    }
+
+    /**
+     * Reserves stock for all cart items.
+     *
+     * @param storeId   The store ID
+     * @param cartItems The cart items
+     * @return Map of product IDs to reservation IDs
+     */
+    private Map<UUID, String> reserveStockForCartItems(UUID storeId, List<CartItem> cartItems) {
+        Map<UUID, String> reservationIds = new HashMap<>();
+        
+        for (var cartItem : cartItems) {
+            var productId = cartItem.getProduct().getId();
+            var reservationId = generateReservationId(productId);
+            
+            var success = inventoryService.reserveStock(storeId, productId, cartItem.getQuantity(), reservationId);
+            if (!success) {
+                // If any reservation fails, release all previous reservations
+                releaseStockReservations(storeId, reservationIds);
+                throw new IllegalStateException(
+                    String.format("Failed to reserve stock for product %s (SKU: %s)", 
+                            productId, cartItem.getProduct().getSku()));
+            }
+            
+            reservationIds.put(productId, reservationId);
+        }
+        
+        return reservationIds;
+    }
+
+    /**
+     * Releases stock reservations (used in error scenarios).
+     *
+     * @param storeId       The store ID
+     * @param reservationIds Map of product IDs to reservation IDs
+     */
+    private void releaseStockReservations(UUID storeId, Map<UUID, String> reservationIds) {
+        for (var entry : reservationIds.entrySet()) {
+            try {
+                inventoryService.releaseStockReservation(storeId, entry.getValue());
+            } catch (Exception e) {
+                // Log but don't throw - we're already in error handling
+                Log.warnf("Failed to release stock reservation %s for product %s: %s", 
+                        entry.getValue(), entry.getKey(), e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Confirms stock reservations (converts reservations to actual stock reduction).
+     *
+     * @param storeId       The store ID
+     * @param reservationIds Map of product IDs to reservation IDs
+     * @param reason        Reason for the stock confirmation
+     */
+    private void confirmStockReservations(UUID storeId, Map<UUID, String> reservationIds, String reason) {
+        for (var entry : reservationIds.entrySet()) {
+            var success = inventoryService.confirmStockReservation(storeId, entry.getValue(), reason);
+            if (!success) {
+                Log.warnf("Failed to confirm stock reservation %s for product %s", 
+                        entry.getValue(), entry.getKey());
+            }
+        }
+    }
+
+    /**
+     * Generates a unique reservation ID for stock reservation.
+     *
+     * @param productId The product ID
+     * @return A unique reservation ID
+     */
+    private String generateReservationId(UUID productId) {
+        return "ORDER-" + System.currentTimeMillis() + "-" + productId.toString().substring(0, 8);
+    }
+
+    /**
+     * Creates an order from cart data.
+     *
+     * @param storeId        The store ID
+     * @param createOrderDto The order creation data
+     * @param cart           The shopping cart
+     * @param cartItems      The cart items
+     * @return The created order DTO
+     */
+    private OrderDto createOrderFromCartData(UUID storeId, CreateOrderFromCartDto createOrderDto, 
+                                              ShoppingCart cart, List<CartItem> cartItems) {
+        // Generate unique order number
+        var orderNumber = generateOrderNumber();
+
+        // Calculate totals from cart items
+        var subtotal = calculateSubtotalFromCartItems(cartItems);
+        var taxAmount = calculateTax(subtotal);
+        var shippingAmount = calculateShippingFromCart(createOrderDto);
+        var totalAmount = subtotal.add(taxAmount).add(shippingAmount);
+
+        // Create order header
+        var order = OrderHeader.builder()
+                .orderNumber(orderNumber)
+                .customerId(createOrderDto.customerId())
+                .status(getDefaultOrderStatus())
+                .subtotal(subtotal)
+                .taxAmount(taxAmount)
+                .shippingAmount(shippingAmount)
+                .discountAmount(BigDecimal.ZERO)
+                .totalAmount(totalAmount)
+                .currencyCode("USD")
+                .locale("en")
+                .shippingFirstName(createOrderDto.shippingFirstName())
+                .shippingLastName(createOrderDto.shippingLastName())
+                .shippingAddressLine1(createOrderDto.shippingAddressLine1())
+                .shippingAddressLine2(createOrderDto.shippingAddressLine2())
+                .shippingCity(createOrderDto.shippingCity())
+                .shippingStateProvince(createOrderDto.shippingStateProvince())
+                .shippingPostalCode(createOrderDto.shippingPostalCode())
+                .shippingCountry(createOrderDto.shippingCountry())
+                .shippingPhone(createOrderDto.shippingPhone())
+                .billingFirstName(createOrderDto.billingFirstName())
+                .billingLastName(createOrderDto.billingLastName())
+                .billingAddressLine1(createOrderDto.billingAddressLine1())
+                .billingAddressLine2(createOrderDto.billingAddressLine2())
+                .billingCity(createOrderDto.billingCity())
+                .billingStateProvince(createOrderDto.billingStateProvince())
+                .billingPostalCode(createOrderDto.billingPostalCode())
+                .billingCountry(createOrderDto.billingCountry())
+                .billingPhone(createOrderDto.billingPhone())
+                .notes(createOrderDto.notes())
+                .build();
+
+        orderRepository.persist(order);
+
+        // Create order items from cart items
+        for (var cartItem : cartItems) {
+            var orderItem = createOrderItemFromCartItem(order, cartItem);
+            orderRepository.getEntityManager().persist(orderItem);
+        }
+
+        return mapToDto(order);
+    }
+
+    /**
+     * Creates an OrderItem from a CartItem.
+     *
+     * @param order    The parent order
+     * @param cartItem The cart item
+     * @return The created OrderItem entity
+     */
+    private OrderItem createOrderItemFromCartItem(OrderHeader order, CartItem cartItem) {
+        var totalPrice = cartItem.getUnitPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity()));
+
+        return OrderItem.builder()
+                .order(order)
+                .product(cartItem.getProduct())
+                .quantity(cartItem.getQuantity())
+                .unitPrice(cartItem.getUnitPrice())
+                .totalPrice(totalPrice)
+                .productName(cartItem.getProduct().getName())
+                .productSku(cartItem.getProduct().getSku())
+                .build();
+    }
+
+    /**
+     * Calculates subtotal from cart items.
+     *
+     * @param cartItems The cart items
+     * @return Subtotal amount
+     */
+    private BigDecimal calculateSubtotalFromCartItems(List<CartItem> cartItems) {
+        return cartItems.stream()
+                .map(item -> item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * Calculates shipping amount for cart order.
+     *
+     * @param createOrderDto Order creation data
+     * @return Shipping amount
+     */
+    private BigDecimal calculateShippingFromCart(CreateOrderFromCartDto createOrderDto) {
+        // Simple flat rate shipping - in production would be more sophisticated
+        return BigDecimal.valueOf(9.99);
+    }
+
+    /**
+     * Clears the shopping cart by removing all items and updating status.
+     *
+     * @param cart The cart to clear
+     */
+    private void clearCart(ShoppingCart cart) {
+        // Remove all cart items
+        var cartItems = cartItemRepository.findByCartId(cart.getId());
+        for (var cartItem : cartItems) {
+            cartItemRepository.delete(cartItem);
+        }
+
+        // Update cart status to CONVERTED
+        cart.setStatus(CartStatus.CONVERTED);
+        cart.setTotalAmount(BigDecimal.ZERO);
+        cartRepository.persist(cart);
     }
 }
 
