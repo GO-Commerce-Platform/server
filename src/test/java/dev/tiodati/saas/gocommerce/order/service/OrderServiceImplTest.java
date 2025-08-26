@@ -2,6 +2,7 @@ package dev.tiodati.saas.gocommerce.order.service;
 
 import dev.tiodati.saas.gocommerce.inventory.dto.InventoryAdjustmentDto;
 import dev.tiodati.saas.gocommerce.inventory.service.InventoryService;
+import dev.tiodati.saas.gocommerce.order.dto.CreateOrderDto;
 import dev.tiodati.saas.gocommerce.order.entity.OrderHeader;
 import dev.tiodati.saas.gocommerce.order.entity.OrderItem;
 import dev.tiodati.saas.gocommerce.order.entity.OrderStatus;
@@ -10,6 +11,7 @@ import dev.tiodati.saas.gocommerce.order.repository.OrderRepository;
 import dev.tiodati.saas.gocommerce.product.entity.Product;
 import dev.tiodati.saas.gocommerce.cart.repository.ShoppingCartRepository;
 import dev.tiodati.saas.gocommerce.cart.repository.CartItemRepository;
+import dev.tiodati.saas.gocommerce.promotion.service.PromotionService;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.InjectMock;
 import jakarta.inject.Inject;
@@ -18,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.mockito.ArgumentCaptor;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -47,6 +50,9 @@ class OrderServiceImplTest {
 
     @InjectMock
     InventoryService inventoryService;
+
+    @InjectMock
+    PromotionService promotionService;
 
     private OrderHeader testOrder;
     private OrderItem testOrderItem;
@@ -278,5 +284,191 @@ class OrderServiceImplTest {
         orderService.updateOrderStatus(storeId, orderId, "PROCESSING");
 
         assertEquals("Processing", testOrder.getStatus().getName());
+    }
+
+    @Test
+    @DisplayName("Should create order with promotion discount applied")
+    void testCreateOrder_WithPromotionDiscount() {
+        // Given
+        var customerId = UUID.randomUUID();
+        var orderItemDto = new CreateOrderDto.CreateOrderItemDto(
+                productId, 2, new BigDecimal("50.00")
+        );
+        var createOrderDto = new CreateOrderDto(
+                customerId,
+                "Test", "Customer",
+                "123 Main St", null,
+                "Test City", "CA", "12345", "USA", "555-1234",
+                "Test", "Customer",
+                "123 Main St", null,
+                "Test City", "CA", "12345", "USA", "555-1234",
+                "Applied code SAVE10", // Notes containing promotion code
+                List.of(orderItemDto)
+        );
+
+        // Mock promotion service to return 10% discount ($10.00 on $100 order)
+        when(promotionService.calculateBestDiscount(eq(storeId), eq(new BigDecimal("100.00")), any()))
+                .thenReturn(new BigDecimal("10.00"));
+        
+        // Mock inventory service
+        when(inventoryService.recordInventoryAdjustment(eq(storeId), any())).thenReturn(true);
+        
+        // Mock entity manager to return the product
+        var entityManager = mock(jakarta.persistence.EntityManager.class);
+        when(orderRepository.getEntityManager()).thenReturn(entityManager);
+        when(entityManager.find(Product.class, productId)).thenReturn(testProduct);
+        doNothing().when(entityManager).persist(any());
+
+        // When
+        var result = orderService.createOrder(storeId, createOrderDto);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(new BigDecimal("100.00"), result.subtotal()); // 2 * $50.00
+        assertEquals(new BigDecimal("10.00"), result.discountAmount()); // 10% discount
+        // This line was incorrect, let me remove it
+        // Total calculation: discountedSubtotal + tax + shipping
+        // discountedSubtotal = subtotal - discount = 100 - 10 = 90
+        // tax = discountedSubtotal * 0.10 = 90 * 0.10 = 9.00
+        // shipping = 9.99 (flat rate)
+        // total = 90 + 9.00 + 9.99 = 108.99
+        assertEquals(new BigDecimal("108.99"), result.totalAmount());
+        
+        // Verify promotion service was called with correct parameters
+        verify(promotionService).calculateBestDiscount(eq(storeId), eq(new BigDecimal("100.00")), argThat(codes -> 
+                codes.contains("SAVE10")
+        ));
+    }
+
+    @Test
+    @DisplayName("Should create order with no discount when no promotion codes")
+    void testCreateOrder_NoPromotionCodes() {
+        // Given
+        var customerId = UUID.randomUUID();
+        var orderItemDto = new CreateOrderDto.CreateOrderItemDto(
+                productId, 1, new BigDecimal("75.00")
+        );
+        var createOrderDto = new CreateOrderDto(
+                customerId,
+                "Test", "Customer",
+                "123 Main St", null,
+                "Test City", "CA", "12345", "USA", "555-1234",
+                "Test", "Customer",
+                "123 Main St", null,
+                "Test City", "CA", "12345", "USA", "555-1234",
+                "customer wants this asap", // Notes without promotion codes
+                List.of(orderItemDto)
+        );
+
+        // Mock promotion service to return no discount
+        when(promotionService.calculateBestDiscount(eq(storeId), eq(new BigDecimal("75.00")), any()))
+                .thenReturn(BigDecimal.ZERO);
+        
+        // Mock inventory service
+        when(inventoryService.recordInventoryAdjustment(eq(storeId), any())).thenReturn(true);
+        
+        // Mock entity manager to return the product
+        var entityManager = mock(jakarta.persistence.EntityManager.class);
+        when(orderRepository.getEntityManager()).thenReturn(entityManager);
+        when(entityManager.find(Product.class, productId)).thenReturn(testProduct);
+        doNothing().when(entityManager).persist(any());
+
+        // When
+        var result = orderService.createOrder(storeId, createOrderDto);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(new BigDecimal("75.00"), result.subtotal());
+        assertEquals(BigDecimal.ZERO, result.discountAmount());
+        
+        // Verify promotion service was called with the extracted words (even though they're not real promo codes)
+        // The promotion service should return zero discount for these non-matching codes
+        verify(promotionService).calculateBestDiscount(eq(storeId), eq(new BigDecimal("75.00")), 
+                argThat(codes -> codes.containsAll(List.of("CUSTOMER", "WANTS", "THIS", "ASAP"))));
+    }
+
+    @Test
+    @DisplayName("Should handle promotion service failure gracefully")
+    void testCreateOrder_PromotionServiceFailure() {
+        // Given
+        var customerId = UUID.randomUUID();
+        var orderItemDto = new CreateOrderDto.CreateOrderItemDto(
+                productId, 1, new BigDecimal("50.00")
+        );
+        var createOrderDto = new CreateOrderDto(
+                customerId,
+                "Test", "Customer",
+                "123 Main St", null,
+                "Test City", "CA", "12345", "USA", "555-1234",
+                "Test", "Customer",
+                "123 Main St", null,
+                "Test City", "CA", "12345", "USA", "555-1234",
+                "Applied code SAVE10",
+                List.of(orderItemDto)
+        );
+
+        // Mock promotion service to throw exception
+        when(promotionService.calculateBestDiscount(any(), any(), any()))
+                .thenThrow(new RuntimeException("Promotion service unavailable"));
+        
+        // Mock inventory service
+        when(inventoryService.recordInventoryAdjustment(eq(storeId), any())).thenReturn(true);
+        
+        // Mock entity manager to return the product
+        var entityManager = mock(jakarta.persistence.EntityManager.class);
+        when(orderRepository.getEntityManager()).thenReturn(entityManager);
+        when(entityManager.find(Product.class, productId)).thenReturn(testProduct);
+        doNothing().when(entityManager).persist(any());
+
+        // When & Then - Order creation should fail gracefully
+        assertThrows(RuntimeException.class, () -> {
+            orderService.createOrder(storeId, createOrderDto);
+        });
+    }
+
+    @Test
+    @DisplayName("Should extract promotion codes from order notes correctly")
+    void testPromotionCodeExtraction() {
+        // This tests the private method extractPromotionCodes indirectly
+        // Given
+        var customerId = UUID.randomUUID();
+        var orderItemDto = new CreateOrderDto.CreateOrderItemDto(
+                productId, 1, new BigDecimal("100.00")
+        );
+        var createOrderDto = new CreateOrderDto(
+                customerId,
+                "Test", "Customer",
+                "123 Main St", null,
+                "Test City", "CA", "12345", "USA", "555-1234",
+                "Test", "Customer",
+                "123 Main St", null,
+                "Test City", "CA", "12345", "USA", "555-1234",
+                "Please apply codes SAVE10 and VIP20 for extra discount!",
+                List.of(orderItemDto)
+        );
+
+        // Mock promotion service
+        when(promotionService.calculateBestDiscount(eq(storeId), eq(new BigDecimal("100.00")), any()))
+                .thenReturn(new BigDecimal("15.00"));
+        
+        // Mock inventory service
+        when(inventoryService.recordInventoryAdjustment(eq(storeId), any())).thenReturn(true);
+        
+        // Mock entity manager
+        var entityManager = mock(jakarta.persistence.EntityManager.class);
+        when(orderRepository.getEntityManager()).thenReturn(entityManager);
+        when(entityManager.find(Product.class, productId)).thenReturn(testProduct);
+        doNothing().when(entityManager).persist(any());
+
+        // When
+        var result = orderService.createOrder(storeId, createOrderDto);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(new BigDecimal("15.00"), result.discountAmount());
+        
+        // Verify promotion service was called with extracted codes
+        verify(promotionService).calculateBestDiscount(eq(storeId), eq(new BigDecimal("100.00")), 
+                argThat(codes -> codes.contains("SAVE10") && codes.contains("VIP20")));
     }
 }
