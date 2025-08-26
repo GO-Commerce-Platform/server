@@ -323,6 +323,163 @@ public class OrderResource {
     }
 
     /**
+     * Mark an order as shipped.
+     *
+     * @param storeId The store ID
+     * @param orderId The order ID
+     * @param shippingInfo Request body containing shipping information
+     * @return The updated order
+     */
+    @POST
+    @Path("/{orderId}/ship")
+    @Operation(summary = "Mark order as shipped", description = "Marks an order as shipped with shipping date and tracking information")
+    @RolesAllowed({"PLATFORM_ADMIN", "STORE_ADMIN", "ORDER_MANAGER"})
+    @RequiresStoreRole({Roles.ORDER_MANAGER, Roles.STORE_ADMIN})
+    @APIResponses({
+            @APIResponse(responseCode = "200", description = "Order marked as shipped successfully", content = @Content(schema = @Schema(implementation = OrderDto.class))),
+            @APIResponse(responseCode = "400", description = "Invalid request or order cannot be shipped"),
+            @APIResponse(responseCode = "404", description = "Order not found"),
+            @APIResponse(responseCode = "409", description = "Conflict - order cannot be shipped in current status")
+    })
+    public Response markOrderShipped(
+            @PathParam("storeId") UUID storeId,
+            @PathParam("orderId") UUID orderId,
+            Map<String, Object> shippingInfo) {
+        Log.infof("Marking order %s as shipped in store %s", orderId, storeId);
+        
+        try {
+            Instant shippedDate = shippingInfo != null && shippingInfo.get("shippedDate") != null 
+                ? Instant.parse(shippingInfo.get("shippedDate").toString())
+                : Instant.now();
+                
+            return orderService.markOrderShipped(storeId, orderId, shippedDate)
+                    .map(dto -> Response.ok(dto).build())
+                    .orElse(Response.status(Response.Status.NOT_FOUND)
+                            .entity("{\"error\": \"Order not found\"}")
+                            .build());
+        } catch (IllegalStateException e) {
+            Log.warnf("Order cannot be shipped: %s", e.getMessage());
+            return Response.status(Response.Status.CONFLICT)
+                    .entity("{\"error\": \"" + e.getMessage() + "\"}")
+                    .build();
+        } catch (Exception e) {
+            Log.error("Unexpected error marking order as shipped", e);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity("{\"error\": \"Internal server error marking order as shipped\"}")
+                    .build();
+        }
+    }
+
+    /**
+     * Mark an order as delivered.
+     *
+     * @param storeId The store ID
+     * @param orderId The order ID
+     * @param deliveryInfo Request body containing delivery information
+     * @return The updated order
+     */
+    @POST
+    @Path("/{orderId}/deliver")
+    @Operation(summary = "Mark order as delivered", description = "Marks an order as delivered with delivery date")
+    @RolesAllowed({"PLATFORM_ADMIN", "STORE_ADMIN", "ORDER_MANAGER"})
+    @RequiresStoreRole({Roles.ORDER_MANAGER, Roles.STORE_ADMIN})
+    @APIResponses({
+            @APIResponse(responseCode = "200", description = "Order marked as delivered successfully", content = @Content(schema = @Schema(implementation = OrderDto.class))),
+            @APIResponse(responseCode = "400", description = "Invalid request or order cannot be delivered"),
+            @APIResponse(responseCode = "404", description = "Order not found"),
+            @APIResponse(responseCode = "409", description = "Conflict - order cannot be delivered in current status")
+    })
+    public Response markOrderDelivered(
+            @PathParam("storeId") UUID storeId,
+            @PathParam("orderId") UUID orderId,
+            Map<String, Object> deliveryInfo) {
+        Log.infof("Marking order %s as delivered in store %s", orderId, storeId);
+        
+        try {
+            Instant deliveredDate = deliveryInfo != null && deliveryInfo.get("deliveredDate") != null 
+                ? Instant.parse(deliveryInfo.get("deliveredDate").toString())
+                : Instant.now();
+                
+            return orderService.markOrderDelivered(storeId, orderId, deliveredDate)
+                    .map(dto -> Response.ok(dto).build())
+                    .orElse(Response.status(Response.Status.NOT_FOUND)
+                            .entity("{\"error\": \"Order not found\"}")
+                            .build());
+        } catch (IllegalStateException e) {
+            Log.warnf("Order cannot be delivered: %s", e.getMessage());
+            return Response.status(Response.Status.CONFLICT)
+                    .entity("{\"error\": \"" + e.getMessage() + "\"}")
+                    .build();
+        } catch (Exception e) {
+            Log.error("Unexpected error marking order as delivered", e);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity("{\"error\": \"Internal server error marking order as delivered\"}")
+                    .build();
+        }
+    }
+
+    /**
+     * Get orders within a date range.
+     *
+     * @param storeId The store ID
+     * @param startDate Start date for filtering
+     * @param endDate End date for filtering
+     * @param page Page number for pagination
+     * @param size Page size for pagination
+     * @return List of orders within the date range
+     */
+    @GET
+    @Path("/date-range")
+    @Operation(summary = "Get orders by date range", description = "Retrieves orders within a specified date range")
+    @RolesAllowed({"PLATFORM_ADMIN", "STORE_ADMIN", "ORDER_MANAGER"})
+    @APIResponses({
+            @APIResponse(responseCode = "200", description = "Orders retrieved successfully", content = @Content(schema = @Schema(implementation = OrderDto.class)))
+    })
+    public List<OrderDto> getOrdersByDateRange(
+            @PathParam("storeId") UUID storeId,
+            @QueryParam("startDate") String startDate,
+            @QueryParam("endDate") String endDate,
+            @QueryParam("page") @DefaultValue("0") int page,
+            @QueryParam("size") @DefaultValue("20") int size) {
+        Log.infof("Getting orders for store %s from %s to %s (page=%d, size=%d)",
+                storeId, startDate, endDate, page, size);
+        
+        Instant start = startDate != null ? Instant.parse(startDate) : Instant.now().minus(java.time.Duration.ofDays(30));
+        Instant end = endDate != null ? Instant.parse(endDate) : Instant.now();
+        
+        return orderService.getOrdersByDateRange(storeId, start, end, page, size);
+    }
+
+    /**
+     * Get count of orders by status.
+     *
+     * @param storeId The store ID
+     * @param statusId The status to count
+     * @return Count of orders with the specified status
+     */
+    @GET
+    @Path("/count")
+    @Operation(summary = "Count orders by status", description = "Returns the count of orders for a specific status")
+    @RolesAllowed({"PLATFORM_ADMIN", "STORE_ADMIN", "ORDER_MANAGER"})
+    @APIResponses({
+            @APIResponse(responseCode = "200", description = "Order count retrieved successfully")
+    })
+    public Response countOrdersByStatus(
+            @PathParam("storeId") UUID storeId,
+            @QueryParam("statusId") String statusId) {
+        Log.infof("Counting orders for store %s with status %s", storeId, statusId);
+        
+        if (statusId == null || statusId.trim().isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"error\": \"StatusId is required\"}")
+                    .build();
+        }
+        
+        long count = orderService.countOrdersByStatus(storeId, statusId.trim());
+        return Response.ok(Map.of("statusId", statusId, "count", count)).build();
+    }
+
+    /**
      * Get order tracking information.
      * Provides detailed tracking information including status history and progress.
      *
