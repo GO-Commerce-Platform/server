@@ -9,7 +9,10 @@ import dev.tiodati.saas.gocommerce.product.service.ProductKitService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
+import jakarta.validation.Valid;
+import io.quarkus.logging.Log;
 
 import java.util.List;
 import java.util.Optional;
@@ -54,9 +57,11 @@ public class ProductKitServiceImpl implements ProductKitService {
     public ProductKitDto update(UUID id, UpdateProductKitDto updateProductKitDto) {
         ProductKit productKit = entityManager.find(ProductKit.class, id);
         if (productKit == null) {
-            return null;
+            Log.warnf("ProductKit not found for ID: %s", id);
+            throw new EntityNotFoundException("ProductKit not found with id: " + id);
         }
 
+        Log.infof("Updating ProductKit: %s", id);
         productKit.setName(updateProductKitDto.name());
         productKit.setDescription(updateProductKitDto.description());
         productKit.setPrice(updateProductKitDto.price());
@@ -69,6 +74,7 @@ public class ProductKitServiceImpl implements ProductKitService {
             .collect(Collectors.toList());
         productKit.getItems().addAll(items);
 
+        Log.infof("ProductKit updated successfully: %s", id);
         return toDto(productKit);
     }
 
@@ -76,9 +82,13 @@ public class ProductKitServiceImpl implements ProductKitService {
     @Transactional
     public void delete(UUID id) {
         ProductKit productKit = entityManager.find(ProductKit.class, id);
-        if (productKit != null) {
-            entityManager.remove(productKit);
+        if (productKit == null) {
+            Log.warnf("ProductKit not found for deletion: %s", id);
+            throw new EntityNotFoundException("ProductKit not found with id: " + id);
         }
+        
+        Log.infof("Deleting ProductKit: %s", id);
+        entityManager.remove(productKit);
     }
 
     private ProductKitDto toDto(ProductKit productKit) {
