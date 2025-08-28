@@ -3,10 +3,12 @@ package dev.tiodati.saas.gocommerce.platform;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.File;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Arrays;
 import java.util.UUID;
 
 import javax.sql.DataSource;
@@ -100,15 +102,15 @@ class SchemaManagerTest {
     @Order(4)
     void testFlywayMigrationVersionsRecorded() throws Exception {
         // Given
-        assertTrue(schemaExists(EXPECTED_SCHEMA_NAME),
-                "Test schema should exist");
+        assertTrue(schemaExists(EXPECTED_SCHEMA_NAME), "Test schema should exist");
 
         // When - Query migration history
         int migrationCount = getMigrationCount(EXPECTED_SCHEMA_NAME);
 
-        // Then - Should have 6 migrations (V3, V4, V5, V6, V8, V9, V10)
-        assertEquals(7, migrationCount,
-                "Should have 6 migration records in Flyway history table");
+        // Then - Should have the same number of migrations as files
+        long expectedCount = countMigrationFiles();
+        assertEquals(expectedCount, migrationCount,
+                "Should have the same number of migration records as files in the migration directory");
     }
 
     @Test
@@ -226,5 +228,15 @@ class SchemaManagerTest {
         // Use the main SchemaManager to ensure consistent cleanup logic
         // (e.g., using CASCADE)
         schemaManager.dropSchema(schemaName);
+    }
+
+    private long countMigrationFiles() {
+        File migrationsDir = new File("src/main/resources/db/migration/stores");
+        if (migrationsDir.exists() && migrationsDir.isDirectory()) {
+            return Arrays.stream(migrationsDir.listFiles())
+                    .filter(file -> file.isFile() && file.getName().endsWith(".sql"))
+                    .count();
+        }
+        return 0;
     }
 }
