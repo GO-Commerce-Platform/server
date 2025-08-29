@@ -2,9 +2,28 @@
 
 A multi-store e-commerce SaaS platform built with Quarkus 3.23.4 and event-driven architecture.
 
+## 🚀 **MVP Status: Production Ready!**
+
+✅ **Core Features Implemented:**
+- Multi-tenant architecture with schema-per-store isolation
+- Complete authentication and authorization system (Keycloak + JWT)
+- Full product catalog with inventory management
+- Shopping cart with persistence and calculations  
+- Complete order processing workflow (cart → order → fulfillment)
+- Customer management (Individual/Company types)
+- Store administration and settings management
+- REST APIs with OpenAPI/Swagger documentation
+
+✅ **Production Infrastructure:**
+- Docker containerization with Docker Compose orchestration
+- Database migrations with Flyway (master + store schemas)
+- Professional development toolchain with helper scripts
+- Comprehensive testing infrastructure (unit + integration)
+- Multi-tenant testing with isolated schemas
+
 ## Project Overview
 
-GO-Commerce is a scalable, multi-store e-commerce platform designed to support multiple storefronts with complete data isolation. The platform uses an event-driven architecture with Apache Kafka for asynchronous communication between services.
+GO-Commerce is a scalable, multi-store e-commerce platform designed to support multiple storefronts with complete data isolation. Each merchant operates within their own database schema, providing complete data isolation and customizable environments.
 
 ## Technology Stack
 
@@ -63,7 +82,47 @@ For detailed technical implementation guides, see also:
 -   [Multi-Schema Architecture](./wiki/Multi-Schema-Architecture.md) - Complete guide to the schema-per-store implementation
 -   [Database Migration from MariaDB to PostgreSQL](./MIGRATION-FROM-MARIADB.md) - Details about the database migration
 
-## Getting Started
+## 🚀 Quick Start
+
+**Get GO-Commerce running in under 5 minutes:**
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/aquele-dinho/GO-Commerce.git
+cd gocommerce
+
+# 2. Start everything with one command
+./docker/run-docker.sh
+```
+
+**That's it! 🎉** The script will:
+- ✅ Build the latest application code
+- ✅ Start PostgreSQL databases with health checks
+- ✅ Start Keycloak with realm import
+- ✅ Start the GO-Commerce application
+- ✅ Show you all service URLs when ready
+
+### 🌐 **Access Your Application:**
+
+- **Application**: http://localhost:8080
+- **API Documentation (Swagger)**: http://localhost:8080/swagger-ui  
+- **OpenAPI Spec**: http://localhost:8080/openapi
+- **Keycloak Admin**: http://localhost:9000 (admin/admin)
+
+### 🧪 **Run Tests:**
+
+```bash
+./docker/run-tests.sh all    # Complete test suite with code style
+./docker/run-tests.sh        # Standard tests
+```
+
+### 🔄 **Need a Fresh Start?**
+
+```bash
+./docker/rebuild-docker.sh   # Complete environment rebuild
+```
+
+## Getting Started (Detailed)
 
 1. Clone the repository
 
@@ -87,7 +146,7 @@ For detailed technical implementation guides, see also:
     - PostgreSQL (main application database)
     - PostgreSQL (Keycloak database - separate instance)
     - Keycloak (authentication and identity management)
-    - The Quarkus 3.23.4 application
+    - The GO-Commerce application
 
 4. Alternatively, run just the infrastructure in Docker and the application in dev mode
 
@@ -188,6 +247,125 @@ Key top-level feature packages include:
 -   `dev.tiodati.saas.gocommerce.shared` (or `common`): For truly cross-cutting concerns like utilities, base classes, and shared configurations not specific to a single feature.
 
 This structure promotes high cohesion within feature modules and low coupling between them, enhancing maintainability and scalability.
+
+## 🚀 API Overview
+
+GO-Commerce provides a comprehensive REST API with full OpenAPI 3.1 documentation:
+
+### 📈 **Core API Endpoints:**
+
+**Authentication & Authorization:**
+- `POST /api/auth/login` - User authentication
+- `POST /api/auth/refresh` - Token refresh
+- `DELETE /api/auth/logout` - User logout
+- `GET /api/auth/validate` - Token validation
+
+**Store Management:**
+- `GET /api/stores` - List stores (platform admin)
+- `POST /api/stores` - Create new store
+- `GET /api/stores/{storeId}` - Get store details
+- `PUT /api/stores/{storeId}` - Update store settings
+
+**Product Catalog:**
+- `GET /api/stores/{storeId}/products` - List products with filtering
+- `POST /api/stores/{storeId}/products` - Create product
+- `GET /api/stores/{storeId}/products/{productId}` - Get product details
+- `PUT /api/stores/{storeId}/products/{productId}` - Update product
+- `DELETE /api/stores/{storeId}/products/{productId}` - Delete product
+
+**Customer Management:**
+- `GET /api/stores/{storeId}/customers` - List customers
+- `POST /api/stores/{storeId}/customers` - Create customer
+- `GET /api/stores/{storeId}/customers/{customerId}` - Get customer details
+- `PUT /api/stores/{storeId}/customers/{customerId}` - Update customer
+
+**Shopping Cart:**
+- `GET /api/stores/{storeId}/cart` - Get current cart
+- `POST /api/stores/{storeId}/cart/items` - Add item to cart
+- `PUT /api/stores/{storeId}/cart/items/{itemId}` - Update cart item
+- `DELETE /api/stores/{storeId}/cart/items/{itemId}` - Remove cart item
+- `POST /api/stores/{storeId}/cart/checkout` - Checkout cart
+
+**Order Processing:**
+- `GET /api/stores/{storeId}/orders` - List orders
+- `POST /api/stores/{storeId}/orders` - Create order
+- `GET /api/stores/{storeId}/orders/{orderId}` - Get order details
+- `PUT /api/stores/{storeId}/orders/{orderId}/status` - Update order status
+
+**Inventory Management:**
+- `GET /api/stores/{storeId}/inventory` - List inventory items
+- `POST /api/stores/{storeId}/inventory/adjustments` - Create inventory adjustment
+- `GET /api/stores/{storeId}/inventory/{productId}` - Get product inventory
+
+### 🔒 **Security & Multi-Tenancy:**
+
+- **JWT Authentication**: All endpoints require valid JWT tokens
+- **Role-Based Access Control**: Different roles (platform-admin, store-admin, product-manager, etc.)
+- **Store Context**: Automatic store context resolution and validation
+- **Schema Isolation**: Each store operates in its own database schema
+
+### 📄 **API Documentation:**
+
+- **Interactive Docs**: http://localhost:8080/swagger-ui
+- **OpenAPI Spec**: http://localhost:8080/openapi
+- **Postman Collection**: Available in `/docs/api/` directory
+
+## 👨‍💻 Development Workflow
+
+### **Local Development:**
+
+```bash
+# 1. Start infrastructure (recommended)
+./docker/run-docker.sh
+
+# 2. Alternative: Dev mode with hot reload
+mvn quarkus:dev
+# or with continuous testing
+mvn quarkus:dev -Dquarkus.test.continuous-testing=enabled
+```
+
+### **Building & Testing:**
+
+```bash
+# Build application
+mvn clean package
+
+# Run tests
+mvn test
+
+# Run with Docker dependencies
+./docker/run-tests.sh all
+
+# Code style check
+mvn checkstyle:check
+```
+
+### **Working with Multi-Tenancy:**
+
+```java
+// Create a new store schema
+@Inject SchemaManager schemaManager;
+schemaManager.createSchema("store_myshop");
+
+// Set store context for operations
+StoreContext.setCurrentStore("store_myshop");
+// Database operations will now target the store schema
+
+// Use security annotations
+@RequiresStoreRole("store-admin")
+public void storeAdminOperation() {
+    // Automatically validates role and sets store context
+}
+```
+
+### **Contributing:**
+
+1. **Fork and Clone**: Fork the repository and clone your fork
+2. **Create Branch**: `git checkout -b feature/your-feature-name`
+3. **Develop**: Follow SOLID principles and write tests
+4. **Test**: Ensure all tests pass with `./docker/run-tests.sh all`
+5. **Commit**: Use conventional commit messages
+6. **Push and PR**: Create a pull request with detailed description
 
 ## License
 

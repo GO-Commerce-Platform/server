@@ -47,21 +47,29 @@ mvn quarkus:dev -Dquarkus.test.continuous-testing=enabled
 ```
 
 ### Docker Operations
-**Note:** The README mentions these scripts, but they don't exist yet:
+**Professional Docker scripts now available:**
 ```bash
-# TODO: These scripts need to be created
-./docker/run-docker.sh        # Build and start all containers
-./docker/rebuild-docker.sh    # Tear down and rebuild environment  
+# Build and start complete environment (RECOMMENDED)
+./docker/run-docker.sh        # Build and start all containers with health checks
+./docker/rebuild-docker.sh    # Tear down and rebuild environment from scratch
 ./docker/run-tests.sh         # Run tests with Docker dependencies
+
+# Test variations
+./docker/run-tests.sh all          # All tests + checkstyle
+./docker/run-tests.sh integration  # Integration tests only
+./docker/run-tests.sh unit         # Unit tests only
+./docker/run-tests.sh coverage     # Tests with coverage report
 ```
 
-**Current Docker usage:**
+**Alternative Docker usage:**
 ```bash
-# Start infrastructure only (recommended for development)
-cd docker && docker-compose --env-file .env up -d
+# Start infrastructure only (for development)
+cd docker && docker-compose --env-file .env up -d postgres keycloak-db keycloak
 
-# Or start everything including the app
-cd docker && docker-compose up -d
+# Manual service control
+cd docker && docker-compose --env-file .env up -d gocommerce  # Start app
+cd docker && docker-compose --env-file .env logs -f gocommerce # View logs
+cd docker && docker-compose --env-file .env down --remove-orphans # Stop all
 ```
 
 ### Testing
