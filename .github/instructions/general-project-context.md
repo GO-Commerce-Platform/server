@@ -108,7 +108,7 @@ Typically includes `dto/`, `resource/` (REST controllers), `service/`, `model/` 
     -   Stop: `docker compose down`
     -   Stop & Remove Volumes: `docker compose down -v`
     -   Logs: `docker compose logs -f [service_name]`
-    -   Build & Run App: `docker compose up -d --build app`
+    -   Build & Run App: `docker compose up -d --build gocommerce`
 -   **Helper Scripts**:
     -   `./docker/run-docker.sh`: Build and run the application.
     -   `./docker/rebuild-docker.sh`: Tear down and rebuild.
