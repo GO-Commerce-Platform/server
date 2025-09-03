@@ -62,18 +62,18 @@ The project is being developed in phases, starting with an MVP:
 
 ## Documentation
 
-The complete documentation for this project is available in the [Wiki](https://github.com/aquele-dinho/GO-Commerce/wiki):
+The complete documentation for this project is available in the [Wiki](https://github.com/GO-Commerce-Platform/server/wiki):
 
-1. [Document Structure](https://github.com/aquele-dinho/GO-Commerce/wiki/00-Document-Structure)
-2. [Project Charter](https://github.com/aquele-dinho/GO-Commerce/wiki/01-Project-Charter)
-3. [Roadmap](https://github.com/aquele-dinho/GO-Commerce/wiki/02-Roadmap)
-4. [User Stories](https://github.com/aquele-dinho/GO-Commerce/wiki/03-User-Story)
-5. [Technical Design Document](https://github.com/aquele-dinho/GO-Commerce/wiki/04-Technical-Design-Document)
-6. [Technical Solution Specification](https://github.com/aquele-dinho/GO-Commerce/wiki/05-Technical-Solution-Specification)
-7. [Data Model](https://github.com/aquele-dinho/GO-Commerce/wiki/06-Data-Model)
-8. [Test Plan](https://github.com/aquele-dinho/GO-Commerce/wiki/07-Test-Plan)
-9. [MVP Planning](https://github.com/aquele-dinho/GO-Commerce/wiki/08-MVP-Planning)
-10. [AI Agent Instructions](https://github.com/aquele-dinho/GO-Commerce/wiki/09-AI-Agent-Instructions.md)
+1. [Document Structure](https://github.com/GO-Commerce-Platform/server/wiki/00-Document-Structure)
+2. [Project Charter](https://github.com/GO-Commerce-Platform/server/wiki/01-Project-Charter)
+3. [Roadmap](https://github.com/GO-Commerce-Platform/server/wiki/02-Roadmap)
+4. [User Stories](https://github.com/GO-Commerce-Platform/server/wiki/03-User-Story)
+5. [Technical Design Document](https://github.com/GO-Commerce-Platform/server/wiki/04-Technical-Design-Document)
+6. [Technical Solution Specification](https://github.com/GO-Commerce-Platform/server/wiki/05-Technical-Solution-Specification)
+7. [Data Model](https://github.com/GO-Commerce-Platform/server/wiki/06-Data-Model)
+8. [Test Plan](https://github.com/GO-Commerce-Platform/server/wiki/07-Test-Plan)
+9. [MVP Planning](https://github.com/GO-Commerce-Platform/server/wiki/08-MVP-Planning)
+10. [AI Agent Instructions](https://github.com/GO-Commerce-Platform/server/wiki/09-AI-Agent-Instructions.md)
 
 ### Technical Architecture Documentation
 
@@ -88,8 +88,8 @@ For detailed technical implementation guides, see also:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/aquele-dinho/GO-Commerce.git
-cd gocommerce
+git clone https://github.com/GO-Commerce-Platform/server.git
+cd server
 
 # 2. Start everything with one command
 ./docker/run-docker.sh
@@ -127,7 +127,7 @@ cd gocommerce
 1. Clone the repository
 
     ```
-    git clone https://github.com/aquele-dinho/GO-Commerce.git
+    git clone https://github.com/GO-Commerce-Platform/server.git
     ```
 
 2. Set up environment variables
@@ -213,7 +213,7 @@ gocommerce.flyway.store-migrations.validate-on-migrate=true
 
 ## Troubleshooting
 
-If you encounter issues or test failures, please refer to the specific error messages. You can also [create an issue](https://github.com/aquele-dinho/GO-Commerce/issues) with detailed logs and steps to reproduce the problem.
+If you encounter issues or test failures, please refer to the specific error messages. You can also [create an issue](https://github.com/GO-Commerce-Platform/server/issues) with detailed logs and steps to reproduce the problem.
 
 ## Docker Structure
 

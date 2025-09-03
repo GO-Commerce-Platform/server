@@ -1,12 +1,12 @@
 # MCP Issues Migration to Dedicated Repository
 
 **Migration Date:** 2025-09-03  
-**From:** aquele-dinho/GO-Commerce  
-**To:** aquele-dinho/mcp
+**From:** GO-Commerce-Platform/server (formerly aquele-dinho/GO-Commerce)
+**To:** GO-Commerce-Platform/mcp (formerly aquele-dinho/mcp)
 
 ## Overview
 
-All issues with the "mcp" label have been successfully migrated to the dedicated MCP repository: **[aquele-dinho/mcp](https://github.com/aquele-dinho/mcp)**
+All issues with the "mcp" label have been successfully migrated to the dedicated MCP repository: **[GO-Commerce-Platform/mcp](https://github.com/GO-Commerce-Platform/mcp)**
 
 This migration was performed to better organize development work, with the main GO-Commerce repository focusing on the core platform and the MCP repository focusing on the Model Context Protocol service.
 
@@ -48,8 +48,8 @@ Successfully migrated **9 issues** with "mcp" label from GO-Commerce repository 
 ## Future MCP Development
 
 All future MCP-related development should occur in the dedicated repository:
-- **Repository**: https://github.com/aquele-dinho/mcp
-- **Issues**: https://github.com/aquele-dinho/mcp/issues
+- **Repository**: https://github.com/GO-Commerce-Platform/mcp
+- **Issues**: https://github.com/GO-Commerce-Platform/mcp/issues
 - **Documentation**: Available in the MCP repository
 
 ---
